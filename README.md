@@ -58,10 +58,25 @@ POST https://<your-domain>/api/webhook
 ## Deploy บน Firebase App Hosting
 
 1. Push โค้ดขึ้น GitHub
-2. ใน Firebase Console (โปรเจกต์ jaihan-assistant) → App Hosting
-3. เชื่อม GitHub repository
-4. ตั้งค่า Environment variables ตาม `.env.example`
-5. Deploy
+2. ใน Firebase Console → **Build → App Hosting** → Create backend
+3. เชื่อม GitHub repository (root directory = `/`, live branch = `main`)
+4. ตั้งค่า secrets ใน App Hosting (Cloud Secret Manager) ให้ตรงกับ `apphosting.yaml`:
+   - `lineChannelSecret` → LINE Channel Secret
+   - `lineChannelAccessToken` → LINE Channel Access Token (long-lived)
+   - `geminiApiKey` → Google Gemini API key
+
+สามารถตั้ง secrets ได้ด้วย Firebase CLI (ต้อง login และเลือกโปรเจกต์ให้ถูกต้อง):
+
+```bash
+firebase login
+firebase use <PROJECT_ID>
+
+firebase apphosting:secrets:set lineChannelSecret
+firebase apphosting:secrets:set lineChannelAccessToken
+firebase apphosting:secrets:set geminiApiKey
+```
+
+5. Trigger rollout โดย push เข้า `main` (หรือกด Deploy/rollout ใน Firebase Console)
 
 ## สิ่งที่จำเป็น
 

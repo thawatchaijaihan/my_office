@@ -1,0 +1,32 @@
+# Firebase App Hosting configuration
+# Safe to commit: secrets are stored in Cloud Secret Manager.
+
+runConfig:
+  # Keep costs low by default; tune as needed in Firebase Console or per-env yaml.
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # LINE Messaging API
+  - variable: LINE_CHANNEL_SECRET
+    secret: lineChannelSecret
+    availability:
+      - RUNTIME
+  - variable: LINE_CHANNEL_ACCESS_TOKEN
+    secret: lineChannelAccessToken
+    availability:
+      - RUNTIME
+
+  # Google Gemini
+  - variable: GEMINI_API_KEY
+    secret: geminiApiKey
+    availability:
+      - RUNTIME
+  - variable: GEMINI_MODEL
+    value: gemini-2.0-flash
+    availability:
+      - RUNTIME
+
