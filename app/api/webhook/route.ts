@@ -106,7 +106,7 @@ function flexReviewCarousel(params: {
 }) {
   return {
     type: "flex",
-    altText: "รายการรอตรวจ (กดข้อมูลถูก/ผิด)",
+    altText: "รายการรอตรวจ (เลือกสถานะ N)",
     contents: {
       type: "carousel",
       contents: params.rows.map((r) => ({
@@ -124,8 +124,8 @@ function flexReviewCarousel(params: {
         },
         footer: {
           type: "box",
-          layout: "horizontal",
-          spacing: "sm",
+          layout: "vertical",
+          spacing: "xs",
           contents: [
             {
               type: "button",
@@ -133,8 +133,18 @@ function flexReviewCarousel(params: {
               color: "#16a34a",
               action: {
                 type: "postback",
-                label: "ข้อมูลถูกต้อง",
-                data: `action=review&result=correct&row=${r.rowNumber}`,
+                label: "รออนุมัติจาก ฝขว.พล.ป.",
+                data: `action=review&result=waiting_approval&row=${r.rowNumber}`,
+              },
+            },
+            {
+              type: "button",
+              style: "primary",
+              color: "#2563eb",
+              action: {
+                type: "postback",
+                label: "รอส่ง ฝขว.พล.ป.",
+                data: `action=review&result=waiting_send&row=${r.rowNumber}`,
               },
             },
             {
@@ -142,7 +152,17 @@ function flexReviewCarousel(params: {
               style: "secondary",
               action: {
                 type: "postback",
-                label: "ข้อมูลผิด",
+                label: "รอลบข้อมูล",
+                data: `action=review&result=waiting_delete&row=${r.rowNumber}`,
+              },
+            },
+            {
+              type: "button",
+              style: "secondary",
+              color: "#dc2626",
+              action: {
+                type: "postback",
+                label: "ข้อมูลไม่ถูกต้อง",
                 data: `action=review&result=incorrect&row=${r.rowNumber}`,
               },
             },
@@ -188,20 +208,20 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
 
   if (t === "review") {
     const indexRows = await readIndexRows();
-    // Show items where M (paymentStatus) is empty - need to determine payment status
+    // Show items where N (approvalStatus) is empty - need to determine approval status
     const pending = indexRows
-      .filter((r) => !r.paymentStatus)
+      .filter((r) => !r.approvalStatus)
       .slice(0, 10);
 
     if (pending.length === 0) {
-      await replyText(params.replyToken, "ไม่มีรายการรอตรวจ (M ว่าง)");
+      await replyText(params.replyToken, "ไม่มีรายการรอตรวจ (N ว่าง)");
       return;
     }
 
     const flexRows = pending.map((r) => ({
       rowNumber: r.rowNumber,
       title: `${r.rank}${r.firstName} ${r.lastName}`,
-      subtitle: `ทะเบียน: ${r.plate || "-"} | ประเภท: ${r.vehicleType || "-"}`,
+      subtitle: `ทะเบียน: ${r.plate || "-"} | M: ${r.paymentStatus || "(ว่าง)"}`,
     }));
 
     await replyMessages(params.replyToken, [flexReviewCarousel({ rows: flexRows }) as any]);
@@ -352,37 +372,32 @@ async function handleEvents(events: LineEvent[]) {
             continue;
           }
 
-          if (result === "correct") {
-            // ข้อมูลถูกต้อง → M = ค้างชำระเงิน (ready for payment)
-            await writeIndexUpdatesMR([
-              {
-                rowNumber: row,
-                paymentStatus: "ค้างชำระเงิน",
-                approvalStatus: target.approvalStatus, // keep N unchanged
-                checkedAt: now,
-                slipFirstName: target.slipFirstName,
-                slipLastName: target.slipLastName,
-                slipAmount: target.slipAmount,
-              },
-            ]);
-            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ค้างชำระเงิน`);
-          } else if (result === "incorrect") {
-            // ข้อมูลไม่ถูกต้อง → M = ลบข้อมูล, N = ข้อมูลไม่ถูกต้อง
-            await writeIndexUpdatesMR([
-              {
-                rowNumber: row,
-                paymentStatus: "ลบข้อมูล",
-                approvalStatus: "ข้อมูลไม่ถูกต้อง",
-                checkedAt: now,
-                slipFirstName: "",
-                slipLastName: "",
-                slipAmount: "",
-              },
-            ]);
-            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ลบข้อมูล (ข้อมูลไม่ถูกต้อง)`);
-          } else {
+          // Map result to N (approvalStatus) value
+          const approvalMap: Record<string, { n: string; m?: string }> = {
+            waiting_approval: { n: "รออนุมัติจาก ฝขว.พล.ป." },
+            waiting_send: { n: "รอส่ง ฝขว.พล.ป." },
+            waiting_delete: { n: "รอลบข้อมูล", m: "ลบข้อมูล" },
+            incorrect: { n: "ข้อมูลไม่ถูกต้อง", m: "ลบข้อมูล" },
+          };
+
+          const mapping = approvalMap[result ?? ""];
+          if (!mapping) {
             await replyText(replyToken, "ผลการตรวจไม่ถูกต้อง");
+            continue;
           }
+
+          await writeIndexUpdatesMR([
+            {
+              rowNumber: row,
+              paymentStatus: mapping.m ?? target.paymentStatus, // keep M or set if specified
+              approvalStatus: mapping.n,
+              checkedAt: now,
+              slipFirstName: mapping.m ? "" : target.slipFirstName,
+              slipLastName: mapping.m ? "" : target.slipLastName,
+              slipAmount: mapping.m ? "" : target.slipAmount,
+            },
+          ]);
+          await replyText(replyToken, `บันทึกแล้ว: แถว ${row}\nN = ${mapping.n}${mapping.m ? `\nM = ${mapping.m}` : ""}`);
 
           // Apply slip allocation after review change
           const [indexRows2, slipRows2] = await Promise.all([readIndexRows(), readSlipRows()]);
