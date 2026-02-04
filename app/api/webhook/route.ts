@@ -140,7 +140,7 @@ function flexReviewCarousel(params: {
             {
               type: "button",
               style: "primary",
-              color: "#2563eb",
+              color: "#16a34a",
               action: {
                 type: "postback",
                 label: "รอส่ง ฝขว.พล.ป.",
@@ -149,7 +149,8 @@ function flexReviewCarousel(params: {
             },
             {
               type: "button",
-              style: "secondary",
+              style: "primary",
+              color: "#16a34a",
               action: {
                 type: "postback",
                 label: "รอลบข้อมูล",
@@ -158,8 +159,8 @@ function flexReviewCarousel(params: {
             },
             {
               type: "button",
-              style: "secondary",
-              color: "#dc2626",
+              style: "primary",
+              color: "#16a34a",
               action: {
                 type: "postback",
                 label: "ข้อมูลไม่ถูกต้อง",
