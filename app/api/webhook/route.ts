@@ -405,9 +405,6 @@ async function handleEvents(events: LineEvent[]) {
               paymentStatus: mapping.m ?? target.paymentStatus, // keep M or set if specified
               approvalStatus: mapping.n,
               checkedAt: now,
-              slipFirstName: mapping.m ? "" : target.slipFirstName,
-              slipLastName: mapping.m ? "" : target.slipLastName,
-              slipAmount: mapping.m ? "" : target.slipAmount,
             },
           ]);
           await replyText(replyToken, `บันทึกแล้ว: แถว ${row}\nN = ${mapping.n}${mapping.m ? `\nM = ${mapping.m}` : ""}`);

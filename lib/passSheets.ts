@@ -20,9 +20,6 @@ export type IndexRow = {
   paymentStatus: string; // M - ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล
   approvalStatus: string; // N - รออนุมัติจาก..., ข้อมูลไม่ถูกต้อง, etc.
   checkedAt: string; // O
-  slipFirstName: string; // P
-  slipLastName: string; // Q
-  slipAmount: string; // R
 };
 
 export type SlipRow = {
@@ -40,7 +37,7 @@ function getCell(row: string[], idx: number): string {
 }
 
 export async function readIndexRows(): Promise<IndexRow[]> {
-  const values = await readValues({ range: `${INDEX_SHEET_NAME}!A2:R` });
+  const values = await readValues({ range: `${INDEX_SHEET_NAME}!A2:O` });
   const rows: IndexRow[] = [];
   for (let i = 0; i < values.length; i++) {
     const r = values[i]!;
@@ -63,10 +60,7 @@ export async function readIndexRows(): Promise<IndexRow[]> {
       note: getCell(r, 11),
       paymentStatus: getCell(r, 12), // M
       approvalStatus: getCell(r, 13), // N
-      checkedAt: getCell(r, 14),
-      slipFirstName: getCell(r, 15),
-      slipLastName: getCell(r, 16),
-      slipAmount: getCell(r, 17),
+      checkedAt: getCell(r, 14), // O
     });
   }
   return rows;
@@ -99,25 +93,13 @@ export type IndexUpdateMR = {
   paymentStatus: string; // M - ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล
   approvalStatus: string; // N - keep existing value
   checkedAt: string; // O
-  slipFirstName: string; // P
-  slipLastName: string; // Q
-  slipAmount: string; // R
 };
 
 export async function writeIndexUpdatesMR(updates: IndexUpdateMR[]) {
   await batchUpdateValues({
     updates: updates.map((u) => ({
-      range: `${INDEX_SHEET_NAME}!M${u.rowNumber}:R${u.rowNumber}`,
-      values: [
-        [
-          u.paymentStatus,
-          u.approvalStatus,
-          u.checkedAt,
-          u.slipFirstName,
-          u.slipLastName,
-          u.slipAmount,
-        ],
-      ],
+      range: `${INDEX_SHEET_NAME}!M${u.rowNumber}:O${u.rowNumber}`,
+      values: [[u.paymentStatus, u.approvalStatus, u.checkedAt]],
     })),
   });
 }

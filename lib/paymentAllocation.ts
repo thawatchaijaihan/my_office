@@ -174,9 +174,6 @@ export function allocateSlipToIndex(params: {
         paymentStatus: PAID,
         approvalStatus: r.approvalStatus, // keep N unchanged
         checkedAt: params.checkedAtValue(slip),
-        slipFirstName: extractFirstNameFromRankName(slip.payerRankName),
-        slipLastName: slip.payerSurname,
-        slipAmount: String(amount),
       });
     }
 
@@ -188,9 +185,6 @@ export function allocateSlipToIndex(params: {
         paymentStatus: OUTSTANDING,
         approvalStatus: r.approvalStatus, // keep N unchanged
         checkedAt: r.checkedAt,
-        slipFirstName: r.slipFirstName,
-        slipLastName: r.slipLastName,
-        slipAmount: r.slipAmount,
       });
     }
   }
@@ -206,9 +200,6 @@ export function allocateSlipToIndex(params: {
         paymentStatus: OUTSTANDING,
         approvalStatus: r.approvalStatus,
         checkedAt: r.checkedAt,
-        slipFirstName: r.slipFirstName,
-        slipLastName: r.slipLastName,
-        slipAmount: r.slipAmount,
       });
     }
   }
