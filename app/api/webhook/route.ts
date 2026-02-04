@@ -102,6 +102,7 @@ function flexReviewCarousel(params: {
     rowNumber: number;
     title: string;
     subtitle: string;
+    linkUrl: string;
   }>;
 }) {
   return {
@@ -117,7 +118,17 @@ function flexReviewCarousel(params: {
           spacing: "sm",
           contents: [
             { type: "text", text: r.title, weight: "bold", wrap: true },
-            { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
+            r.linkUrl
+              ? {
+                  type: "text",
+                  text: r.subtitle,
+                  size: "sm",
+                  color: "#0066cc",
+                  wrap: true,
+                  action: { type: "uri", uri: r.linkUrl },
+                  decoration: "underline",
+                }
+              : { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
             { type: "separator", margin: "md" },
             { type: "text", text: `แถว ${r.rowNumber}`, size: "xs", color: "#999999" },
           ],
@@ -223,6 +234,7 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
       rowNumber: r.rowNumber,
       title: `${r.rank}${r.firstName} ${r.lastName}`,
       subtitle: `ทะเบียน: ${r.plate || "-"} | M: ${r.paymentStatus || "(ว่าง)"}`,
+      linkUrl: r.note || "", // Column L - URL
     }));
 
     await replyMessages(params.replyToken, [flexReviewCarousel({ rows: flexRows }) as any]);
