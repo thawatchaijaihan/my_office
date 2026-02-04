@@ -12,6 +12,20 @@ import {
 import { allocateSlipToIndex } from "@/lib/paymentAllocation";
 
 /**
+ * Format date to dd/mm/yyyy HH:mm:ss (Christian Era)
+ */
+function formatDateTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dd = pad(date.getDate());
+  const mm = pad(date.getMonth() + 1);
+  const yyyy = date.getFullYear();
+  const HH = pad(date.getHours());
+  const MI = pad(date.getMinutes());
+  const SS = pad(date.getSeconds());
+  return `${dd}/${mm}/${yyyy} ${HH}:${MI}:${SS}`;
+}
+
+/**
  * Verify LINE webhook signature
  */
 function verifySignature(body: string, signature: string): boolean {
@@ -210,7 +224,7 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
     const result = allocateSlipToIndex({
       indexRows,
       slipRows,
-      checkedAtValue: (slip) => slip.transferDate || slip.timestamp || new Date().toLocaleString("th-TH"),
+      checkedAtValue: (slip) => slip.transferDate || slip.timestamp || formatDateTime(new Date()),
     });
     await writeIndexUpdatesMR(result.updates);
     await replyText(
@@ -380,7 +394,7 @@ async function handleEvents(events: LineEvent[]) {
             continue;
           }
 
-          const now = new Date().toLocaleString("th-TH");
+          const now = formatDateTime(new Date());
           const indexRows = await readIndexRows();
           const target = indexRows.find((r) => r.rowNumber === row);
           if (!target) {
@@ -418,7 +432,7 @@ async function handleEvents(events: LineEvent[]) {
             indexRows: indexRows2,
             slipRows: slipRows2,
             checkedAtValue: (slip) =>
-              slip.transferDate || slip.timestamp || new Date().toLocaleString("th-TH"),
+              slip.transferDate || slip.timestamp || formatDateTime(new Date()),
           });
           await writeIndexUpdatesMR(alloc.updates);
           continue;
@@ -466,7 +480,7 @@ async function handleEvents(events: LineEvent[]) {
           }
 
           const now = new Date();
-          const timestamp = now.toLocaleString("th-TH");
+          const timestamp = formatDateTime(now);
           const transferDate = extracted.transfer_datetime ?? timestamp;
 
           await appendSlipRow({
@@ -482,7 +496,7 @@ async function handleEvents(events: LineEvent[]) {
             indexRows,
             slipRows,
             checkedAtValue: (slip) =>
-              slip.transferDate || slip.timestamp || new Date().toLocaleString("th-TH"),
+              slip.transferDate || slip.timestamp || formatDateTime(new Date()),
           });
           await writeIndexUpdatesMR(result.updates);
 
