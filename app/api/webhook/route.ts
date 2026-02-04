@@ -286,13 +286,7 @@ async function handleEvents(events: LineEvent[]) {
           }
           await replyText(
             replyToken,
-            [
-              "LINE userId ของคุณคือ",
-              userId,
-              "",
-              "ให้นำไปใส่ใน .env.local:",
-              "ADMIN_LINE_USER_IDS=<userId>",
-            ].join("\n")
+            ["LINE userId ของคุณคือ", userId].join("\n")
           );
           continue;
         }
