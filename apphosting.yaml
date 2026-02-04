@@ -36,7 +36,7 @@ env:
     availability:
       - RUNTIME
   - variable: ADMIN_LINE_USER_IDS
-    value: "NONE"
+    value: "Ude812c4b7497cbbf6400967dcf93f17d"
     availability:
       - RUNTIME
   - variable: GOOGLE_SERVICE_ACCOUNT_KEY_BASE64
