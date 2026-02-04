@@ -102,6 +102,7 @@ function flexReviewCarousel(params: {
     rowNumber: number;
     title: string;
     subtitle: string;
+    paymentStatus: string;
     linkUrl: string;
   }>;
 }) {
@@ -129,6 +130,7 @@ function flexReviewCarousel(params: {
                   decoration: "underline",
                 }
               : { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
+            { type: "text", text: `M: ${r.paymentStatus}`, size: "sm", color: "#666666", wrap: true },
             { type: "separator", margin: "md" },
             { type: "text", text: `แถว ${r.rowNumber}`, size: "xs", color: "#999999" },
           ],
@@ -233,7 +235,8 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
     const flexRows = pending.map((r) => ({
       rowNumber: r.rowNumber,
       title: `${r.rank}${r.firstName} ${r.lastName}`,
-      subtitle: `ทะเบียน: ${r.plate || "-"} | M: ${r.paymentStatus || "(ว่าง)"}`,
+      subtitle: `ทะเบียน: ${r.plate || "-"}`,
+      paymentStatus: r.paymentStatus || "(ว่าง)",
       linkUrl: r.note || "", // Column L - URL
     }));
 
