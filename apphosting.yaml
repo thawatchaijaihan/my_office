@@ -30,3 +30,21 @@ env:
     availability:
       - RUNTIME
 
+  # Admin / Google Sheets (Pass system)
+  - variable: ADMIN_API_KEY
+    secret: adminApiKey
+    availability:
+      - RUNTIME
+  - variable: ADMIN_LINE_USER_IDS
+    value: ""
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_SERVICE_ACCOUNT_KEY_BASE64
+    secret: googleServiceAccountKeyBase64
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_SHEETS_ID
+    value: 19PDcY3p7ouSpnU9Fgp9qoW-LBN39AgQYgUUizDXUbVo
+    availability:
+      - RUNTIME
+

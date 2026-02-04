@@ -12,6 +12,10 @@ out/
 .env.test.local
 .env.production.local
 
+# Google service account keys (never commit)
+jaihan-assistant-b98271495e18.json
+service-account*.json
+
 # Local tools/binaries (e.g., cloudflared)
 tools/
 
