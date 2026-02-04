@@ -17,7 +17,7 @@ export const config = {
     lineUserIds: (process.env.ADMIN_LINE_USER_IDS ?? "")
       .split(",")
       .map((s) => s.trim())
-      .filter(Boolean),
+      .filter((s) => s && s !== "NONE"),
   },
   google: {
     serviceAccountKeyBase64: getEnv("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64"),
