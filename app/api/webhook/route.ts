@@ -106,7 +106,7 @@ function flexReviewCarousel(params: {
 }) {
   return {
     type: "flex",
-    altText: "รายการรอตรวจ (กดผ่าน/ไม่ผ่าน)",
+    altText: "รายการรอตรวจ (กดข้อมูลถูก/ผิด)",
     contents: {
       type: "carousel",
       contents: params.rows.map((r) => ({
@@ -133,8 +133,8 @@ function flexReviewCarousel(params: {
               color: "#16a34a",
               action: {
                 type: "postback",
-                label: "ผ่าน",
-                data: `action=review&result=pass&row=${r.rowNumber}`,
+                label: "ข้อมูลถูกต้อง",
+                data: `action=review&result=correct&row=${r.rowNumber}`,
               },
             },
             {
@@ -142,8 +142,8 @@ function flexReviewCarousel(params: {
               style: "secondary",
               action: {
                 type: "postback",
-                label: "ไม่ผ่าน",
-                data: `action=review&result=fail&row=${r.rowNumber}`,
+                label: "ข้อมูลผิด",
+                data: `action=review&result=incorrect&row=${r.rowNumber}`,
               },
             },
           ],
@@ -188,8 +188,9 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
 
   if (t === "review") {
     const indexRows = await readIndexRows();
+    // Show items where M (paymentStatus) is empty - need to determine payment status
     const pending = indexRows
-      .filter((r) => !r.reviewResult)
+      .filter((r) => !r.paymentStatus)
       .slice(0, 10);
 
     if (pending.length === 0) {
@@ -211,22 +212,21 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
     const indexRows = await readIndexRows();
 
     const total = indexRows.length;
-    const pendingReview = indexRows.filter((r) => !r.reviewResult).length;
-    const pass = indexRows.filter((r) => r.reviewResult === "ผ่าน").length;
-    const fail = indexRows.filter((r) => r.reviewResult === "ไม่ผ่าน").length;
+    // M column: paymentStatus (ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล, empty)
+    const pending = indexRows.filter((r) => !r.paymentStatus).length;
+    const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินแล้ว").length;
+    const outstanding = indexRows.filter((r) => r.paymentStatus === "ค้างชำระเงิน" || r.paymentStatus.includes("ค้าง")).length;
+    const deleted = indexRows.filter((r) => r.paymentStatus === "ลบข้อมูล").length;
 
-    const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินเรียบร้อย").length;
-    const noPay = indexRows.filter((r) => r.paymentStatus === "ไม่ต้องชำระ").length;
-    const outstanding = indexRows.filter(
-      (r) => !r.paymentStatus || r.paymentStatus.includes("ค้าง")
-    ).length;
+    // N column: approvalStatus (รออนุมัติ..., ข้อมูลไม่ถูกต้อง, etc.)
+    const dataIncorrect = indexRows.filter((r) => r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")).length;
 
-    // Outstanding by person (ชื่อ-สกุลผู้ขอ)
+    // Outstanding by person (ชื่อ-สกุลผู้ขอ) - exclude deleted and data incorrect
     const byPerson = new Map<string, number>();
     for (const r of indexRows) {
-      if (r.reviewResult === "ไม่ผ่าน") continue;
-      if (r.paymentStatus === "ชำระเงินเรียบร้อย") continue;
-      if (r.paymentStatus === "ไม่ต้องชำระ") continue;
+      if (r.paymentStatus === "ชำระเงินแล้ว") continue;
+      if (r.paymentStatus === "ลบข้อมูล") continue;
+      if (r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")) continue;
       const key = `${r.firstName} ${r.lastName}`.trim();
       byPerson.set(key, (byPerson.get(key) ?? 0) + 1);
     }
@@ -240,8 +240,8 @@ async function handleAdminText(params: { replyToken: string; text: string }) {
       [
         "สรุปภาพรวม (แท็บ index)",
         `- ทั้งหมด: ${total} รายการ`,
-        `- รอตรวจ M: ${pendingReview} | ผ่าน: ${pass} | ไม่ผ่าน: ${fail}`,
-        `- ชำระแล้ว: ${paid} | ค้างชำระ: ${outstanding} | ไม่ต้องชำระ: ${noPay}`,
+        `- M: รอกำหนด: ${pending} | ชำระแล้ว: ${paid} | ค้างชำระ: ${outstanding} | ลบข้อมูล: ${deleted}`,
+        `- N: ข้อมูลไม่ถูกต้อง: ${dataIncorrect}`,
         top.length ? "" : undefined,
         top.length ? "ค้างชำระมากสุด (Top 5)" : undefined,
         ...top,
@@ -352,37 +352,39 @@ async function handleEvents(events: LineEvent[]) {
             continue;
           }
 
-          if (result === "pass") {
+          if (result === "correct") {
+            // ข้อมูลถูกต้อง → M = ค้างชำระเงิน (ready for payment)
             await writeIndexUpdatesMR([
               {
                 rowNumber: row,
-                reviewResult: "ผ่าน",
-                paymentStatus: target.paymentStatus || `ค้างชำระเงิน 1 รายการ`,
+                paymentStatus: "ค้างชำระเงิน",
+                approvalStatus: target.approvalStatus, // keep N unchanged
                 checkedAt: now,
                 slipFirstName: target.slipFirstName,
                 slipLastName: target.slipLastName,
                 slipAmount: target.slipAmount,
               },
             ]);
-            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ผ่าน`);
-          } else if (result === "fail") {
+            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ค้างชำระเงิน`);
+          } else if (result === "incorrect") {
+            // ข้อมูลไม่ถูกต้อง → M = ลบข้อมูล, N = ข้อมูลไม่ถูกต้อง
             await writeIndexUpdatesMR([
               {
                 rowNumber: row,
-                reviewResult: "ไม่ผ่าน",
-                paymentStatus: "ไม่ต้องชำระ",
+                paymentStatus: "ลบข้อมูล",
+                approvalStatus: "ข้อมูลไม่ถูกต้อง",
                 checkedAt: now,
                 slipFirstName: "",
                 slipLastName: "",
                 slipAmount: "",
               },
             ]);
-            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ไม่ผ่าน (ไม่ต้องชำระ)`);
+            await replyText(replyToken, `บันทึกแล้ว: แถว ${row} = ลบข้อมูล (ข้อมูลไม่ถูกต้อง)`);
           } else {
             await replyText(replyToken, "ผลการตรวจไม่ถูกต้อง");
           }
 
-          // Normalize outstanding counts & apply slip allocation after review change
+          // Apply slip allocation after review change
           const [indexRows2, slipRows2] = await Promise.all([readIndexRows(), readSlipRows()]);
           const alloc = allocateSlipToIndex({
             indexRows: indexRows2,

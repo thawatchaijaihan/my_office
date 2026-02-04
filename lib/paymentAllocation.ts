@@ -28,24 +28,37 @@ function extractFirstNameFromRankName(rankName: string): string {
     .trim();
 }
 
-function isReviewFail(m: string): boolean {
-  return normalizeThai(m) === normalizeThai("ไม่ผ่าน");
+// M column values (payment status)
+const PAID = "ชำระเงินแล้ว";
+const OUTSTANDING = "ค้างชำระเงิน";
+const DELETED = "ลบข้อมูล";
+
+// N column values (approval status) - we check for "ข้อมูลไม่ถูกต้อง" to exclude
+const DATA_INCORRECT = "ข้อมูลไม่ถูกต้อง";
+
+function isPaid(m: string): boolean {
+  return normalizeThai(m) === normalizeThai(PAID);
 }
 
-function isPaidStatus(n: string): boolean {
-  return normalizeThai(n) === normalizeThai("ชำระเงินเรียบร้อย");
+function isDeleted(m: string): boolean {
+  return normalizeThai(m) === normalizeThai(DELETED);
 }
 
-function isNoPayStatus(n: string): boolean {
-  return normalizeThai(n) === normalizeThai("ไม่ต้องชำระ");
+function isDataIncorrect(n: string): boolean {
+  return normalizeThai(n).includes(normalizeThai(DATA_INCORRECT));
 }
 
-function isOutstandingStatus(n: string): boolean {
-  const t = normalizeThai(n);
-  if (!t) return true;
-  if (isPaidStatus(n) || isNoPayStatus(n)) return false;
-  // treat any "ค้าง" as outstanding
-  return t.includes(normalizeThai("ค้าง"));
+function isExcluded(r: IndexRow): boolean {
+  // Excluded from payment: M = ลบข้อมูล OR N = ข้อมูลไม่ถูกต้อง
+  return isDeleted(r.paymentStatus) || isDataIncorrect(r.approvalStatus);
+}
+
+function isOutstanding(r: IndexRow): boolean {
+  // Outstanding: M is empty or contains "ค้าง", and not excluded
+  if (isExcluded(r)) return false;
+  if (isPaid(r.paymentStatus)) return false;
+  const m = normalizeThai(r.paymentStatus);
+  return !m || m.includes(normalizeThai("ค้าง"));
 }
 
 function parseRegisteredAtSortable(s: string): number {
@@ -80,12 +93,12 @@ export type AllocationResult = {
  * Rules:
  * - Fee per request = 30
  * - Group by requester name (C-D), match slip by (surname == D) and (slip firstName contained in C)
- * - If M == "ไม่ผ่าน": mark N = "ไม่ต้องชำระ" (excluded from outstanding)
+ * - If M == "ลบข้อมูล" or N contains "ข้อมูลไม่ถูกต้อง": excluded from payment
  * - If pay not enough, leave latest requests outstanding (pay oldest first)
- * - N format:
- *   - paid rows: "ชำระเงินเรียบร้อย"
- *   - outstanding rows: "ค้างชำระเงิน <x> รายการ" (x = outstanding count for that person)
- *   - M fail rows: "ไม่ต้องชำระ"
+ * - M values:
+ *   - paid rows: "ชำระเงินแล้ว"
+ *   - outstanding rows: "ค้างชำระเงิน"
+ *   - deleted rows: "ลบข้อมูล" (keep as-is)
  */
 export function allocateSlipToIndex(params: {
   indexRows: IndexRow[];
@@ -93,22 +106,6 @@ export function allocateSlipToIndex(params: {
   checkedAtValue: (slip: SlipRow) => string;
 }): AllocationResult {
   const updatesByRow = new Map<number, IndexUpdateMR>();
-
-  // Pre-mark M fail => no pay
-  for (const r of params.indexRows) {
-    if (!r.reviewResult) continue;
-    if (!isReviewFail(r.reviewResult)) continue;
-    if (isNoPayStatus(r.paymentStatus)) continue;
-    updatesByRow.set(r.rowNumber, {
-      rowNumber: r.rowNumber,
-      reviewResult: r.reviewResult,
-      paymentStatus: "ไม่ต้องชำระ",
-      checkedAt: r.checkedAt,
-      slipFirstName: r.slipFirstName,
-      slipLastName: r.slipLastName,
-      slipAmount: r.slipAmount,
-    });
-  }
 
   // Build lookup by requester (first+last)
   const byPersonKey = new Map<string, IndexRow[]>();
@@ -119,33 +116,6 @@ export function allocateSlipToIndex(params: {
   }
   for (const rows of byPersonKey.values()) {
     rows.sort((a, b) => parseRegisteredAtSortable(a.registeredAt) - parseRegisteredAtSortable(b.registeredAt));
-  }
-
-  // Normalize outstanding count display for everyone first
-  for (const rows of byPersonKey.values()) {
-    const outstanding = rows.filter((r) => {
-      if (isReviewFail(r.reviewResult)) return false;
-      const existing = updatesByRow.get(r.rowNumber);
-      const status = existing?.paymentStatus ?? r.paymentStatus;
-      return isOutstandingStatus(status);
-    });
-    const x = outstanding.length;
-    if (x === 0) continue;
-    for (const r of outstanding) {
-      const existing = updatesByRow.get(r.rowNumber);
-      const currentStatus = existing?.paymentStatus ?? r.paymentStatus;
-      const desired = `ค้างชำระเงิน ${x} รายการ`;
-      if (normalizeThai(currentStatus) === normalizeThai(desired)) continue;
-      updatesByRow.set(r.rowNumber, {
-        rowNumber: r.rowNumber,
-        reviewResult: existing?.reviewResult ?? r.reviewResult,
-        paymentStatus: desired,
-        checkedAt: existing?.checkedAt ?? r.checkedAt,
-        slipFirstName: existing?.slipFirstName ?? r.slipFirstName,
-        slipLastName: existing?.slipLastName ?? r.slipLastName,
-        slipAmount: existing?.slipAmount ?? r.slipAmount,
-      });
-    }
   }
 
   let processedSlips = 0;
@@ -189,22 +159,20 @@ export function allocateSlipToIndex(params: {
 
     const rows = candidates[0]!.rows;
 
-    // Outstanding rows (exclude M fail)
-    const outstanding = rows.filter(
-      (r) => !isReviewFail(r.reviewResult) && isOutstandingStatus(r.paymentStatus)
-    );
+    // Outstanding rows (exclude deleted/incorrect)
+    const outstandingRows = rows.filter((r) => isOutstanding(r));
 
-    if (outstanding.length === 0) continue;
+    if (outstandingRows.length === 0) continue;
 
-    const toPay = outstanding.slice(0, Math.min(k, outstanding.length));
+    const toPay = outstandingRows.slice(0, Math.min(k, outstandingRows.length));
     processedSlips++;
 
     for (const r of toPay) {
       allocatedRequests++;
       updatesByRow.set(r.rowNumber, {
         rowNumber: r.rowNumber,
-        reviewResult: r.reviewResult,
-        paymentStatus: "ชำระเงินเรียบร้อย",
+        paymentStatus: PAID,
+        approvalStatus: r.approvalStatus, // keep N unchanged
         checkedAt: params.checkedAtValue(slip),
         slipFirstName: extractFirstNameFromRankName(slip.payerRankName),
         slipLastName: slip.payerSurname,
@@ -212,47 +180,37 @@ export function allocateSlipToIndex(params: {
       });
     }
 
-    // Recompute outstanding count after allocation, and set N text for remaining outstanding rows
-    const afterOutstanding = rows.filter((r) => {
-      if (isReviewFail(r.reviewResult)) return false;
-      const existingUpdate = updatesByRow.get(r.rowNumber);
-      const status = existingUpdate?.paymentStatus ?? r.paymentStatus;
-      return isOutstandingStatus(status);
-    });
-
-    const x = afterOutstanding.length;
-    for (const r of afterOutstanding) {
-      const existingUpdate = updatesByRow.get(r.rowNumber);
-      // keep paid/no-pay untouched
-      const status = existingUpdate?.paymentStatus ?? r.paymentStatus;
-      if (!isOutstandingStatus(status)) continue;
+    // Mark remaining outstanding rows
+    for (const r of outstandingRows) {
+      if (updatesByRow.has(r.rowNumber)) continue; // already marked as paid
       updatesByRow.set(r.rowNumber, {
         rowNumber: r.rowNumber,
-        reviewResult: existingUpdate?.reviewResult ?? r.reviewResult,
-        paymentStatus: `ค้างชำระเงิน ${x} รายการ`,
-        checkedAt: existingUpdate?.checkedAt ?? r.checkedAt,
-        slipFirstName: existingUpdate?.slipFirstName ?? r.slipFirstName,
-        slipLastName: existingUpdate?.slipLastName ?? r.slipLastName,
-        slipAmount: existingUpdate?.slipAmount ?? r.slipAmount,
+        paymentStatus: OUTSTANDING,
+        approvalStatus: r.approvalStatus, // keep N unchanged
+        checkedAt: r.checkedAt,
+        slipFirstName: r.slipFirstName,
+        slipLastName: r.slipLastName,
+        slipAmount: r.slipAmount,
       });
     }
   }
 
-  // Final pass: ensure M fail rows are "ไม่ต้องชำระ" even if previously outstanding
+  // Mark any remaining outstanding rows that weren't touched
   for (const r of params.indexRows) {
-    if (!isReviewFail(r.reviewResult)) continue;
-    const existing = updatesByRow.get(r.rowNumber);
-    const status = existing?.paymentStatus ?? r.paymentStatus;
-    if (isNoPayStatus(status)) continue;
-    updatesByRow.set(r.rowNumber, {
-      rowNumber: r.rowNumber,
-      reviewResult: r.reviewResult,
-      paymentStatus: "ไม่ต้องชำระ",
-      checkedAt: existing?.checkedAt ?? r.checkedAt,
-      slipFirstName: existing?.slipFirstName ?? r.slipFirstName,
-      slipLastName: existing?.slipLastName ?? r.slipLastName,
-      slipAmount: existing?.slipAmount ?? r.slipAmount,
-    });
+    if (updatesByRow.has(r.rowNumber)) continue;
+    if (!isOutstanding(r)) continue;
+    // Mark as outstanding if M is empty
+    if (!r.paymentStatus) {
+      updatesByRow.set(r.rowNumber, {
+        rowNumber: r.rowNumber,
+        paymentStatus: OUTSTANDING,
+        approvalStatus: r.approvalStatus,
+        checkedAt: r.checkedAt,
+        slipFirstName: r.slipFirstName,
+        slipLastName: r.slipLastName,
+        slipAmount: r.slipAmount,
+      });
+    }
   }
 
   return {
@@ -260,4 +218,3 @@ export function allocateSlipToIndex(params: {
     summary: { processedSlips, allocatedRequests, needsReview },
   };
 }
-

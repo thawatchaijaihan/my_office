@@ -17,8 +17,8 @@ export type IndexRow = {
   plate: string;
   phone: string;
   note: string;
-  reviewResult: string; // M
-  paymentStatus: string; // N
+  paymentStatus: string; // M - ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล
+  approvalStatus: string; // N - รออนุมัติจาก..., ข้อมูลไม่ถูกต้อง, etc.
   checkedAt: string; // O
   slipFirstName: string; // P
   slipLastName: string; // Q
@@ -61,8 +61,8 @@ export async function readIndexRows(): Promise<IndexRow[]> {
       plate: getCell(r, 9),
       phone: getCell(r, 10),
       note: getCell(r, 11),
-      reviewResult: getCell(r, 12),
-      paymentStatus: getCell(r, 13),
+      paymentStatus: getCell(r, 12), // M
+      approvalStatus: getCell(r, 13), // N
       checkedAt: getCell(r, 14),
       slipFirstName: getCell(r, 15),
       slipLastName: getCell(r, 16),
@@ -96,8 +96,8 @@ export async function readSlipRows(): Promise<SlipRow[]> {
 
 export type IndexUpdateMR = {
   rowNumber: number;
-  reviewResult: string; // M
-  paymentStatus: string; // N
+  paymentStatus: string; // M - ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล
+  approvalStatus: string; // N - keep existing value
   checkedAt: string; // O
   slipFirstName: string; // P
   slipLastName: string; // Q
@@ -110,8 +110,8 @@ export async function writeIndexUpdatesMR(updates: IndexUpdateMR[]) {
       range: `${INDEX_SHEET_NAME}!M${u.rowNumber}:R${u.rowNumber}`,
       values: [
         [
-          u.reviewResult,
           u.paymentStatus,
+          u.approvalStatus,
           u.checkedAt,
           u.slipFirstName,
           u.slipLastName,
