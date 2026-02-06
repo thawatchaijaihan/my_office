@@ -1,6 +1,6 @@
 import { appendValues, batchUpdateValues, readValues } from "./googleSheets";
 
-export const INDEX_SHEET_NAME = "index";
+export const INDEX_SHEET_NAME = "id";
 export const SLIP_SHEET_NAME = "slip";
 
 export type IndexRow = {
