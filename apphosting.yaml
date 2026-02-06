@@ -36,7 +36,7 @@ env:
     availability:
       - RUNTIME
   - variable: ADMIN_LINE_USER_IDS
-    value: "Ude812c4b7497cbbf6400967dcf93f17d"
+    secret: adminLineUserIds
     availability:
       - RUNTIME
   - variable: GOOGLE_SERVICE_ACCOUNT_KEY_BASE64
@@ -44,7 +44,7 @@ env:
     availability:
       - RUNTIME
   - variable: GOOGLE_SHEETS_ID
-    value: 19PDcY3p7ouSpnU9Fgp9qoW-LBN39AgQYgUUizDXUbVo
+    secret: googleSheetsId
     availability:
       - RUNTIME
 
