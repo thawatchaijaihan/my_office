@@ -50,7 +50,7 @@ async function handleTelegramText(params: {
   userId?: number;
   text: string;
 }) {
-  const t = params.text.trim();
+  const t = params.text.trim().replace(/^\//, "");
   if (t === "help" || t === "เมนู") {
     await sendTelegramMessage({
       chatId: params.chatId,
