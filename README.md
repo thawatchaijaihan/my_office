@@ -70,6 +70,9 @@ cp .env.example .env.local
 | `GOOGLE_SHEETS_ID` | URL ของ Google Sheet (ค่าหลัง `/d/`) | Spreadsheet ที่มีแท็บ `index` และ `slip` |
 | `GEMINI_API_KEY` | Google AI Studio | แชท + อ่านสลิปจากรูป |
 | `GEMINI_MODEL` | (optional) | เช่น `gemini-2.0-flash`, `gemini-2.5-flash-lite` |
+| `TELEGRAM_BOT_TOKEN` | BotFather | สำหรับบอท Telegram |
+| `ADMIN_TELEGRAM_USER_IDS` | หลังรันบอท พิมพ์ `myid` | รายการ Telegram userId ของแอดมิน (คั่นด้วย comma) |
+| `TELEGRAM_DASHBOARD_URL` | (optional) | URL แดชบอร์ด เช่น `https://xxx.hosted.app/dashboard` สำหรับปุ่มเปิด Web App ใน Telegram |
 
 ## โครงสร้าง Google Sheets
 
@@ -136,6 +139,17 @@ npm run dev
   - **Admin Key**: ถ้าไม่ใช้ Firebase ต้องส่ง key ใน URL `/dashboard?key=YOUR_KEY` หรือกรอกในฟอร์ม
 
 จากหน้าหลักมีลิงก์ "เปิดแดชบอร์ดสรุปข้อมูล" ไปยัง `/dashboard`
+
+## Telegram Bot – เมนูเปิด Web App
+
+ตั้งค่า `TELEGRAM_DASHBOARD_URL` (เช่น `https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/dashboard`) แล้วเรียก API เพื่อตั้งค่า Menu button:
+
+```bash
+# ใช้ admin key
+curl -X POST "https://<your-domain>/api/telegram/setup-menu?key=YOUR_ADMIN_KEY"
+```
+
+หลังตั้งค่า ผู้ใช้จะเห็นปุ่ม **Menu** เปิดแดชบอร์ดได้โดยตรง และมีคำสั่ง `/dashboard` พร้อมปุ่ม "📊 เปิดแดชบอร์ด" ใน /help
 
 ## Webhook
 

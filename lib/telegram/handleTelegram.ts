@@ -10,6 +10,7 @@ import {
 import {
   answerTelegramCallback,
   buildTelegramInlineKeyboard,
+  buildTelegramWebAppKeyboard,
   getLargestPhoto,
   getTelegramFileBuffer,
   sendTelegramMessage,
@@ -52,18 +53,42 @@ async function handleTelegramText(params: {
 }) {
   const t = params.text.trim().replace(/^\//, "");
   if (t === "help" || t === "เมนู") {
+    const lines = [
+      "คำสั่งแอดมิน",
+      "- เมนู / help",
+      "- dashboard (เปิดแดชบอร์ด Web App)",
+      "- myid (ดู Telegram userId ของตัวเอง)",
+      "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
+      "- review (รายการรอตรวจ M)",
+      "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
+      "- summary (สรุปภาพรวม)",
+    ];
+    const dashboardUrl = config.telegram.dashboardUrl;
     await sendTelegramMessage({
       chatId: params.chatId,
-      text: [
-        "คำสั่งแอดมิน",
-        "- เมนู / help",
-        "- myid (ดู Telegram userId ของตัวเอง)",
-        "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
-        "- review (รายการรอตรวจ M)",
-        "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
-        "- summary (สรุปภาพรวม)",
-      ].join("\n"),
+      text: lines.join("\n"),
       replyToMessageId: params.messageId,
+      inlineKeyboard:
+        dashboardUrl ? buildTelegramWebAppKeyboard("📊 เปิดแดชบอร์ด", dashboardUrl) : undefined,
+    });
+    return;
+  }
+
+  if (t === "dashboard") {
+    const dashboardUrl = config.telegram.dashboardUrl;
+    if (!dashboardUrl) {
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text: "ยังไม่ได้ตั้งค่า TELEGRAM_DASHBOARD_URL",
+        replyToMessageId: params.messageId,
+      });
+      return;
+    }
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: "กดปุ่มด้านล่างเพื่อเปิดแดชบอร์ด",
+      replyToMessageId: params.messageId,
+      inlineKeyboard: buildTelegramWebAppKeyboard("📊 เปิดแดชบอร์ด", dashboardUrl),
     });
     return;
   }
