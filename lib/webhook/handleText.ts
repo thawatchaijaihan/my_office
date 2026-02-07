@@ -93,6 +93,9 @@ export async function handleAdminText(params: {
         rowNumber: r.rowNumber,
         title: `${r.rank}${r.firstName} ${r.lastName}`,
         subtitle: `ทะเบียน: ${r.plate || "-"}`,
+        requestFor: r.requestFor || "",
+        vehicleOwner: r.vehicleOwner || "",
+        registeredAt: r.registeredAt || "",
         paymentStatus: r.paymentStatus || "(ว่าง)",
         linkUrl: r.note || "",
       }));
@@ -134,6 +137,7 @@ export async function handleAdminText(params: {
     ).length;
     const outstanding = indexRows.filter(
       (r) =>
+        !r.paymentStatus ||
         r.paymentStatus === "ค้างชำระเงิน" ||
         r.paymentStatus.includes("ค้าง")
     ).length;
@@ -143,6 +147,22 @@ export async function handleAdminText(params: {
     const dataIncorrect = indexRows.filter((r) =>
       r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")
     ).length;
+
+    const approvalCounts = new Map<string, number>();
+    for (const r of indexRows) {
+      const n = (r.approvalStatus || "").trim();
+      if (!n) {
+        approvalCounts.set(
+          "กรุณาแจ้ง สาย.2",
+          (approvalCounts.get("กรุณาแจ้ง สาย.2") ?? 0) + 1
+        );
+        continue;
+      }
+      approvalCounts.set(n, (approvalCounts.get(n) ?? 0) + 1);
+    }
+    const approvalLines = [...approvalCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => `- ${label}: ${count} รายการ`);
 
     const byPerson = new Map<string, number>();
     for (const r of indexRows) {
@@ -160,10 +180,13 @@ export async function handleAdminText(params: {
     await replyText(
       params.replyToken,
       [
-        "สรุปภาพรวม (แท็บ index)",
+        "สรุปข้อมูลการขอบัตรผ่าน",
         `- ทั้งหมด: ${total} รายการ`,
-        `- M: รอกำหนด: ${pending} | ชำระแล้ว: ${paid} | ค้างชำระ: ${outstanding} | ลบข้อมูล: ${deleted}`,
-        `- N: ข้อมูลไม่ถูกต้อง: ${dataIncorrect}`,
+        `- ชำระแล้ว: ${paid} รายการ (${paid * 30} บาท)`,
+        `- ค้างชำระ: ${outstanding} รายการ (${outstanding * 30} บาท)`,
+        `- ลบข้อมูล: ${deleted} รายการ`,
+        `- ข้อมูลไม่ถูกต้อง: ${dataIncorrect} รายการ`,
+        ...approvalLines,
         top.length ? "" : undefined,
         top.length ? "ค้างชำระมากสุด (Top 5)" : undefined,
         ...top,

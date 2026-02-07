@@ -44,12 +44,14 @@ export async function sendTelegramMessage(params: {
   text: string;
   replyToMessageId?: number;
   inlineKeyboard?: TelegramInlineKeyboard;
+  parseMode?: "HTML" | "MarkdownV2";
 }): Promise<void> {
   await telegramRequest("sendMessage", {
     chat_id: params.chatId,
     text: params.text,
     reply_to_message_id: params.replyToMessageId,
     reply_markup: params.inlineKeyboard,
+    parse_mode: params.parseMode,
   });
 }
 

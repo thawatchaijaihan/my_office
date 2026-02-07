@@ -103,23 +103,44 @@ async function handleTelegramText(params: {
   if (t === "summary" || t === "สรุป" || t === "สรุปวันนี้") {
     const indexRows = await readIndexRows();
     const total = indexRows.length;
-    const pending = indexRows.filter((r) => !r.paymentStatus).length;
     const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินแล้ว").length;
     const outstanding = indexRows.filter(
-      (r) => r.paymentStatus === "ค้างชำระเงิน" || r.paymentStatus.includes("ค้าง")
+      (r) =>
+        !r.paymentStatus ||
+        r.paymentStatus === "ค้างชำระเงิน" ||
+        r.paymentStatus.includes("ค้าง")
     ).length;
     const deleted = indexRows.filter((r) => r.paymentStatus === "ลบข้อมูล").length;
     const dataIncorrect = indexRows.filter((r) =>
       r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")
     ).length;
 
+    const approvalCounts = new Map<string, number>();
+    for (const r of indexRows) {
+      const n = (r.approvalStatus || "").trim();
+      if (!n) {
+        approvalCounts.set(
+          "กรุณาแจ้ง สาย.2",
+          (approvalCounts.get("กรุณาแจ้ง สาย.2") ?? 0) + 1
+        );
+        continue;
+      }
+      approvalCounts.set(n, (approvalCounts.get(n) ?? 0) + 1);
+    }
+    const approvalLines = [...approvalCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => `- ${label}: ${count} รายการ`);
+
     await sendTelegramMessage({
       chatId: params.chatId,
       text: [
-        "สรุปภาพรวม (แท็บ index)",
+        "สรุปข้อมูลการขอบัตรผ่าน",
         `- ทั้งหมด: ${total} รายการ`,
-        `- M: รอกำหนด: ${pending} | ชำระแล้ว: ${paid} | ค้างชำระ: ${outstanding} | ลบข้อมูล: ${deleted}`,
-        `- N: ข้อมูลไม่ถูกต้อง: ${dataIncorrect}`,
+        `- ชำระแล้ว: ${paid} รายการ (${paid * 30} บาท)`,
+        `- ค้างชำระ: ${outstanding} รายการ (${outstanding * 30} บาท)`,
+        `- ลบข้อมูล: ${deleted} รายการ`,
+        `- ข้อมูลไม่ถูกต้อง: ${dataIncorrect} รายการ`,
+        ...approvalLines,
       ].join("\n"),
       replyToMessageId: params.messageId,
     });
@@ -128,7 +149,7 @@ async function handleTelegramText(params: {
 
   if (t === "review") {
     const indexRows = await readIndexRows();
-    const pending = indexRows.filter((r) => !r.approvalStatus).slice(0, 20);
+    const pending = indexRows.filter((r) => !r.approvalStatus);
     if (pending.length === 0) {
       await sendTelegramMessage({
         chatId: params.chatId,
@@ -138,11 +159,25 @@ async function handleTelegramText(params: {
       return;
     }
     for (const r of pending) {
+      const fallbackOwner = `${r.rank}${r.firstName} ${r.lastName}`.trim();
+      const registeredAt = r.registeredAt || "-";
+      const statusEmoji = r.paymentStatus.includes("ค้าง")
+        ? "🔴"
+        : r.paymentStatus.includes("ชำระเงินแล้ว")
+          ? "🟢"
+          : "";
+      const statusText = `${statusEmoji ? `${statusEmoji} ` : ""}${
+        r.paymentStatus || "(ว่าง)"
+      }`;
       const text = [
         `${r.rank}${r.firstName} ${r.lastName}`,
-        `ทะเบียน: ${r.plate || "-"}`,
-        `M: ${r.paymentStatus || "(ว่าง)"}`,
-        `แถว ${r.rowNumber}`,
+        r.note
+          ? `ทะเบียน: <a href="${r.note}">${r.plate || "-"}</a>`
+          : `ทะเบียน: ${r.plate || "-"}`,
+        `ขอบัตรให้: ${r.requestFor || "-"}`,
+        `เจ้าของรถ: ${r.vehicleOwner || fallbackOwner || "-"}`,
+        statusText,
+        registeredAt,
       ].join("\n");
       const keyboard = buildTelegramInlineKeyboard([
         [
@@ -160,7 +195,12 @@ async function handleTelegramText(params: {
           { text: "ข้อมูลไม่ถูกต้อง", data: `review:${r.rowNumber}:incorrect` },
         ],
       ]);
-      await sendTelegramMessage({ chatId: params.chatId, text, inlineKeyboard: keyboard });
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text,
+        inlineKeyboard: keyboard,
+        parseMode: "HTML",
+      });
     }
     return;
   }

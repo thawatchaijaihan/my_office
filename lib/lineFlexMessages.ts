@@ -54,6 +54,9 @@ export function flexReviewCarousel(params: {
     rowNumber: number;
     title: string;
     subtitle: string;
+    requestFor: string;
+    vehicleOwner: string;
+    registeredAt: string;
     paymentStatus: string;
     linkUrl: string;
   }>;
@@ -89,7 +92,7 @@ export function flexReviewCarousel(params: {
             },
             {
               type: "text",
-              text: `แถว ${r.rowNumber}`,
+              text: r.registeredAt || "-",
               size: "sm",
               color: "#ffffff",
               align: "end",
@@ -113,6 +116,20 @@ export function flexReviewCarousel(params: {
                   decoration: "underline",
                 }
               : { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
+            {
+              type: "text",
+              text: `ขอบัตรให้: ${r.requestFor || "-"}`,
+              size: "sm",
+              color: "#666666",
+              wrap: true,
+            },
+            {
+              type: "text",
+              text: `เจ้าของรถ: ${r.vehicleOwner || r.title || "-"}`,
+              size: "sm",
+              color: "#666666",
+              wrap: true,
+            },
             {
               type: "text",
               text: r.paymentStatus,
