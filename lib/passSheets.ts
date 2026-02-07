@@ -1,7 +1,44 @@
-import { appendValues, batchUpdateValues, readValues } from "./googleSheets";
+import {
+  appendValues,
+  batchUpdateValues,
+  readValues,
+  listSpreadsheetTabs,
+} from "./googleSheets";
+import { config } from "./config";
 
-export const INDEX_SHEET_NAME = "id";
+export const INDEX_SHEET_NAME = "index";
 export const SLIP_SHEET_NAME = "slip";
+
+// Cache for sheet names resolved from gids
+let _sheetNameCache: Map<number, string> | null = null;
+
+/**
+ * Get sheet name from gid by fetching spreadsheet metadata
+ */
+async function getSheetNameByGid(gid: number): Promise<string | null> {
+  if (!_sheetNameCache) {
+    const tabs = await listSpreadsheetTabs();
+    _sheetNameCache = new Map(tabs.map((t) => [t.gid, t.title]));
+  }
+  return _sheetNameCache.get(gid) ?? null;
+}
+
+/**
+ * Resolve sheet name: use gid if configured, otherwise use default name
+ */
+async function resolveSheetName(params: {
+  defaultName: string;
+  gid?: number;
+}): Promise<string> {
+  if (params.gid !== undefined) {
+    const name = await getSheetNameByGid(params.gid);
+    if (!name) {
+      throw new Error(`Sheet with gid=${params.gid} not found`);
+    }
+    return name;
+  }
+  return params.defaultName;
+}
 
 export type IndexRow = {
   rowNumber: number; // actual row number in sheet
@@ -37,7 +74,11 @@ function getCell(row: string[], idx: number): string {
 }
 
 export async function readIndexRows(): Promise<IndexRow[]> {
-  const values = await readValues({ range: `${INDEX_SHEET_NAME}!A2:O` });
+  const sheetName = await resolveSheetName({
+    defaultName: INDEX_SHEET_NAME,
+    gid: config.google.indexSheetGid,
+  });
+  const values = await readValues({ range: `${sheetName}!A2:O` });
   const rows: IndexRow[] = [];
   for (let i = 0; i < values.length; i++) {
     const r = values[i]!;
@@ -67,7 +108,11 @@ export async function readIndexRows(): Promise<IndexRow[]> {
 }
 
 export async function readSlipRows(): Promise<SlipRow[]> {
-  const values = await readValues({ range: `${SLIP_SHEET_NAME}!A2:F` });
+  const sheetName = await resolveSheetName({
+    defaultName: SLIP_SHEET_NAME,
+    gid: config.google.slipSheetGid,
+  });
+  const values = await readValues({ range: `${sheetName}!A2:F` });
   const rows: SlipRow[] = [];
   for (let i = 0; i < values.length; i++) {
     const r = values[i]!;
@@ -96,9 +141,13 @@ export type IndexUpdateMR = {
 };
 
 export async function writeIndexUpdatesMR(updates: IndexUpdateMR[]) {
+  const sheetName = await resolveSheetName({
+    defaultName: INDEX_SHEET_NAME,
+    gid: config.google.indexSheetGid,
+  });
   await batchUpdateValues({
     updates: updates.map((u) => ({
-      range: `${INDEX_SHEET_NAME}!M${u.rowNumber}:O${u.rowNumber}`,
+      range: `${sheetName}!M${u.rowNumber}:O${u.rowNumber}`,
       values: [[u.paymentStatus, u.approvalStatus, u.checkedAt]],
     })),
   });
@@ -112,8 +161,12 @@ export async function appendSlipRow(params: {
   type?: string;
   transferDate: string;
 }) {
+  const sheetName = await resolveSheetName({
+    defaultName: SLIP_SHEET_NAME,
+    gid: config.google.slipSheetGid,
+  });
   await appendValues({
-    range: `${SLIP_SHEET_NAME}!A:F`,
+    range: `${sheetName}!A:F`,
     values: [
       [
         params.timestamp,

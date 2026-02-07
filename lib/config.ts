@@ -22,6 +22,12 @@ export const config = {
   google: {
     serviceAccountKeyBase64: getEnv("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64"),
     sheetsId: getEnv("GOOGLE_SHEETS_ID"),
+    indexSheetGid: process.env.INDEX_SHEET_GID
+      ? Number(process.env.INDEX_SHEET_GID)
+      : undefined,
+    slipSheetGid: process.env.SLIP_SHEET_GID
+      ? Number(process.env.SLIP_SHEET_GID)
+      : undefined,
   },
   gemini: {
     apiKey: getEnv("GEMINI_API_KEY"),

@@ -47,4 +47,12 @@ env:
     secret: googleSheetsId
     availability:
       - RUNTIME
+  - variable: INDEX_SHEET_GID
+    value: "1143152346"
+    availability:
+      - RUNTIME
+  - variable: SLIP_SHEET_GID
+    value: "2094374026"
+    availability:
+      - RUNTIME
 
