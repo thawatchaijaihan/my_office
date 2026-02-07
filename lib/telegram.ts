@@ -1,5 +1,6 @@
 import { config } from "@/lib/config";
 import { withRetry } from "@/lib/retry";
+import { logger } from "@/lib/logger";
 
 type TelegramPhotoSize = {
   file_id: string;
@@ -46,13 +47,23 @@ export async function sendTelegramMessage(params: {
   inlineKeyboard?: TelegramInlineKeyboard;
   parseMode?: "HTML" | "MarkdownV2";
 }): Promise<void> {
-  await telegramRequest("sendMessage", {
+  try {
+    await telegramRequest("sendMessage", {
     chat_id: params.chatId,
     text: params.text,
     reply_to_message_id: params.replyToMessageId,
     reply_markup: params.inlineKeyboard,
     parse_mode: params.parseMode,
-  });
+    });
+  } catch (err) {
+    logger.error({
+      message: "Telegram sendMessage failed",
+      eventType: "telegram_send",
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    throw err;
+  }
 }
 
 export async function answerTelegramCallback(params: {
