@@ -18,7 +18,7 @@ type DashboardData = {
   };
   approvalBreakdown: { label: string; count: number }[];
   topOutstanding: { name: string; count: number; title: string }[];
-  latestEntries: { rowNumber: number; registeredAt: string; name: string; plate: string }[];
+  latestEntries: { rowNumber: number; registeredAt: string; name: string; requestFor: string; plate: string }[];
 };
 
 const FETCH_TIMEOUT_MS = 15_000; // 15 วินาที
