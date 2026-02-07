@@ -1,11 +1,51 @@
 import { google } from "googleapis";
 import { config } from "./config";
 import { withRetry } from "./retry";
+import { logger } from "./logger";
 
 type ServiceAccountKey = {
   client_email?: string;
   private_key?: string;
 };
+
+function formatGoogleApiError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const anyErr = err as Error & {
+    code?: number;
+    response?: { status?: number; data?: unknown };
+  };
+  const status = anyErr.response?.status ?? anyErr.code;
+  const payload =
+    typeof anyErr.response?.data === "string"
+      ? anyErr.response?.data
+      : JSON.stringify(anyErr.response?.data ?? "");
+  return status
+    ? `${anyErr.message} (status=${status}) ${payload}`
+    : `${anyErr.message} ${payload}`;
+}
+
+function logSheetsError(params: {
+  operation: string;
+  spreadsheetId?: string;
+  range?: string;
+  error: unknown;
+}) {
+  const meta = [
+    params.spreadsheetId ? `spreadsheetId=${params.spreadsheetId}` : undefined,
+    params.range ? `range=${params.range}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  logger.error({
+    message: `Google Sheets API error: ${params.operation}${
+      meta ? ` (${meta})` : ""
+    }`,
+    error: formatGoogleApiError(params.error),
+    stack: params.error instanceof Error ? params.error.stack : undefined,
+  });
+}
 
 function loadServiceAccountKey(): ServiceAccountKey {
   const b64 = config.google.serviceAccountKeyBase64;
@@ -67,12 +107,18 @@ export async function listSpreadsheetTabs(params?: {
   if (!spreadsheetId) throw new Error("GOOGLE_SHEETS_ID is not set");
 
   const sheets = getSheetsClient({ readOnly: true });
-  const res = await withRetry(() =>
-    sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: "sheets(properties(sheetId,title,index,hidden))",
-    })
-  );
+  let res;
+  try {
+    res = await withRetry(() =>
+      sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: "sheets(properties(sheetId,title,index,hidden))",
+      })
+    );
+  } catch (err) {
+    logSheetsError({ operation: "spreadsheets.get", spreadsheetId, error: err });
+    throw err;
+  }
 
   const tabs: GoogleSheetTab[] = [];
   for (const s of res.data.sheets ?? []) {
@@ -105,12 +151,23 @@ export async function readValues(params: {
   if (!spreadsheetId) throw new Error("GOOGLE_SHEETS_ID is not set");
 
   const sheets = getSheetsClient({ readOnly: true });
-  const res = await withRetry(() =>
-    sheets.spreadsheets.values.get({
+  let res;
+  try {
+    res = await withRetry(() =>
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: params.range,
+      })
+    );
+  } catch (err) {
+    logSheetsError({
+      operation: "spreadsheets.values.get",
       spreadsheetId,
       range: params.range,
-    })
-  );
+      error: err,
+    });
+    throw err;
+  }
   const values = (res.data.values ?? []) as unknown[][];
   return values.map((r) => r.map((c) => String(c ?? "")));
 }
@@ -125,18 +182,28 @@ export async function batchUpdateValues(params: {
   if (params.updates.length === 0) return;
 
   const sheets = getSheetsClient({ readOnly: false });
-  await withRetry(() =>
-    sheets.spreadsheets.values.batchUpdate({
+  try {
+    await withRetry(() =>
+      sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: params.valueInputOption ?? "USER_ENTERED",
+          data: params.updates.map((u) => ({
+            range: u.range,
+            values: u.values,
+          })),
+        },
+      })
+    );
+  } catch (err) {
+    logSheetsError({
+      operation: "spreadsheets.values.batchUpdate",
       spreadsheetId,
-      requestBody: {
-        valueInputOption: params.valueInputOption ?? "USER_ENTERED",
-        data: params.updates.map((u) => ({
-          range: u.range,
-          values: u.values,
-        })),
-      },
-    })
-  );
+      range: params.updates[0]?.range,
+      error: err,
+    });
+    throw err;
+  }
 }
 
 export async function appendValues(params: {
@@ -150,14 +217,24 @@ export async function appendValues(params: {
   if (params.values.length === 0) return;
 
   const sheets = getSheetsClient({ readOnly: false });
-  await withRetry(() =>
-    sheets.spreadsheets.values.append({
+  try {
+    await withRetry(() =>
+      sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: params.range,
+        valueInputOption: params.valueInputOption ?? "USER_ENTERED",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values: params.values },
+      })
+    );
+  } catch (err) {
+    logSheetsError({
+      operation: "spreadsheets.values.append",
       spreadsheetId,
       range: params.range,
-      valueInputOption: params.valueInputOption ?? "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: { values: params.values },
-    })
-  );
+      error: err,
+    });
+    throw err;
+  }
 }
 
