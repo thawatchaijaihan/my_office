@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useDashboardAuth } from "./DashboardAuthContext";
 
 const DashboardCharts = dynamic(() => import("./DashboardCharts"), { ssr: false });
 
@@ -25,10 +26,12 @@ const FETCH_TIMEOUT_MS = 15_000; // 15 วินาที
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard]", msg, ...args);
 
 export default function DashboardPage() {
+  const { getAuthHeaders } = useDashboardAuth();
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsKey, setNeedsKey] = useState(false);
   const [loadingLong, setLoadingLong] = useState(false);
 
   useEffect(() => {
@@ -49,47 +52,57 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    LOG("3. mounted = true → เริ่มโหลด API");
-    setLoadingLong(false);
-    const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-    const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
-    LOG("3a. URL ที่เรียก:", url, key ? "(มี key)" : "(ไม่มี key)");
-    LOG("3b. Timeout หลัง", FETCH_TIMEOUT_MS / 1000, "วินาที");
+    let cancelled = false;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       LOG("3c. ⏱️ Timeout! เรียก abort()");
       controller.abort();
     }, FETCH_TIMEOUT_MS);
-    const start = Date.now();
-    fetch(url, { signal: controller.signal })
-      .then((res) => {
+
+    (async () => {
+      LOG("3. mounted = true → เริ่มโหลด API");
+      setLoadingLong(false);
+      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
+      const authHeaders = await getAuthHeaders();
+      const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
+      LOG("3a. URL ที่เรียก:", url, key ? "(มี key)" : authHeaders.Authorization ? "(มี Bearer)" : "(ไม่มี auth)");
+      LOG("3b. Timeout หลัง", FETCH_TIMEOUT_MS / 1000, "วินาที");
+      const start = Date.now();
+      try {
+        const res = await fetch(url, { signal: controller.signal, headers: authHeaders });
         LOG("4. ได้ response จาก API:", res.status, res.statusText, "ใช้เวลา", Date.now() - start, "ms");
         if (!res.ok) {
           LOG("4a. ❌ สถานะไม่ OK → throw Error");
-          throw new Error(res.status === 401 ? "กรุณาใส่ key ใน URL (?key=...)" : "โหลดข้อมูลไม่สำเร็จ");
+          if (res.status === 401) setNeedsKey(true);
+          throw new Error(res.status === 401 ? "ต้องการ Admin Key เพื่อเข้าดูแดชบอร์ด" : "โหลดข้อมูลไม่สำเร็จ");
         }
-        return res.json();
-      })
-      .then((json) => {
-        LOG("5. Parse JSON สำเร็จ → มี summary.total =", json?.summary?.total);
-        setData(json);
-      })
-      .catch((e) => {
-        LOG("5a. ❌ Error:", e.name, e.message);
-        if (e.name === "AbortError") setError("โหลดข้อมูลช้าเกินไป (เกิน 15 วินาที) กรุณากดลองใหม่");
-        else setError(e.message);
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-        LOG("6. finally → setLoading(false), รวมใช้เวลา", Date.now() - start, "ms");
-        setLoading(false);
-      });
+        const json = await res.json();
+        if (!cancelled) {
+          LOG("5. Parse JSON สำเร็จ → มี summary.total =", json?.summary?.total);
+          setData(json);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        const err = e as Error;
+        LOG("5a. ❌ Error:", err.name, err.message);
+        if (err.name === "AbortError") setError("โหลดข้อมูลช้าเกินไป (เกิน 15 วินาที) กรุณากดลองใหม่");
+        else setError(err.message);
+      } finally {
+        if (!cancelled) {
+          clearTimeout(timeoutId);
+          LOG("6. finally → setLoading(false), รวมใช้เวลา", Date.now() - start, "ms");
+          setLoading(false);
+        }
+      }
+    })();
+
     return () => {
+      cancelled = true;
       LOG("3d. cleanup: ยกเลิก timeout และ abort");
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mounted]);
+  }, [mounted, getAuthHeaders]);
 
   if (!mounted || loading) {
     LOG("render: สถานะโหลด (mounted:", mounted, ", loading:", loading, ")");
@@ -135,7 +148,7 @@ export default function DashboardPage() {
   }
 
   if (error || !data) {
-    LOG("render: สถานะ error (error:", error, ", data:", !!data, ")");
+    LOG("render: สถานะ error (error:", error, ", data:", !!data, ", needsKey:", needsKey, ")");
     return (
       <div
         className="p-4 sm:p-8 min-h-full"
@@ -143,14 +156,59 @@ export default function DashboardPage() {
       >
         <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-red-800">
           <p className="font-medium">{error ?? "ไม่พบข้อมูล"}</p>
-          <p className="text-sm mt-1">ตั้งค่า ADMIN_API_KEY แล้วส่งใน URL: /dashboard?key=YOUR_KEY</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
-          >
-            ลองใหม่
-          </button>
+          {needsKey ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.namedItem("adminKey") as HTMLInputElement;
+                const key = input?.value?.trim();
+                if (key) {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("key", key);
+                  window.location.href = url.toString();
+                }
+              }}
+              className="mt-4 space-y-3 max-w-sm"
+            >
+              <label htmlFor="adminKey" className="block text-sm font-medium">
+                Admin Key
+              </label>
+              <input
+                id="adminKey"
+                name="adminKey"
+                type="password"
+                placeholder="ใส่ Admin Key"
+                className="w-full px-4 py-2 rounded-lg border border-red-200 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+                autoComplete="off"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
+                >
+                  เข้าดูแดชบอร์ด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
+                >
+                  ลองใหม่
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <p className="text-sm mt-1">หรือใส่ key ใน URL: /dashboard?key=YOUR_KEY</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
+              >
+                ลองใหม่
+              </button>
+            </>
+          )}
         </div>
       </div>
     );

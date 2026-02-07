@@ -58,7 +58,13 @@ cp .env.example .env.local
 |--------|--------|------------|
 | `LINE_CHANNEL_SECRET` | LINE Developers Console | ตรวจสอบ signature webhook |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers Console | ส่งข้อความ/ดึงเนื้อหารูป |
-| `ADMIN_API_KEY` | ตั้งเอง | ล็อก Admin API (เช่น `GET /api/admin/sheets/tabs`) ผ่าน header `x-admin-key` |
+| `ADMIN_API_KEY` | ตั้งเอง | ล็อกแดชบอร์ด (fallback ถ้าไม่ใช้ Firebase Auth) |
+| `ADMIN_FIREBASE_EMAILS` | (optional) | อีเมลที่เข้าแดชบอร์ดได้ คั่นด้วย comma |
+| `ADMIN_FIREBASE_UIDS` | (optional) | Firebase UID ที่เข้าแดชบอร์ดได้ คั่นด้วย comma |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project Settings | ใช้ Firebase Auth แทน admin key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | เช่น `xxx.firebaseapp.com` | |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | เช่น `jaihan-assistant` | |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | เช่น `1:xxx:web:xxx` | |
 | `ADMIN_LINE_USER_IDS` | หลังรันบอท พิมพ์ `myid` ใน LINE | รายการ LINE userId ของแอดมิน (คั่นด้วย comma) |
 | `GOOGLE_SERVICE_ACCOUNT_KEY_BASE64` | Google Cloud Console (Service Account → สร้าง key JSON) | แปลงไฟล์ JSON เป็น base64 ใส่ตัวแปรนี้ |
 | `GOOGLE_SHEETS_ID` | URL ของ Google Sheet (ค่าหลัง `/d/`) | Spreadsheet ที่มีแท็บ `index` และ `slip` |
@@ -125,7 +131,9 @@ npm run dev
 
 - **URL**: `/dashboard`
 - **ข้อมูล**: ทั้งหมด, รอตรวจ, ชำระแล้ว, ค้างชำระ, ลบ/ไม่ถูกต้อง, กราฟสถานะการชำระ, สถานะ N, Top 5 ค้างชำระ
-- **การเข้าถึง**: ถ้าตั้งค่า `ADMIN_API_KEY` แล้ว ต้องส่ง key ใน URL เช่น `/dashboard?key=YOUR_KEY` หรือส่ง header `x-admin-key`
+- **การเข้าถึง**:
+  - **Firebase Auth** (แนะนำ): ตั้ง `NEXT_PUBLIC_FIREBASE_*` และ `ADMIN_FIREBASE_EMAILS` หรือ `ADMIN_FIREBASE_UIDS` → เข้าสู่ระบบด้วยอีเมล/รหัสผ่าน หรือ Google
+  - **Admin Key**: ถ้าไม่ใช้ Firebase ต้องส่ง key ใน URL `/dashboard?key=YOUR_KEY` หรือกรอกในฟอร์ม
 
 จากหน้าหลักมีลิงก์ "เปิดแดชบอร์ดสรุปข้อมูล" ไปยัง `/dashboard`
 

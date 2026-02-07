@@ -79,7 +79,7 @@ async function buildDashboardData() {
 
 export async function GET(req: NextRequest) {
   LOG("GET /api/dashboard ถูกเรียก");
-  const authorized = isDashboardAuthorized(req);
+  const authorized = await isDashboardAuthorized(req);
   LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)");
   if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

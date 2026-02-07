@@ -30,6 +30,15 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s && s !== "NONE"),
+    /** อีเมลหรือ UID ที่เข้าแดชบอร์ดได้ผ่าน Firebase Auth (คั่นด้วย comma) */
+    firebaseEmails: (process.env.ADMIN_FIREBASE_EMAILS ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+    firebaseUids: (process.env.ADMIN_FIREBASE_UIDS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
   google: {
     serviceAccountKeyBase64: getEnv("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64"),

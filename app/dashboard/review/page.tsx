@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDashboardFetch } from "../useDashboardFetch";
 
 type IndexTableRow = {
   rowNumber: number;
@@ -61,13 +62,13 @@ function getCellValue(r: IndexTableRow, colKey: ColumnKey): string {
 }
 
 export default function ReviewPage() {
+  const dashboardFetch = useDashboardFetch();
   const [rows, setRows] = useState<IndexTableRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-    fetch("/api/dashboard/review" + (key ? `?key=${encodeURIComponent(key)}` : ""))
+    dashboardFetch("/api/dashboard/review")
       .then((res) => {
         if (!res.ok) throw new Error(res.status === 401 ? "กรุณาใส่ key ใน URL" : "โหลดไม่สำเร็จ");
         return res.json();
@@ -75,7 +76,7 @@ export default function ReviewPage() {
       .then((data) => setRows(data.rows ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [dashboardFetch]);
 
   if (loading) {
     return (

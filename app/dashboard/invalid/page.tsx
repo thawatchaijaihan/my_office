@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDashboardFetch } from "../useDashboardFetch";
 
 type InvalidRow = {
   rowNumber: number;
@@ -14,13 +15,13 @@ type InvalidRow = {
 };
 
 export default function InvalidPage() {
+  const dashboardFetch = useDashboardFetch();
   const [rows, setRows] = useState<InvalidRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-    fetch("/api/dashboard/invalid" + (key ? `?key=${encodeURIComponent(key)}` : ""))
+    dashboardFetch("/api/dashboard/invalid")
       .then((res) => {
         if (!res.ok) throw new Error(res.status === 401 ? "กรุณาใส่ key ใน URL" : "โหลดไม่สำเร็จ");
         return res.json();
@@ -28,7 +29,7 @@ export default function InvalidPage() {
       .then((data) => setRows(data.rows ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [dashboardFetch]);
 
   if (loading) {
     return (

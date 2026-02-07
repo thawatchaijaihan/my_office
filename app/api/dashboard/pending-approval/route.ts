@@ -18,7 +18,7 @@ export type PendingRow = {
 };
 
 export async function GET(req: NextRequest) {
-  if (!isDashboardAuthorized(req)) {
+  if (!(await isDashboardAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
