@@ -6,8 +6,33 @@ import {
   writeIndexUpdatesMR,
 } from "@/lib/passSheets";
 import { allocateSlipToIndex } from "@/lib/paymentAllocation";
-import { flexReviewCarousel, flexReviewCarouselReadOnly } from "@/lib/lineFlexMessages";
+import {
+  flexReviewCarousel,
+  flexReviewCarouselReadOnly,
+  type ReviewGroup,
+  type ReviewRow,
+} from "@/lib/lineFlexMessages";
+import type { IndexRow } from "@/lib/passSheets";
 import { formatDateTime } from "./utils";
+
+function groupIndexByName(rows: IndexRow[]): ReviewGroup[] {
+  const byName = new Map<string, ReviewRow[]>();
+  for (const r of rows) {
+    const name = `${r.rank}${r.firstName} ${r.lastName}`.trim() || "-";
+    const row: ReviewRow = {
+      rowNumber: r.rowNumber,
+      subtitle: `ทะเบียน: ${r.plate || "-"}`,
+      requestFor: r.requestFor || "",
+      vehicleOwner: r.vehicleOwner || "",
+      registeredAt: r.registeredAt || "",
+      linkUrl: r.note || "",
+    };
+    const list = byName.get(name) ?? [];
+    list.push(row);
+    byName.set(name, list);
+  }
+  return [...byName.entries()].map(([name, rows]) => ({ name, rows }));
+}
 
 export async function handleAdminText(params: {
   replyToken: string;
@@ -139,19 +164,11 @@ export async function handleAdminText(params: {
       return;
     }
 
+    const groups = groupIndexByName(incorrect);
     const batches: LineMessage[] = [];
-    for (let i = 0; i < incorrect.length; i += 10) {
-      const flexRows = incorrect.slice(i, i + 10).map((r) => ({
-        rowNumber: r.rowNumber,
-        title: `${r.rank}${r.firstName} ${r.lastName}`,
-        subtitle: `ทะเบียน: ${r.plate || "-"}`,
-        requestFor: r.requestFor || "",
-        vehicleOwner: r.vehicleOwner || "",
-        registeredAt: r.registeredAt || "",
-        paymentStatus: r.paymentStatus || "(ว่าง)",
-        linkUrl: r.note || "",
-      }));
-      batches.push(flexReviewCarouselReadOnly({ rows: flexRows }) as LineMessage);
+    for (let i = 0; i < groups.length; i += 10) {
+      const chunk = groups.slice(i, i + 10);
+      batches.push(flexReviewCarouselReadOnly({ groups: chunk }) as LineMessage);
     }
 
     if (batches.length <= 5) {
@@ -172,8 +189,8 @@ export async function handleAdminText(params: {
       {
         type: "text",
         text: `มีรายการข้อมูลไม่ถูกต้องเพิ่มเติมอีก ${
-          incorrect.length - 40
-        } รายการ (LINE จำกัด reply 5 ข้อความ) กรุณาส่งคำสั่ง invalid ซ้ำเพื่อดูต่อ`,
+          groups.length - 40
+        } กลุ่ม (LINE จำกัด reply 5 ข้อความ) กรุณาส่งคำสั่ง invalid ซ้ำเพื่อดูต่อ`,
       } as LineMessage,
     ]);
     return;

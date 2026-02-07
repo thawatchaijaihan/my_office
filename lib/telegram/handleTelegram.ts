@@ -220,30 +220,29 @@ async function handleTelegramText(params: {
       });
       return;
     }
+    const byName = new Map<string, typeof incorrect>();
     for (const r of incorrect) {
-      const fallbackOwner = `${r.rank}${r.firstName} ${r.lastName}`.trim();
-      const registeredAt = r.registeredAt || "-";
-      const statusEmoji = r.paymentStatus.includes("ค้าง")
-        ? "🔴"
-        : r.paymentStatus.includes("ชำระเงินแล้ว")
-          ? "🟢"
-          : "";
-      const statusText = `${statusEmoji ? `${statusEmoji} ` : ""}${
-        r.paymentStatus || "(ว่าง)"
-      }`;
-      const text = [
-        `${r.rank}${r.firstName} ${r.lastName}`,
-        r.note
-          ? `ทะเบียน: <a href="${r.note}">${r.plate || "-"}</a>`
-          : `ทะเบียน: ${r.plate || "-"}`,
-        `ขอบัตรให้: ${r.requestFor || "-"}`,
-        `เจ้าของรถ: ${r.vehicleOwner || fallbackOwner || "-"}`,
-        statusText,
-        registeredAt,
-      ].join("\n");
+      const name = `${r.rank}${r.firstName} ${r.lastName}`.trim() || "-";
+      const list = byName.get(name) ?? [];
+      list.push(r);
+      byName.set(name, list);
+    }
+    for (const [name, rows] of byName) {
+      const fallbackOwner = name;
+      const lines: string[] = [name];
+      for (const r of rows) {
+        lines.push(
+          r.note
+            ? `ทะเบียน: <a href="${r.note}">${r.plate || "-"}</a>`
+            : `ทะเบียน: ${r.plate || "-"}`,
+          `ขอบัตรให้: ${r.requestFor || "-"}`,
+          `เจ้าของรถ: ${r.vehicleOwner || fallbackOwner || "-"}`,
+          r.registeredAt || "-"
+        );
+      }
       await sendTelegramMessage({
         chatId: params.chatId,
-        text,
+        text: lines.join("\n"),
         parseMode: "HTML",
       });
     }
