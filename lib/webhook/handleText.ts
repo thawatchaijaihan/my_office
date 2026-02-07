@@ -6,7 +6,7 @@ import {
   writeIndexUpdatesMR,
 } from "@/lib/passSheets";
 import { allocateSlipToIndex } from "@/lib/paymentAllocation";
-import { flexReviewCarousel } from "@/lib/lineFlexMessages";
+import { flexReviewCarousel, flexReviewCarouselReadOnly } from "@/lib/lineFlexMessages";
 import { formatDateTime } from "./utils";
 
 export async function handleAdminText(params: {
@@ -25,6 +25,7 @@ export async function handleAdminText(params: {
         "- myid (ดู LINE userId ของตัวเอง)",
         "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
         "- review (รายการรอตรวจ M)",
+        "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
         "- summary (สรุปภาพรวม)",
       ].join("\n")
     );
@@ -122,6 +123,57 @@ export async function handleAdminText(params: {
         text: `มีรายการรอตรวจเพิ่มเติมอีก ${
           pending.length - 40
         } รายการ (LINE จำกัด reply 5 ข้อความ) กรุณาส่งคำสั่ง review ซ้ำเพื่อดูต่อ`,
+      } as LineMessage,
+    ]);
+    return;
+  }
+
+  if (t === "invalid") {
+    const indexRows = await readIndexRows();
+    const incorrect = indexRows
+      .filter((r) => r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง"))
+      .slice(0, 500);
+
+    if (incorrect.length === 0) {
+      await replyText(params.replyToken, "ไม่มีรายการที่ N = ข้อมูลไม่ถูกต้อง");
+      return;
+    }
+
+    const batches: LineMessage[] = [];
+    for (let i = 0; i < incorrect.length; i += 10) {
+      const flexRows = incorrect.slice(i, i + 10).map((r) => ({
+        rowNumber: r.rowNumber,
+        title: `${r.rank}${r.firstName} ${r.lastName}`,
+        subtitle: `ทะเบียน: ${r.plate || "-"}`,
+        requestFor: r.requestFor || "",
+        vehicleOwner: r.vehicleOwner || "",
+        registeredAt: r.registeredAt || "",
+        paymentStatus: r.paymentStatus || "(ว่าง)",
+        linkUrl: r.note || "",
+      }));
+      batches.push(flexReviewCarouselReadOnly({ rows: flexRows }) as LineMessage);
+    }
+
+    if (batches.length <= 5) {
+      await replyMessages(params.replyToken, batches);
+      return;
+    }
+
+    if (params.userId) {
+      await replyMessages(params.replyToken, batches.slice(0, 5));
+      for (let i = 5; i < batches.length; i += 5) {
+        await pushMessages(params.userId, batches.slice(i, i + 5));
+      }
+      return;
+    }
+
+    await replyMessages(params.replyToken, [
+      ...batches.slice(0, 4),
+      {
+        type: "text",
+        text: `มีรายการข้อมูลไม่ถูกต้องเพิ่มเติมอีก ${
+          incorrect.length - 40
+        } รายการ (LINE จำกัด reply 5 ข้อความ) กรุณาส่งคำสั่ง invalid ซ้ำเพื่อดูต่อ`,
       } as LineMessage,
     ]);
     return;

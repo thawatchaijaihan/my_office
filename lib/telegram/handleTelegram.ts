@@ -60,6 +60,7 @@ async function handleTelegramText(params: {
         "- myid (ดู Telegram userId ของตัวเอง)",
         "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
         "- review (รายการรอตรวจ M)",
+        "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
         "- summary (สรุปภาพรวม)",
       ].join("\n"),
       replyToMessageId: params.messageId,
@@ -200,6 +201,49 @@ async function handleTelegramText(params: {
         chatId: params.chatId,
         text,
         inlineKeyboard: keyboard,
+        parseMode: "HTML",
+      });
+    }
+    return;
+  }
+
+  if (t === "invalid") {
+    const indexRows = await readIndexRows();
+    const incorrect = indexRows.filter((r) =>
+      r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")
+    );
+    if (incorrect.length === 0) {
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text: "ไม่มีรายการที่ N = ข้อมูลไม่ถูกต้อง",
+        replyToMessageId: params.messageId,
+      });
+      return;
+    }
+    for (const r of incorrect) {
+      const fallbackOwner = `${r.rank}${r.firstName} ${r.lastName}`.trim();
+      const registeredAt = r.registeredAt || "-";
+      const statusEmoji = r.paymentStatus.includes("ค้าง")
+        ? "🔴"
+        : r.paymentStatus.includes("ชำระเงินแล้ว")
+          ? "🟢"
+          : "";
+      const statusText = `${statusEmoji ? `${statusEmoji} ` : ""}${
+        r.paymentStatus || "(ว่าง)"
+      }`;
+      const text = [
+        `${r.rank}${r.firstName} ${r.lastName}`,
+        r.note
+          ? `ทะเบียน: <a href="${r.note}">${r.plate || "-"}</a>`
+          : `ทะเบียน: ${r.plate || "-"}`,
+        `ขอบัตรให้: ${r.requestFor || "-"}`,
+        `เจ้าของรถ: ${r.vehicleOwner || fallbackOwner || "-"}`,
+        statusText,
+        registeredAt,
+      ].join("\n");
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text,
         parseMode: "HTML",
       });
     }

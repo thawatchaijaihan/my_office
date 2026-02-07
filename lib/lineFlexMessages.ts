@@ -218,3 +218,103 @@ export function flexReviewCarousel(params: {
     },
   };
 }
+
+/** Carousel แสดงรายการแบบอ่านอย่างเดียว (ไม่มีปุ่ม) - ใช้กับรายการ N = ข้อมูลไม่ถูกต้อง */
+export function flexReviewCarouselReadOnly(params: {
+  rows: Array<{
+    rowNumber: number;
+    title: string;
+    subtitle: string;
+    requestFor: string;
+    vehicleOwner: string;
+    registeredAt: string;
+    paymentStatus: string;
+    linkUrl: string;
+  }>;
+  headerLabel?: string;
+}) {
+  const headerLabel = params.headerLabel ?? "รายการข้อมูลไม่ถูกต้อง";
+  return {
+    type: "flex",
+    altText: headerLabel,
+    contents: {
+      type: "carousel",
+      contents: params.rows.map((r) => {
+        const paymentColor = r.paymentStatus.includes("ค้าง")
+          ? "#dc2626"
+          : r.paymentStatus.includes("ชำระเงินแล้ว")
+            ? "#16a34a"
+            : "#666666";
+        return {
+          type: "bubble",
+          header: {
+            type: "box",
+            layout: "horizontal",
+            backgroundColor: "#b45309",
+            paddingAll: "12px",
+            spacing: "sm",
+            contents: [
+              {
+                type: "text",
+                text: headerLabel,
+                weight: "bold",
+                color: "#ffffff",
+                size: "md",
+                wrap: true,
+                flex: 1,
+              },
+              {
+                type: "text",
+                text: r.registeredAt || "-",
+                size: "sm",
+                color: "#ffffff",
+                align: "end",
+              },
+            ],
+          },
+          body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              { type: "text", text: r.title, weight: "bold", wrap: true },
+              r.linkUrl
+                ? {
+                    type: "text",
+                    text: r.subtitle,
+                    size: "sm",
+                    color: "#0066cc",
+                    wrap: true,
+                    action: { type: "uri", uri: r.linkUrl },
+                    decoration: "underline",
+                  }
+                : { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
+              {
+                type: "text",
+                text: `ขอบัตรให้: ${r.requestFor || "-"}`,
+                size: "sm",
+                color: "#666666",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: `เจ้าของรถ: ${r.vehicleOwner || r.title || "-"}`,
+                size: "sm",
+                color: "#666666",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: r.paymentStatus,
+                size: "md",
+                weight: "bold",
+                color: paymentColor,
+                wrap: true,
+              },
+            ],
+          },
+        };
+      }),
+    },
+  };
+}
