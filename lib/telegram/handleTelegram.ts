@@ -15,6 +15,7 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 import { formatDateTime } from "@/lib/webhook/utils";
+import { logger } from "@/lib/logger";
 
 type TelegramUpdate = {
   update_id: number;
@@ -351,7 +352,19 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
   if (message) {
     const chatId = message.chat.id;
     const userId = message.from?.id;
-    if (!isAdminTelegramUser(userId)) return;
+    logger.info({
+      message: "Telegram message received",
+      eventType: "telegram_message",
+      userId: userId ? String(userId) : undefined,
+    });
+    if (!isAdminTelegramUser(userId)) {
+      logger.warn({
+        message: "Telegram user not in admin list",
+        eventType: "telegram_message",
+        userId: userId ? String(userId) : undefined,
+      });
+      return;
+    }
     if (message.text) {
       await handleTelegramText({
         chatId,
@@ -375,6 +388,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
     const data = callback.data || "";
     const chatId = callback.message?.chat.id;
     if (!chatId) return;
+    logger.info({
+      message: "Telegram callback received",
+      eventType: "telegram_callback",
+      userId: callback.from?.id ? String(callback.from.id) : undefined,
+    });
     await answerTelegramCallback({ callbackQueryId: callback.id });
 
     if (data.startsWith("review:")) {

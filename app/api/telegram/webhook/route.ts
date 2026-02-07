@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const payload = (await req.json()) as unknown;
+    logger.info({
+      message: "Telegram webhook received",
+      eventType: "telegram_webhook",
+    });
     await handleTelegramUpdate(payload as any);
     return NextResponse.json({ success: true });
   } catch (err) {
