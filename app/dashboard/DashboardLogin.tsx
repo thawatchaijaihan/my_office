@@ -62,63 +62,15 @@ export function DashboardLogin({
     >
       <div className="w-full max-w-sm rounded-xl bg-white shadow-lg border border-slate-200 p-6">
         <h1 className="text-xl font-bold text-slate-800 mb-1">แดชบอร์ด</h1>
-        <p className="text-sm text-slate-500 mb-6">เข้าสู่ระบบเพื่อดูข้อมูล</p>
+        <p className="text-sm text-slate-500 mb-6">เข้าสู่ระบบด้วย Google เพื่อดูข้อมูล</p>
 
-        <form onSubmit={handleEmailSignIn} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-              อีเมล
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-              รหัสผ่าน
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              required
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium disabled:opacity-50"
-          >
-            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
-          </button>
-        </form>
-
-        <div className="mt-4">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">หรือ</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-slate-300 hover:bg-slate-50 hover:border-emerald-400 disabled:opacity-50 font-medium text-slate-800"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -138,7 +90,39 @@ export function DashboardLogin({
             </svg>
             เข้าสู่ระบบด้วย Google
           </button>
-        </div>
+
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+        <details className="mt-4">
+          <summary className="text-sm text-slate-500 cursor-pointer hover:text-slate-700">
+            หรือเข้าสู่ระบบด้วยอีเมล/รหัสผ่าน
+          </summary>
+          <form onSubmit={handleEmailSignIn} className="mt-3 space-y-3">
+            <input
+              type="email"
+              placeholder="อีเมล"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 text-sm"
+              required
+            />
+            <input
+              type="password"
+              placeholder="รหัสผ่าน"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 text-sm"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-sm font-medium"
+            >
+              เข้าสู่ระบบ
+            </button>
+          </form>
+        </details>
       </div>
     </div>
   );

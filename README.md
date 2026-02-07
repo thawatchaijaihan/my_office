@@ -170,6 +170,7 @@ POST https://<your-domain>/api/webhook
 
 | Secret name | ค่าที่ใส่ |
 |-------------|-----------|
+| `adminFirebaseEmails` | อีเมลที่เข้าแดชบอร์ดได้ (คั่น comma) เช่น `you@gmail.com` |
 | `lineChannelSecret` | LINE Channel Secret |
 | `lineChannelAccessToken` | LINE Channel Access Token (long-lived) |
 | `geminiApiKey` | Google Gemini API key |
@@ -184,6 +185,7 @@ POST https://<your-domain>/api/webhook
 firebase login
 firebase use <PROJECT_ID>
 
+firebase apphosting:secrets:set adminFirebaseEmails
 firebase apphosting:secrets:set lineChannelSecret
 firebase apphosting:secrets:set lineChannelAccessToken
 firebase apphosting:secrets:set geminiApiKey
