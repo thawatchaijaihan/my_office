@@ -4,7 +4,7 @@
  */
 
 function getEnv(key: string): string {
-  return process.env[key] ?? "";
+  return (process.env[key] ?? "").trim();
 }
 
 export const config = {
@@ -23,10 +23,10 @@ export const config = {
     serviceAccountKeyBase64: getEnv("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64"),
     sheetsId: getEnv("GOOGLE_SHEETS_ID"),
     indexSheetGid: process.env.INDEX_SHEET_GID
-      ? Number(process.env.INDEX_SHEET_GID)
+      ? Number(process.env.INDEX_SHEET_GID.trim())
       : undefined,
     slipSheetGid: process.env.SLIP_SHEET_GID
-      ? Number(process.env.SLIP_SHEET_GID)
+      ? Number(process.env.SLIP_SHEET_GID.trim())
       : undefined,
   },
   gemini: {
