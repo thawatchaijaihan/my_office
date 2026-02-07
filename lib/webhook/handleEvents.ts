@@ -61,7 +61,7 @@ export async function handleEvents(events: WebhookEvent[]): Promise<void> {
 
         if (!isAdmin) continue;
 
-        await handleAdminText({ replyToken, text });
+        await handleAdminText({ replyToken, text, userId });
         continue;
       }
 

@@ -1,5 +1,5 @@
 import { chat } from "@/lib/gemini";
-import { replyMessages, replyText, type LineMessage } from "@/lib/line";
+import { pushMessages, replyMessages, replyText, type LineMessage } from "@/lib/line";
 import {
   readIndexRows,
   readSlipRows,
@@ -12,6 +12,7 @@ import { formatDateTime } from "./utils";
 export async function handleAdminText(params: {
   replyToken: string;
   text: string;
+  userId?: string;
 }): Promise<void> {
   const t = params.text.trim();
 
@@ -42,10 +43,36 @@ export async function handleAdminText(params: {
         slip.transferDate || slip.timestamp || formatDateTime(new Date()),
     });
     await writeIndexUpdatesMR(result.updates);
-    await replyText(
-      params.replyToken,
-      `ซิงก์เสร็จแล้ว\n- slip ที่ประมวลผล: ${result.summary.processedSlips}\n- ปิดรายการชำระ: ${result.summary.allocatedRequests}\n- รายการที่ต้องตรวจมือ: ${result.summary.needsReview}`
-    );
+    const summaryText = [
+      "ซิงก์เสร็จแล้ว",
+      `- slip ที่ประมวลผล: ${result.summary.processedSlips}`,
+      `- ปิดรายการชำระ: ${result.summary.allocatedRequests}`,
+      `- รายการที่ต้องตรวจมือ: ${result.summary.needsReview}`,
+    ].join("\n");
+
+    const issues = result.reviewIssues ?? [];
+    if (issues.length === 0) {
+      await replyText(params.replyToken, summaryText);
+      return;
+    }
+
+    const maxLines = 20;
+    const lines = issues.slice(0, maxLines).map((i) => {
+      const name = `${i.payerRankName} ${i.payerSurname}`.trim() || "-";
+      const amount = i.amount ?? "-";
+      return `- แถวสลิป ${i.slipRowNumber}: ${name} | ยอด ${amount} | ${i.reason}`;
+    });
+    if (issues.length > maxLines) {
+      lines.push(`(และอีก ${issues.length - maxLines} รายการ)`);
+    }
+
+    await replyMessages(params.replyToken, [
+      { type: "text", text: summaryText },
+      {
+        type: "text",
+        text: ["รายการที่ต้องตรวจมือ:", ...lines].join("\n"),
+      },
+    ]);
     return;
   }
 
@@ -53,23 +80,46 @@ export async function handleAdminText(params: {
     const indexRows = await readIndexRows();
     const pending = indexRows
       .filter((r) => !r.approvalStatus)
-      .slice(0, 10);
+      .slice(0, 500);
 
     if (pending.length === 0) {
       await replyText(params.replyToken, "ไม่มีรายการรอตรวจ (N ว่าง)");
       return;
     }
 
-    const flexRows = pending.map((r) => ({
-      rowNumber: r.rowNumber,
-      title: `${r.rank}${r.firstName} ${r.lastName}`,
-      subtitle: `ทะเบียน: ${r.plate || "-"}`,
-      paymentStatus: r.paymentStatus || "(ว่าง)",
-      linkUrl: r.note || "",
-    }));
+    const batches: LineMessage[] = [];
+    for (let i = 0; i < pending.length; i += 10) {
+      const flexRows = pending.slice(i, i + 10).map((r) => ({
+        rowNumber: r.rowNumber,
+        title: `${r.rank}${r.firstName} ${r.lastName}`,
+        subtitle: `ทะเบียน: ${r.plate || "-"}`,
+        paymentStatus: r.paymentStatus || "(ว่าง)",
+        linkUrl: r.note || "",
+      }));
+      batches.push(flexReviewCarousel({ rows: flexRows }) as LineMessage);
+    }
+
+    if (batches.length <= 5) {
+      await replyMessages(params.replyToken, batches);
+      return;
+    }
+
+    if (params.userId) {
+      await replyMessages(params.replyToken, batches.slice(0, 5));
+      for (let i = 5; i < batches.length; i += 5) {
+        await pushMessages(params.userId, batches.slice(i, i + 5));
+      }
+      return;
+    }
 
     await replyMessages(params.replyToken, [
-      flexReviewCarousel({ rows: flexRows }) as LineMessage,
+      ...batches.slice(0, 4),
+      {
+        type: "text",
+        text: `มีรายการรอตรวจเพิ่มเติมอีก ${
+          pending.length - 40
+        } รายการ (LINE จำกัด reply 5 ข้อความ) กรุณาส่งคำสั่ง review ซ้ำเพื่อดูต่อ`,
+      } as LineMessage,
     ]);
     return;
   }

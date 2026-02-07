@@ -12,6 +12,13 @@ export const config = {
     channelSecret: getEnv("LINE_CHANNEL_SECRET"),
     channelAccessToken: getEnv("LINE_CHANNEL_ACCESS_TOKEN"),
   },
+  telegram: {
+    botToken: getEnv("TELEGRAM_BOT_TOKEN"),
+    adminUserIds: (process.env.ADMIN_TELEGRAM_USER_IDS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s && s !== "NONE"),
+  },
   admin: {
     apiKey: getEnv("ADMIN_API_KEY"),
     lineUserIds: (process.env.ADMIN_LINE_USER_IDS ?? "")

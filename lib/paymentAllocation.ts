@@ -6,8 +6,41 @@ function normalizeThai(s: string): string {
   return (s || "")
     .replace(/\s+/g, "")
     .replace(/[.·•\-_/()]/g, "")
+    .replace(/[\u200b\u200c\u200d\u2060\uFEFF]/g, "")
+    .replace(/์/g, "")
+    .replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, "")
     .trim()
     .toLowerCase();
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const dp = Array.from({ length: a.length + 1 }, () =>
+    new Array(b.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i++) dp[i]![0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0]![j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i]![j] = Math.min(
+        dp[i - 1]![j] + 1,
+        dp[i]![j - 1] + 1,
+        dp[i - 1]![j - 1] + cost
+      );
+    }
+  }
+  return dp[a.length]![b.length]!;
+}
+
+function isCloseMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  const threshold = maxLen >= 8 ? 2 : 1;
+  return dist <= threshold;
 }
 
 function extractFirstNameFromRankName(rankName: string): string {
@@ -85,6 +118,13 @@ export type AllocationResult = {
     allocatedRequests: number;
     needsReview: number;
   };
+  reviewIssues: Array<{
+    slipRowNumber: number;
+    payerRankName: string;
+    payerSurname: string;
+    amount: number | null;
+    reason: string;
+  }>;
 };
 
 /**
@@ -106,6 +146,7 @@ export function allocateSlipToIndex(params: {
   checkedAtValue: (slip: SlipRow) => string;
 }): AllocationResult {
   const updatesByRow = new Map<number, IndexUpdateMR>();
+  const reviewIssues: AllocationResult["reviewIssues"] = [];
 
   // Build lookup by requester (first+last)
   const byPersonKey = new Map<string, IndexRow[]>();
@@ -131,6 +172,13 @@ export function allocateSlipToIndex(params: {
     const amount = slip.amount;
     if (amount % FEE_PER_REQUEST !== 0) {
       needsReview++;
+      reviewIssues.push({
+        slipRowNumber: slip.rowNumber,
+        payerRankName: slip.payerRankName,
+        payerSurname: slip.payerSurname,
+        amount: slip.amount,
+        reason: "ยอดเงินไม่ลงตัวกับ 30 บาท/รายการ",
+      });
       continue;
     }
 
@@ -139,6 +187,13 @@ export function allocateSlipToIndex(params: {
     const slipFirstName = normalizeThai(extractFirstNameFromRankName(slip.payerRankName));
     if (!slipSurname || !slipFirstName) {
       needsReview++;
+      reviewIssues.push({
+        slipRowNumber: slip.rowNumber,
+        payerRankName: slip.payerRankName,
+        payerSurname: slip.payerSurname,
+        amount: slip.amount,
+        reason: "ชื่อ/นามสกุลในสลิปไม่ครบ",
+      });
       continue;
     }
 
@@ -146,21 +201,49 @@ export function allocateSlipToIndex(params: {
     const candidates: { key: string; rows: IndexRow[] }[] = [];
     for (const [key, rows] of byPersonKey.entries()) {
       const [first, last] = key.split("|");
-      if (!last || last !== slipSurname) continue;
-      if (!first.includes(slipFirstName)) continue;
+      if (!first || !last) continue;
+      const indexFull = first + last;
+      const slipFull = slipFirstName + slipSurname;
+      const lastMatch =
+        last === slipSurname ||
+        last.includes(slipSurname) ||
+        slipSurname.includes(last) ||
+        isCloseMatch(last, slipSurname);
+      const firstMatch =
+        first.includes(slipFirstName) ||
+        slipFirstName.includes(first) ||
+        isCloseMatch(first, slipFirstName);
+      const fullMatch =
+        indexFull.includes(slipFull) ||
+        slipFull.includes(indexFull) ||
+        isCloseMatch(indexFull, slipFull);
+      if (!(lastMatch && (firstMatch || fullMatch))) continue;
       candidates.push({ key, rows });
     }
 
-    if (candidates.length !== 1) {
-      // ambiguous or none
+    if (candidates.length === 0) {
       needsReview++;
+      reviewIssues.push({
+        slipRowNumber: slip.rowNumber,
+        payerRankName: slip.payerRankName,
+        payerSurname: slip.payerSurname,
+        amount: slip.amount,
+        reason: "ไม่พบชื่อที่ตรงในรายการขอ",
+      });
       continue;
     }
 
-    const rows = candidates[0]!.rows;
+    const rows =
+      candidates.length === 1
+        ? candidates[0]!.rows
+        : candidates.flatMap((c) => c.rows);
 
     // Outstanding rows (exclude deleted/incorrect)
-    const outstandingRows = rows.filter((r) => isOutstanding(r));
+    const outstandingRows = rows
+      .filter((r) => isOutstanding(r))
+      .sort(
+        (a, b) => parseRegisteredAtSortable(a.registeredAt) - parseRegisteredAtSortable(b.registeredAt)
+      );
 
     if (outstandingRows.length === 0) continue;
 
@@ -207,5 +290,6 @@ export function allocateSlipToIndex(params: {
   return {
     updates: [...updatesByRow.values()].sort((a, b) => a.rowNumber - b.rowNumber),
     summary: { processedSlips, allocatedRequests, needsReview },
+    reviewIssues,
   };
 }

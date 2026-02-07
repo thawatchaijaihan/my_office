@@ -63,8 +63,39 @@ export function flexReviewCarousel(params: {
     altText: "รายการรอตรวจ (เลือกสถานะ N)",
     contents: {
       type: "carousel",
-      contents: params.rows.map((r) => ({
-        type: "bubble",
+      contents: params.rows.map((r) => {
+        const paymentColor = r.paymentStatus.includes("ค้าง")
+          ? "#dc2626"
+          : r.paymentStatus.includes("ชำระเงินแล้ว")
+            ? "#16a34a"
+            : "#666666";
+        return {
+          type: "bubble",
+        header: {
+          type: "box",
+          layout: "horizontal",
+          backgroundColor: "#16a34a",
+          paddingAll: "12px",
+          spacing: "sm",
+          contents: [
+            {
+              type: "text",
+              text: "รายการรอตรวจ",
+              weight: "bold",
+              color: "#ffffff",
+              size: "md",
+              wrap: true,
+              flex: 1,
+            },
+            {
+              type: "text",
+              text: `แถว ${r.rowNumber}`,
+              size: "sm",
+              color: "#ffffff",
+              align: "end",
+            },
+          ],
+        },
         body: {
           type: "box",
           layout: "vertical",
@@ -82,9 +113,15 @@ export function flexReviewCarousel(params: {
                   decoration: "underline",
                 }
               : { type: "text", text: r.subtitle, size: "sm", color: "#666666", wrap: true },
-            { type: "text", text: `M: ${r.paymentStatus}`, size: "sm", color: "#666666", wrap: true },
+            {
+              type: "text",
+              text: r.paymentStatus,
+              size: "md",
+              weight: "bold",
+              color: paymentColor,
+              wrap: true,
+            },
             { type: "separator", margin: "md" },
-            { type: "text", text: `แถว ${r.rowNumber}`, size: "xs", color: "#999999" },
           ],
         },
         footer: {
@@ -93,48 +130,74 @@ export function flexReviewCarousel(params: {
           spacing: "xs",
           contents: [
             {
-              type: "button",
-              style: "primary",
-              color: "#16a34a",
-              action: {
-                type: "postback",
-                label: "รออนุมัติจาก ฝขว.พล.ป.",
-                data: `action=review&result=waiting_approval&row=${r.rowNumber}`,
-              },
-            },
-            {
-              type: "button",
-              style: "primary",
-              color: "#16a34a",
-              action: {
-                type: "postback",
-                label: "รอส่ง ฝขว.พล.ป.",
-                data: `action=review&result=waiting_send&row=${r.rowNumber}`,
-              },
-            },
-            {
-              type: "button",
-              style: "primary",
-              color: "#16a34a",
-              action: {
-                type: "postback",
-                label: "รอลบข้อมูล",
-                data: `action=review&result=waiting_delete&row=${r.rowNumber}`,
-              },
-            },
-            {
-              type: "button",
-              style: "primary",
-              color: "#16a34a",
-              action: {
-                type: "postback",
-                label: "ข้อมูลไม่ถูกต้อง",
-                data: `action=review&result=incorrect&row=${r.rowNumber}`,
-              },
+              type: "box",
+              layout: "horizontal",
+              spacing: "sm",
+              contents: [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  spacing: "xs",
+                  contents: [
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#16a34a",
+                      height: "sm",
+                      action: {
+                        type: "postback",
+                        label: "รออนุมัติจาก ฝขว.พล.ป.",
+                        data: `action=review&result=waiting_approval&row=${r.rowNumber}`,
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#16a34a",
+                      height: "sm",
+                      action: {
+                        type: "postback",
+                        label: "รอส่ง ฝขว.พล.ป.",
+                        data: `action=review&result=waiting_send&row=${r.rowNumber}`,
+                      },
+                    },
+                  ],
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  spacing: "xs",
+                  contents: [
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#16a34a",
+                      height: "sm",
+                      action: {
+                        type: "postback",
+                        label: "รอลบข้อมูล",
+                        data: `action=review&result=waiting_delete&row=${r.rowNumber}`,
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#16a34a",
+                      height: "sm",
+                      action: {
+                        type: "postback",
+                        label: "ข้อมูลไม่ถูกต้อง",
+                        data: `action=review&result=incorrect&row=${r.rowNumber}`,
+                      },
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
-      })),
+        };
+      }),
     },
   };
 }

@@ -73,7 +73,6 @@ export async function handlePostbackSlipIntent(params: {
   messageId: string;
 }): Promise<boolean> {
   const { replyToken, messageId } = params;
-  await replyText(replyToken, "กำลังอ่านสลิป...");
 
   const { buffer, contentType } = await getMessageContentBuffer(messageId);
   const mimeType = contentType.startsWith("image/")
@@ -136,16 +135,15 @@ export async function handlePostbackSlipIntent(params: {
   });
   await writeIndexUpdatesMR(result.updates);
 
-  await replyText(
-    replyToken,
-    [
-      "บันทึกสลิปและอัปเดตสถานะเรียบร้อย",
-      `- ผู้โอน: ${extracted.payer_first_name ?? "-"} ${extracted.payer_last_name ?? "-"}`,
-      `- ยอด: ${amount} บาท (${k} รายการ)`,
-      `- ปิดรายการได้: ${result.summary.allocatedRequests} รายการ`,
-      `- รายการต้องตรวจมือ: ${result.summary.needsReview}`,
-    ].join("\n")
-  );
+  const doneText = [
+    "บันทึกสลิปและอัปเดตสถานะเรียบร้อย",
+    `- ผู้โอน: ${extracted.payer_first_name ?? "-"} ${extracted.payer_last_name ?? "-"}`,
+    `- ยอด: ${amount} บาท (${k} รายการ)`,
+    `- ปิดรายการได้: ${result.summary.allocatedRequests} รายการ`,
+    `- รายการต้องตรวจมือ: ${result.summary.needsReview}`,
+  ].join("\n");
+
+  await replyText(replyToken, doneText);
   return true;
 }
 

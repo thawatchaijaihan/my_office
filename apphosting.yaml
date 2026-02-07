@@ -55,4 +55,11 @@ env:
     value: "2094374026"
     availability:
       - RUNTIME
-
+  - variable: ADMIN_TELEGRAM_USER_IDS
+    secret: adminTelegramUserIds
+    availability:
+      - RUNTIME
+  - variable: TELEGRAM_BOT_TOKEN
+    secret: telegramBotToken
+    availability:
+      - RUNTIME
