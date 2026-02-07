@@ -65,3 +65,7 @@ env:
     secret: telegramBotToken
     availability:
       - RUNTIME
+  - variable: TELEGRAM_DASHBOARD_URL
+    value: "https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/dashboard"
+    availability:
+      - RUNTIME
