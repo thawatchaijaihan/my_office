@@ -35,35 +35,8 @@ env:
     secret: adminApiKey
     availability:
       - RUNTIME
-  # Firebase Auth สำหรับแดชบอร์ด (optional - ถ้าตั้งค่าจะใช้แทน admin key)
-  - variable: ADMIN_FIREBASE_EMAILS
-    value: ""
-    availability:
-      - RUNTIME
-  - variable: ADMIN_FIREBASE_UIDS
-    value: ""
-    availability:
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
+  # Firebase Auth: ตั้งค่าใน Firebase Console (env vars) ถ้าต้องการใช้
+  # ADMIN_FIREBASE_EMAILS, ADMIN_FIREBASE_UIDS, NEXT_PUBLIC_FIREBASE_*
   - variable: ADMIN_LINE_USER_IDS
     secret: adminLineUserIds
     availability:
