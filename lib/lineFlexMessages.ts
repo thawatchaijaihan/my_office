@@ -244,10 +244,20 @@ export function flexReviewCarouselReadOnly(params: {
     contents: {
       type: "carousel",
       contents: params.groups.map((group) => {
-        const bodyContents: unknown[] = [];
+        const bodyContents: unknown[] = [
+          {
+            type: "text",
+            text: "ข้อมูลไม่ถูกต้อง",
+            weight: "bold",
+            decoration: "underline",
+            size: "md",
+            color: "#b45309",
+            wrap: true,
+          },
+        ];
         for (let i = 0; i < group.rows.length; i++) {
           const r = group.rows[i];
-          if (i > 0) bodyContents.push({ type: "separator", margin: "md" });
+          bodyContents.push({ type: "separator", margin: "md" });
           bodyContents.push(
             r.linkUrl
               ? {

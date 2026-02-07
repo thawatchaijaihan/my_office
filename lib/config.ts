@@ -21,6 +21,11 @@ export const config = {
   },
   admin: {
     apiKey: getEnv("ADMIN_API_KEY"),
+    /** โฮสต์ที่เข้าแดชบอร์ดได้โดยไม่ต้องใส่ key (คั่นด้วย comma) เช่น โฮสต์จาก app hosting */
+    allowedDashboardHosts: (process.env.ALLOWED_DASHBOARD_HOSTS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
     lineUserIds: (process.env.ADMIN_LINE_USER_IDS ?? "")
       .split(",")
       .map((s) => s.trim())

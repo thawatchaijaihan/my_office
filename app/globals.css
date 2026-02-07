@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ป้องกันพื้นหลังดำ - บังคับโหมดสว่าง */
+html,
+body {
+  background-color: #f8fafc !important;
+  color: #0f172a;
+}
+main {
+  background-color: #f1f5f9 !important;
+}

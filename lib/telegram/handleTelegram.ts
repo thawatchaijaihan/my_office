@@ -229,7 +229,7 @@ async function handleTelegramText(params: {
     }
     for (const [name, rows] of byName) {
       const fallbackOwner = name;
-      const lines: string[] = [name];
+      const lines: string[] = ["<b><u>ข้อมูลไม่ถูกต้อง</u></b>", name];
       for (const r of rows) {
         lines.push(
           r.note
