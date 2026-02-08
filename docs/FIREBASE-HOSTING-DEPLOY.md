@@ -5,7 +5,7 @@
 ## สิ่งที่ใช้ร่วมกัน (ไม่ต้องสร้างใหม่)
 
 - **Firebase project**: `jaihan-assistant` (จาก `.firebaserc`)
-- **Realtime Database**: URL เดิม (เช่น `https://jaihan-assistant-default-rtdb.firebaseio.com`) ใช้สำหรับ `users/` และ `dashboardAdmins/`
+- **Realtime Database**: ใช้ DB asia-southeast1 (Singapore) — URL `https://jaihan-assistant.asia-southeast1.firebasedatabase.app` ใช้สำหรับ `users/` และ `dashboardAdmins/`
 - **Authentication**: Google / อีเมล-รหัสผ่าน เดิม
 - **Environment config**: ใช้ค่าชุดเดียวกับที่ใช้อยู่ (ดูด้านล่าง)
 

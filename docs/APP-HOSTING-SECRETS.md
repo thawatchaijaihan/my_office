@@ -7,7 +7,7 @@
 ### 1. หา URL ของ Realtime Database
 
 - เปิด [Firebase Console](https://console.firebase.google.com/) → โปรเจกต์ **jaihan-assistant**
-- Build → **Realtime Database** → ดู URL ด้านบน (เช่น `https://jaihan-assistant-default-rtdb.asia-southeast1.firebasedatabase.app`)
+- Build → **Realtime Database** → เลือก instance **jaihan-assistant** (Singapore / asia-southeast1) → ดู URL ด้านบน (เช่น `https://jaihan-assistant.asia-southeast1.firebasedatabase.app`)
 
 ### 2. สร้าง secret และให้สิทธิ์ App Hosting
 

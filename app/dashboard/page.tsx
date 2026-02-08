@@ -53,6 +53,15 @@ export default function DashboardPage() {
     setRetryKey((k) => k + 1);
   };
 
+  const parseJsonOrNull = async (res: Response): Promise<Record<string, unknown> | null> => {
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  };
+
   const handlePingTest = async () => {
     setPingTestResult("กำลังตรวจสอบ...");
     try {
@@ -63,11 +72,15 @@ export default function DashboardPage() {
       const t = setTimeout(() => ctrl.abort(), 15_000);
       const res = await fetch(url, { headers: authHeaders, signal: ctrl.signal });
       clearTimeout(t);
-      const json = await res.json();
-      if (res.ok && json.ok === true) {
+      const json = await parseJsonOrNull(res);
+      if (res.ok && json && json.ok === true) {
         setPingTestResult("เชื่อมต่อ backend ได้ (ping ผ่าน)");
+      } else if (json && typeof json.error === "string") {
+        setPingTestResult("ผิดพลาด: " + json.error);
+      } else if (!res.ok) {
+        setPingTestResult("เซิร์ฟเวอร์ส่งกลับ " + res.status + " (อาจเป็น HTML แทน JSON)");
       } else {
-        setPingTestResult("ผิดพลาด: " + (json.error || res.status));
+        setPingTestResult("ผิดพลาด: รูปแบบ response ไม่ถูกต้อง");
       }
     } catch (e) {
       setPingTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));
@@ -81,11 +94,15 @@ export default function DashboardPage() {
       const authHeaders = await getAuthHeaders();
       const url = "/api/dashboard/sheets-test" + (key ? `?key=${encodeURIComponent(key)}` : "");
       const res = await fetch(url, { headers: authHeaders });
-      const json = await res.json();
-      if (json.ok === true && typeof json.rowCount === "number") {
+      const json = await parseJsonOrNull(res);
+      if (json && json.ok === true && typeof json.rowCount === "number") {
         setSheetsTestResult(`เชื่อมต่อ Sheet ได้ — อ่านได้ ${json.rowCount} แถว`);
+      } else if (json && typeof json.error === "string") {
+        setSheetsTestResult("ผิดพลาด: " + json.error);
+      } else if (!res.ok) {
+        setSheetsTestResult("เซิร์ฟเวอร์ส่งกลับ " + res.status + " (อาจเป็น HTML แทน JSON)");
       } else {
-        setSheetsTestResult("ผิดพลาด: " + (json.error || res.status));
+        setSheetsTestResult("ผิดพลาด: รูปแบบ response ไม่ถูกต้อง");
       }
     } catch (e) {
       setSheetsTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));

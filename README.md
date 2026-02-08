@@ -61,7 +61,7 @@ cp .env.example .env.local
 | `ADMIN_API_KEY` | ตั้งเอง | ล็อกแดชบอร์ด (fallback ถ้าไม่ใช้ Firebase Auth) |
 | `ADMIN_FIREBASE_EMAILS` | (optional) | อีเมลที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback ถ้าไม่ใช้ Realtime Database) |
 | `ADMIN_FIREBASE_UIDS` | (optional) | Firebase UID ที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback) |
-| `FIREBASE_DATABASE_URL` | (optional) | URL ของ Realtime Database (เช่น `https://jaihan-assistant-default-rtdb.asia-southeast1.firebasedatabase.app`) ใช้เก็บ allowlist อีเมล/UID สำหรับสิทธิ์แดชบอร์ด |
+| `FIREBASE_DATABASE_URL` | (optional) | URL ของ Realtime Database — ใช้ DB asia-southeast1 (Singapore): `https://jaihan-assistant.asia-southeast1.firebasedatabase.app` เก็บ allowlist อีเมล/UID สำหรับสิทธิ์แดชบอร์ด |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project Settings | ใช้ Firebase Auth แทน admin key |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | เช่น `xxx.firebaseapp.com` | |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | เช่น `jaihan-assistant` | |
