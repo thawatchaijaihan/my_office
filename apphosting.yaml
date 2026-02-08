@@ -56,8 +56,9 @@ env:
     availability:
       - RUNTIME
   # Realtime Database URL (optional) สำหรับ allowlist อีเมล/UID แดชบอร์ด
+  # ถ้าใช้ RTDB ให้สร้าง secret firebaseDatabaseUrl แล้วเปลี่ยนเป็น secret: firebaseDatabaseUrl
   - variable: FIREBASE_DATABASE_URL
-    secret: firebaseDatabaseUrl
+    value: ""
     availability:
       - RUNTIME
   # Admin / Google Sheets (Pass system)
