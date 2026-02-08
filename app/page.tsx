@@ -21,7 +21,16 @@ export default function Home() {
         router.push("/dashboard");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes("popup-closed")) setError(msg);
+        if (msg.includes("popup-closed")) return;
+        if (msg.includes("auth/unauthorized-domain")) {
+          setError(
+            "โดเมนนี้ยังไม่อนุญาตใน Firebase — ไปที่ Firebase Console → Authentication → Settings → Authorized domains แล้วเพิ่ม localhost (หรือโดเมนที่ใช้)"
+          );
+        } else if (msg.includes("auth/popup-blocked")) {
+          setError("ปิดป๊อปอัปล็อกอิน — อนุญาตป๊อปอัปสำหรับไซต์นี้แล้วลองใหม่");
+        } else {
+          setError(msg);
+        }
       } finally {
         setLoading(false);
       }
