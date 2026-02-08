@@ -8,10 +8,6 @@ function getEnv(key: string): string {
 }
 
 export const config = {
-  line: {
-    channelSecret: getEnv("LINE_CHANNEL_SECRET"),
-    channelAccessToken: getEnv("LINE_CHANNEL_ACCESS_TOKEN"),
-  },
   telegram: {
     botToken: getEnv("TELEGRAM_BOT_TOKEN"),
     adminUserIds: (process.env.ADMIN_TELEGRAM_USER_IDS ?? "")
@@ -28,10 +24,6 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
-    lineUserIds: (process.env.ADMIN_LINE_USER_IDS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s && s !== "NONE"),
     /** อีเมลหรือ UID ที่เข้าแดชบอร์ดได้ผ่าน Firebase Auth (คั่นด้วย comma) */
     firebaseEmails: (process.env.ADMIN_FIREBASE_EMAILS ?? "")
       .split(",")

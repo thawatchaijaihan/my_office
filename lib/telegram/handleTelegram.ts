@@ -1,5 +1,12 @@
 import { config } from "@/lib/config";
-import { extractSlipFromImage } from "@/lib/gemini";
+import {
+  chat,
+  chatWithContext,
+  chatWithPersonnelContext,
+  extractSlipFromImage,
+} from "@/lib/gemini";
+import { getPersonnelRagContext } from "@/lib/personnelDb";
+import { getRagContext } from "@/lib/rag";
 import { allocateSlipToIndex } from "@/lib/paymentAllocation";
 import {
   appendSlipRow,
@@ -15,7 +22,7 @@ import {
   getTelegramFileBuffer,
   sendTelegramMessage,
 } from "@/lib/telegram";
-import { formatDateTime } from "@/lib/webhook/utils";
+import { formatDateTime } from "@/lib/formatDateTime";
 import { logger } from "@/lib/logger";
 
 type TelegramUpdate = {
@@ -274,11 +281,53 @@ async function handleTelegramText(params: {
     return;
   }
 
-  await sendTelegramMessage({
-    chatId: params.chatId,
-    text: "คำสั่งนี้ยังไม่รองรับ",
-    replyToMessageId: params.messageId,
-  });
+  const MAX_QUESTION_LENGTH = 1000;
+  if (t.length > MAX_QUESTION_LENGTH) {
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: `ข้อความยาวเกิน ${MAX_QUESTION_LENGTH} ตัวอักษรครับ กรุณาสั้นลง`,
+      replyToMessageId: params.messageId,
+    });
+    return;
+  }
+
+  try {
+    const personnelKeywords =
+      /กำลังพล|รายชื่อ|เบอร์|โทร|ธนาคาร|บัญชี|พ\.?(ท|ต|อ|ท|ต)\.?|ร\.?(อ|ท|ต)\.?|จ\.?ส\.?(อ|ท|ต)\.?|ส\.?อ\.?/i;
+    const isPersonnelQuestion = personnelKeywords.test(t);
+    if (isPersonnelQuestion) {
+      const personnelContext = await getPersonnelRagContext(t, { maxDocs: 40 });
+      if (personnelContext) {
+        const aiResponse = await chatWithPersonnelContext(t, personnelContext);
+        await sendTelegramMessage({
+          chatId: params.chatId,
+          text: aiResponse,
+          replyToMessageId: params.messageId,
+        });
+        return;
+      }
+    }
+
+    const ragContext = await getRagContext(t, 5);
+    const aiResponse = ragContext
+      ? await chatWithContext(t, ragContext)
+      : await chat(t);
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: aiResponse,
+      replyToMessageId: params.messageId,
+    });
+  } catch (err) {
+    logger.error({
+      message: "Telegram RAG/chat error",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: "ขออภัย ระบบตอบคำถามขัดข้องชั่วคราว ลองใหม่อีกครั้งหรือติดต่อแอดมินครับ",
+      replyToMessageId: params.messageId,
+    });
+  }
 }
 
 async function handleTelegramPhoto(params: {

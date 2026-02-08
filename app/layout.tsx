@@ -12,7 +12,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Jaihan Assistant",
-  description: "LINE Bot AI powered by Gemini",
+  description: "Telegram Bot AI powered by Gemini",
 };
 
 export default function RootLayout({

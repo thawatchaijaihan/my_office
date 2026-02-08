@@ -12,8 +12,8 @@ const root = join(__dirname, "..");
 const envPath = join(root, ".env.local");
 
 const required = [
-  "LINE_CHANNEL_SECRET",
-  "LINE_CHANNEL_ACCESS_TOKEN",
+  "TELEGRAM_BOT_TOKEN",
+  "ADMIN_TELEGRAM_USER_IDS",
   "GEMINI_API_KEY",
   "GOOGLE_SERVICE_ACCOUNT_KEY_BASE64",
   "GOOGLE_SHEETS_ID",

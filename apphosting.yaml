@@ -10,16 +10,6 @@ runConfig:
   memoryMiB: 512
 
 env:
-  # LINE Messaging API
-  - variable: LINE_CHANNEL_SECRET
-    secret: lineChannelSecret
-    availability:
-      - RUNTIME
-  - variable: LINE_CHANNEL_ACCESS_TOKEN
-    secret: lineChannelAccessToken
-    availability:
-      - RUNTIME
-
   # Google Gemini
   - variable: GEMINI_API_KEY
     secret: geminiApiKey
@@ -61,10 +51,6 @@ env:
     availability:
       - RUNTIME
   # Admin / Google Sheets (Pass system)
-  - variable: ADMIN_LINE_USER_IDS
-    secret: adminLineUserIds
-    availability:
-      - RUNTIME
   - variable: GOOGLE_SERVICE_ACCOUNT_KEY_BASE64
     secret: googleServiceAccountKeyBase64
     availability:

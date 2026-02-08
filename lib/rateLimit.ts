@@ -4,7 +4,7 @@
  */
 
 const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 120; // LINE can send many events per delivery
+const MAX_REQUESTS_PER_WINDOW = 120; // Telegram can send many events per delivery
 
 const store = new Map<string, number[]>();
 

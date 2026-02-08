@@ -31,9 +31,9 @@ cp .env.local .env.jaihan-assistant
 
 สร้างไฟล์ `.env.jaihan-assistant` แล้วใส่ตัวแปรเดียวกับใน README (ตารางตัวแปร environment) ให้ครบ เช่น:
 
-- `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`
+- `TELEGRAM_BOT_TOKEN`, `ADMIN_TELEGRAM_USER_IDS`
 - `GEMINI_API_KEY`, `GEMINI_MODEL`
-- `ADMIN_API_KEY`, `ADMIN_LINE_USER_IDS`
+- `ADMIN_API_KEY`
 - `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY_BASE64`
 - `INDEX_SHEET_GID`, `SLIP_SHEET_GID`
 - `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_DATABASE_URL` (URL ของ Realtime Database)

@@ -73,11 +73,8 @@ base64 -i jaihan-assistant-90c28d13e839.json | tr -d '\n' | firebase apphosting:
 
 | Secret name | ใช้กับตัวแปร |
 |-------------|----------------|
-| lineChannelSecret | LINE_CHANNEL_SECRET |
-| lineChannelAccessToken | LINE_CHANNEL_ACCESS_TOKEN |
 | geminiApiKey | GEMINI_API_KEY |
 | adminApiKey | ADMIN_API_KEY |
-| adminLineUserIds | ADMIN_LINE_USER_IDS |
 | googleServiceAccountKeyBase64 | GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 (เนื้อหา JSON ทั้งไฟล์ แปลงเป็น base64) |
 | googleSheetsId | GOOGLE_SHEETS_ID |
 | adminTelegramUserIds | ADMIN_TELEGRAM_USER_IDS |
