@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
-import { setTelegramMenuButtonToCommands, setTelegramCommands } from "@/lib/telegram";
+import { setTelegramMenuButtonToDefault, setTelegramCommands } from "@/lib/telegram";
 
 /**
  * POST /api/telegram/setup-menu
- * ตั้งค่า Menu button เป็นรายการคำสั่ง + รายการคำสั่งของ Telegram Bot
- * (ไม่ใช้ Web App เพื่อไม่ให้ปุ่มเปิด Mini App — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์)
+ * ลบเมนูปุ่ม custom + ตั้งค่ารายการคำสั่งของ Telegram Bot
+ * (ไม่มีปุ่มแดชบอร์ดข้างคลิป — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์ในแชท)
  * เรียกครั้งเดียวหลัง deploy (ส่ง x-admin-key หรือ ?key=)
  */
 export async function POST(req: NextRequest) {
@@ -19,11 +19,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await setTelegramMenuButtonToCommands();
+    await setTelegramMenuButtonToDefault();
     await setTelegramCommands();
     return NextResponse.json({
       ok: true,
-      message: "Menu button (commands) and commands updated",
+      message: "Menu button removed (default), commands updated",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -134,7 +134,14 @@ export function buildTelegramUrlKeyboard(
   };
 }
 
-/** ตั้งค่า Menu button เป็นรายการคำสั่ง (ไม่ใช้ Web App เพื่อไม่ให้เปิด Mini App — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์แล้วเลือก "เปิดในเบราว์เซอร์") */
+/** ลบเมนูปุ่ม custom ออก (ใช้ default ของ Telegram — ไม่มีปุ่มแดชบอร์ดข้างคลิป) */
+export async function setTelegramMenuButtonToDefault(): Promise<void> {
+  await telegramRequest("setChatMenuButton", {
+    menu_button: { type: "default" },
+  });
+}
+
+/** ตั้งค่า Menu button เป็นรายการคำสั่ง (ไม่ใช้ Web App — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์) */
 export async function setTelegramMenuButtonToCommands(): Promise<void> {
   await telegramRequest("setChatMenuButton", {
     menu_button: { type: "commands" },
