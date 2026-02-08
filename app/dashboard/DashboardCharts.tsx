@@ -123,8 +123,8 @@ function ChartsRoot(props: ChartsRootProps) {
                 ไม่มีข้อมูล
               </p>
             ) : (
-              <div className="flex-1 min-h-[200px] sm:min-h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="flex-1 min-h-[200px] sm:min-h-[240px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                   <PieChart>
                     <Pie
                       data={paymentPieData}
@@ -167,8 +167,8 @@ function ChartsRoot(props: ChartsRootProps) {
                 ไม่มีข้อมูล
               </p>
             ) : (
-              <div className="flex-1 min-h-[200px] sm:min-h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="flex-1 min-h-[200px] sm:min-h-[240px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                   <PieChart>
                     <Pie
                       data={approvalPieData}

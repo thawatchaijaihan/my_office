@@ -41,12 +41,55 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingLong, setLoadingLong] = useState(false);
+  const [sheetsTestResult, setSheetsTestResult] = useState<string | null>(null);
+  const [pingTestResult, setPingTestResult] = useState<string | null>(null);
 
   const handleRetry = () => {
     setError(null);
     setData(null);
+    setSheetsTestResult(null);
+    setPingTestResult(null);
     setLoading(true);
     setRetryKey((k) => k + 1);
+  };
+
+  const handlePingTest = async () => {
+    setPingTestResult("กำลังตรวจสอบ...");
+    try {
+      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
+      const authHeaders = await getAuthHeaders();
+      const url = "/api/dashboard/ping" + (key ? `?key=${encodeURIComponent(key)}` : "");
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15_000);
+      const res = await fetch(url, { headers: authHeaders, signal: ctrl.signal });
+      clearTimeout(t);
+      const json = await res.json();
+      if (res.ok && json.ok === true) {
+        setPingTestResult("เชื่อมต่อ backend ได้ (ping ผ่าน)");
+      } else {
+        setPingTestResult("ผิดพลาด: " + (json.error || res.status));
+      }
+    } catch (e) {
+      setPingTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleSheetsTest = async () => {
+    setSheetsTestResult("กำลังตรวจสอบ...");
+    try {
+      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
+      const authHeaders = await getAuthHeaders();
+      const url = "/api/dashboard/sheets-test" + (key ? `?key=${encodeURIComponent(key)}` : "");
+      const res = await fetch(url, { headers: authHeaders });
+      const json = await res.json();
+      if (json.ok === true && typeof json.rowCount === "number") {
+        setSheetsTestResult(`เชื่อมต่อ Sheet ได้ — อ่านได้ ${json.rowCount} แถว`);
+      } else {
+        setSheetsTestResult("ผิดพลาด: " + (json.error || res.status));
+      }
+    } catch (e) {
+      setSheetsTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   useEffect(() => {
@@ -143,13 +186,25 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-full p-4 sm:p-6 md:p-8 bg-slate-100 text-slate-800">
         <p className="text-sm text-slate-500 mb-3">กำลังโหลดข้อมูลจาก Google Sheets...</p>
         {loadingLong && (
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="mb-4 px-4 py-2 rounded-lg font-medium text-slate-700 border border-slate-300 hover:bg-slate-200 transition"
-          >
-            ลองใหม่
-          </button>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-4 py-2 rounded-lg font-medium text-slate-700 border border-slate-300 hover:bg-slate-200 transition"
+            >
+              ลองใหม่
+            </button>
+            <button
+              type="button"
+              onClick={handleSheetsTest}
+              className="px-4 py-2 rounded-lg font-medium text-slate-600 border border-slate-400 hover:bg-slate-200 transition"
+            >
+              ตรวจสอบการเชื่อมต่อ Sheet
+            </button>
+          </div>
+        )}
+        {sheetsTestResult && (
+          <p className="mb-3 text-sm text-slate-600">{sheetsTestResult}</p>
         )}
         {/* Skeleton ตรงกับ layout จริง: 6 KPI → 2 กราฟ → 2 กล่อง */}
         <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0">
@@ -184,13 +239,36 @@ export default function DashboardPage() {
       >
         <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-red-800">
           <p className="font-medium">{error ?? "ไม่พบข้อมูล"}</p>
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
-          >
-            ลองใหม่
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
+            >
+              ลองใหม่
+            </button>
+            <button
+              type="button"
+              onClick={handlePingTest}
+              className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-sm font-medium text-emerald-800"
+            >
+              ทดสอบ ping (เร็ว)
+            </button>
+            <button
+              type="button"
+              onClick={handleSheetsTest}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-800"
+            >
+              ตรวจสอบ Sheet
+            </button>
+          </div>
+          {(pingTestResult || sheetsTestResult) && (
+            <p className="mt-3 text-sm text-slate-700">
+              {pingTestResult}
+              {pingTestResult && sheetsTestResult ? " · " : ""}
+              {sheetsTestResult}
+            </p>
+          )}
         </div>
       </div>
     );

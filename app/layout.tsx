@@ -29,7 +29,7 @@ export default function RootLayout({
         {children}
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
-          strategy="beforeInteractive"
+          strategy="lazyOnload"
         />
       </body>
     </html>
