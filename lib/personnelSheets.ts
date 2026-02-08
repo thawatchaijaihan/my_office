@@ -5,7 +5,7 @@
 import { listSpreadsheetTabs, readValues } from "./googleSheets";
 import { config } from "./config";
 import type { PersonnelDoc } from "./personnelDb";
-import { personnelKey } from "./personnelDb";
+import { personnelKey, personnelKeyByNameOnly } from "./personnelDb";
 
 const PERSONNEL_TAB = "รายชื่อกำลังพล";
 const INDEX_TAB = "index";
@@ -42,26 +42,24 @@ async function readPersonnelList(spreadsheetId: string): Promise<{ rank: string;
 }
 
 /**
- * อ่านเบอร์จากแท็บ "index": โครงสร้างเดียวกับ passSheets — B=ยศ, C=ชื่อ, D=สกุล, K=เบอร์ (A=วันที่ลงทะเบียน ฯลฯ)
+ * อ่านเบอร์จากแท็บ "index": B=ยศ, C=ชื่อ, D=สกุล, K=เบอร์ — จับคู่ด้วย ชื่อ+สกุล เท่านั้น
  */
 async function readIndexPhones(spreadsheetId: string): Promise<Map<string, string>> {
   const values = await readValues({ spreadsheetId, range: `'${INDEX_TAB}'!A2:O` });
   const map = new Map<string, string>();
   for (const r of values) {
-    const rank = getCell(r, 1);
     const firstName = getCell(r, 2);
     const lastName = getCell(r, 3);
     const phone = getCell(r, 10);
-    if (!rank && !firstName && !lastName) continue;
-    const key = personnelKey(rank, firstName, lastName);
+    if (!firstName && !lastName) continue;
+    const key = personnelKeyByNameOnly(firstName, lastName);
     if (phone) map.set(key, phone);
   }
   return map;
 }
 
 /**
- * อ่านธนาคาร+เลขบัญชีจากแท็บ "bank": A=ยศ, B=ชื่อ, C=สกุล, D=ธนาคาร, E=เลขที่บัญชี
- * ถ้าโครงต่าง (เช่น A=ชื่อเต็ม) สามารถปรับ range/คอลัมน์ในฟังก์ชันนี้
+ * อ่านธนาคาร+เลขบัญชีจากแท็บ "bank": A=ยศ, B=ชื่อ, C=สกุล, D=ธนาคาร, E=เลขที่บัญชี — จับคู่ด้วย ชื่อ+สกุล เท่านั้น
  */
 async function readBankInfo(spreadsheetId: string): Promise<Map<string, { bank: string; accountNumber: string }>> {
   const values = await readValues({ spreadsheetId, range: `'${BANK_TAB}'!A:E` });
@@ -74,13 +72,12 @@ async function readBankInfo(spreadsheetId: string): Promise<Map<string, { bank: 
   }
   for (let i = start; i < values.length; i++) {
     const r = values[i]!;
-    const rank = getCell(r, 0);
     const firstName = getCell(r, 1);
     const lastName = getCell(r, 2);
     const bank = getCell(r, 3);
     const accountNumber = getCell(r, 4);
-    if (!rank && !firstName && !lastName) continue;
-    const key = personnelKey(rank, firstName, lastName);
+    if (!firstName && !lastName) continue;
+    const key = personnelKeyByNameOnly(firstName, lastName);
     if (bank || accountNumber) map.set(key, { bank, accountNumber });
   }
   return map;
@@ -114,9 +111,9 @@ export async function loadAndMergePersonnel(): Promise<PersonnelDoc[]> {
   ]);
 
   const docs: PersonnelDoc[] = list.map(({ rank, firstName, lastName }) => {
-    const key = personnelKey(rank, firstName, lastName);
-    const phone = phoneMap.get(key) ?? "";
-    const bankInfo = bankMap.get(key) ?? { bank: "", accountNumber: "" };
+    const matchKey = personnelKeyByNameOnly(firstName, lastName);
+    const phone = phoneMap.get(matchKey) ?? "";
+    const bankInfo = bankMap.get(matchKey) ?? { bank: "", accountNumber: "" };
     return {
       rank,
       firstName,

@@ -23,9 +23,15 @@ export type PersonnelDoc = {
   updatedAt: string;
 };
 
-/** สร้าง key สำหรับแมประหว่างแท็บ: ยศ+ชื่อ+สกุล ปกติ (trim, ช่องว่างเดี่ยว) */
+/** สร้าง key สำหรับ document id และการอ้างอิง: ยศ+ชื่อ+สกุล (trim, ช่องว่างเดี่ยว) */
 export function personnelKey(rank: string, firstName: string, lastName: string): string {
   const parts = [rank, firstName, lastName].map((s) => String(s ?? "").trim()).filter(Boolean);
+  return parts.join(" ").replace(/\s+/g, " ");
+}
+
+/** สร้าง key สำหรับจับคู่ข้ามแท็บ: เฉพาะ ชื่อ+สกุล (trim, ช่องว่างเดี่ยว) */
+export function personnelKeyByNameOnly(firstName: string, lastName: string): string {
+  const parts = [firstName, lastName].map((s) => String(s ?? "").trim()).filter(Boolean);
   return parts.join(" ").replace(/\s+/g, " ");
 }
 
