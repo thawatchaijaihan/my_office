@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check-env": "node scripts/check-env.mjs"
+    "check-env": "node scripts/check-env.mjs",
+    "check-production": "node scripts/check-production.mjs",
+    "seed-dashboard-admins": "node scripts/seed-dashboard-admins.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

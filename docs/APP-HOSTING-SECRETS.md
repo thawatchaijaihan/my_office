@@ -32,6 +32,18 @@ firebase apphosting:secrets:grantaccess firebaseDatabaseUrl --backend jaihan-ass
 
 ใน `apphosting.yaml` ใช้ `secret: firebaseDatabaseUrl` สำหรับ `FIREBASE_DATABASE_URL` อยู่แล้ว — หลังสร้าง secret และ grant access แล้ว push โค้ดจะ deploy ได้โดยดึง URL จาก secret
 
+**ค่า URL ที่ใช้กับโปรเจกต์นี้ (DB asia-southeast1):**
+```text
+https://jaihan-assistant.asia-southeast1.firebasedatabase.app
+```
+
+### 4. ถ้าแดชบอร์ดขึ้น 500 / โหลดไม่ขึ้น
+
+- ตรวจว่า **set secret `firebaseDatabaseUrl` แล้ว** และ grant access ให้ backend (ถ้าไม่ set แดชบอร์ดจะใช้ fallback จาก env; ถ้า env ก็ไม่มีอาจมีผลกับ auth)
+- Service account ที่ใช้ (ใน `googleServiceAccountKeyBase64`) ต้องมีสิทธิ์ **Firebase Realtime Database Admin** ในโปรเจกต์ — ดู [docs/FIREBASE-RTDB-IAM.md](FIREBASE-RTDB-IAM.md)
+- ใน Realtime Database ตัว **jaihan-assistant** (asia-southeast1) ต้องมี path `dashboardAdmins/emails` หรือ `dashboardAdmins/uids` ถ้าใช้ allowlist จาก DB (หรือตั้ง `ADMIN_FIREBASE_EMAILS` / `ADMIN_FIREBASE_UIDS` ใน env เป็น fallback)
+- ดู Cloud Build / App Hosting logs เพื่อดูข้อความ error จริงจาก server
+
 ---
 
 ## googleServiceAccountKeyBase64 — ใช้ key ตรงกับไฟล์ JSON ในเครื่อง

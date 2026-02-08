@@ -80,17 +80,18 @@ async function buildDashboardData() {
 export async function GET(req: NextRequest) {
   const reqStart = Date.now();
   const logMs = () => `+${Date.now() - reqStart}ms`;
-  LOG("GET /api/dashboard ถูกเรียก", logMs());
-
-  const authStart = Date.now();
-  const authorized = await isDashboardAuthorized(req);
-  const authMs = Date.now() - authStart;
-  LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)", "ใช้เวลา", authMs, "ms", logMs());
-  if (!authorized) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
+    LOG("GET /api/dashboard ถูกเรียก", logMs());
+
+    const authStart = Date.now();
+    const authorized = await isDashboardAuthorized(req);
+    const authMs = Date.now() - authStart;
+    LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)", "ใช้เวลา", authMs, "ms", logMs());
+    if (!authorized) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const now = Date.now();
     if (cache && now - cache.at < CACHE_TTL_MS) {
       const totalMs = Date.now() - reqStart;
