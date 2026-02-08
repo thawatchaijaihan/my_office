@@ -2,8 +2,8 @@
 # Safe to commit: secrets are stored in Cloud Secret Manager.
 
 runConfig:
-  # Keep costs low by default; tune as needed in Firebase Console or per-env yaml.
-  minInstances: 0
+  # minInstances: 1 = มี instance รันค้างไว้ ลด cold start (มีค่าใช้จ่ายเพิ่ม ถ้าไม่ต้องการตั้งกลับเป็น 0)
+  minInstances: 1
   maxInstances: 10
   concurrency: 80
   cpu: 1

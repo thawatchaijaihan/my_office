@@ -23,7 +23,7 @@ type DashboardData = {
 };
 
 const FETCH_TIMEOUT_DEFAULT_MS = 30_000;
-const FETCH_TIMEOUT_TELEGRAM_MS = 90_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน
+const FETCH_TIMEOUT_TELEGRAM_MS = 120_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน (2 นาที)
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard]", msg, ...args);
 
 function getFetchTimeoutMs(): number {
@@ -95,7 +95,14 @@ export default function DashboardPage() {
         LOG("4. ได้ response:", res.status, res.statusText, "| รอ API", fetchMs, "ms | รวมตั้งแต่โหลด", Date.now() - loadStart, "ms");
         if (!res.ok) {
           LOG("4a. ❌ สถานะไม่ OK → throw Error");
-          throw new Error(res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ");
+          let errMsg = res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ";
+          try {
+            const errBody = await res.clone().json();
+            if (errBody?.message && typeof errBody.message === "string") errMsg = errBody.message;
+          } catch {
+            // ใช้ errMsg เดิม
+          }
+          throw new Error(errMsg);
         }
         const json = await res.json();
         if (!cancelled) {

@@ -34,6 +34,29 @@ firebase apphosting:secrets:grantaccess firebaseDatabaseUrl --backend jaihan-ass
 
 ---
 
+## googleServiceAccountKeyBase64 — ใช้ key ตรงกับไฟล์ JSON ในเครื่อง
+
+App Hosting ใช้ **secret ชื่อ `googleServiceAccountKeyBase64`** (= ตัวแปร `GOOGLE_SERVICE_ACCOUNT_KEY_BASE64`)  
+ค่าที่ต้องใส่คือ **เนื้อหาทั้งหมดของไฟล์ Service Account JSON แปลงเป็น base64** (เช่น ไฟล์ `jaihan-assistant-90c28d13e839.json`)
+
+- **จะตรงกับไฟล์นี้หรือไม่** ขึ้นกับว่าเวลาที่ set secret คุณใส่ base64 ของไฟล์นี้หรือเปล่า  
+- ถ้าต้องการให้ App Hosting ใช้ key **ตรงกับไฟล์นี้** ให้ set secret ใหม่จากไฟล์นี้:
+
+**PowerShell (Windows):**
+```powershell
+# แปลงไฟล์ JSON เป็น base64 แล้ว set เป็น secret (แทนที่ path ให้ตรงกับไฟล์คุณ)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("jaihan-assistant-90c28d13e839.json")) | firebase apphosting:secrets:set googleServiceAccountKeyBase64
+```
+
+**Bash (macOS/Linux):**
+```bash
+base64 -i jaihan-assistant-90c28d13e839.json | tr -d '\n' | firebase apphosting:secrets:set googleServiceAccountKeyBase64
+```
+
+จากนั้น **redeploy** (push โค้ดหรือกด Deploy ใน Console) เพื่อให้ backend ใช้ค่า secret ใหม่
+
+---
+
 ## Secrets อื่นที่ใช้ในโปรเจกต์นี้
 
 | Secret name | ใช้กับตัวแปร |
@@ -43,7 +66,7 @@ firebase apphosting:secrets:grantaccess firebaseDatabaseUrl --backend jaihan-ass
 | geminiApiKey | GEMINI_API_KEY |
 | adminApiKey | ADMIN_API_KEY |
 | adminLineUserIds | ADMIN_LINE_USER_IDS |
-| googleServiceAccountKeyBase64 | GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 |
+| googleServiceAccountKeyBase64 | GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 (เนื้อหา JSON ทั้งไฟล์ แปลงเป็น base64) |
 | googleSheetsId | GOOGLE_SHEETS_ID |
 | adminTelegramUserIds | ADMIN_TELEGRAM_USER_IDS |
 | telegramBotToken | TELEGRAM_BOT_TOKEN |

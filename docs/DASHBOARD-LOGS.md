@@ -6,7 +6,7 @@
 - **3c. Timeout! เรียก abort()** และ **รวมใช้เวลา 60008 ms** → request ไป `/api/dashboard` ไม่กลับภายในเวลา = ฝั่งเซิร์ฟเวอร์ช้ามาก (cold start หรืออ่าน Sheets ช้า) ต้องดู log เซิร์ฟเวอร์ว่า step ไหนค้าง
 - **record-user 500** → ปรับแล้ว: ถ้า Realtime DB ไม่พร้อมจะคืน 200 `{ ok: false }` แทน 503 และมี try/catch ไม่ให้ throw เป็น 500
 - **pending-check 500 / review 504** → API เหล่านี้รอผลจากเซิร์ฟเวอร์เหมือนกัน ถ้า cold start หรือ Sheets ช้า จะ error ได้ แก้ที่ต้นทางคือให้ request แรก (cold start) จบให้ทัน หรือดู log เซิร์ฟเวอร์ว่า error อะไร
-- **Cross-Origin-Opener-Policy (COOP)** → เป็น warning จาก Firebase/ป๊อปอัป ไม่กระทบการโหลดแดชบอร์ดใน WebView
+- **Cross-Origin-Opener-Policy (COOP)** → เป็น warning จาก Firebase/ป๊อปอัป ไม่กระทบการโหลดแดชบอร์ดใน WebView (ดูรายละเอียดหัวข้อ "COOP warnings" ด้านล่าง)
 
 ## ดู log ที่ไหน
 
@@ -25,7 +25,7 @@
 [Dashboard] 1. Component mounted on client
 [Dashboard] 3. mounted = true → เริ่มโหลด API
 [Dashboard] 3a. getAuthHeaders ใช้เวลา XX ms (มี Bearer)
-[Dashboard] 3b. URL: /api/dashboard | Timeout หลัง 90 วินาที
+[Dashboard] 3b. URL: /api/dashboard | Timeout หลัง 120 วินาที
 [Dashboard] 3d. ส่ง fetch ไป /api/dashboard
 [Dashboard] 4. ได้ response: 200 OK | รอ API XXXX ms | รวมตั้งแต่โหลด XXXX ms
 [Dashboard] 5. Parse JSON สำเร็จ → มี summary.total = ...
@@ -87,11 +87,28 @@
 
 ---
 
+## COOP warnings (window.closed / window.close)
+
+ใน Console อาจเห็น:
+
+```
+Cross-Origin-Opener-Policy policy would block the window.closed call.
+Cross-Origin-Opener-Policy policy would block the window.close call.
+```
+
+- มาจาก **Firebase Auth** ตอนใช้ป๊อปอัปล็อกอิน (หรือตอนโหลดสคริปต์ที่เตรียมไว้)
+- โปรเจกต์นี้ตั้งค่า COOP เป็น `same-origin-allow-popups` อยู่แล้ว (`next.config.mjs`) เพื่อให้ป๊อปอัปล็อกอินทำงานได้
+- ใน Telegram WebView ถ้าล็อกอินไว้แล้ว (มี Bearer) จะไม่มีการเปิดป๊อปอัป → warning ไม่กระทบการโหลดแดชบอร์ด
+- **ไม่ต้องแก้** — เป็นแค่ warning ไม่ใช่ error
+
+---
+
 ## ถ้าเปิดจาก Telegram แล้วโหลดช้า
 
 1. ดู **เทอร์มินัล / Cloud Logging** ว่ามี `GET /api/dashboard ถูกเรียก` เมื่อไหร่  
    - ถ้าหลังกดเปิดแดชบอร์ดนานมากถึงมี log = มีโอกาสเป็น **cold start** (instance ยังไม่รัน)
 2. ดูเวลาของ `ตรวจสอบสิทธิ์ ... ใช้เวลา X ms` และ `อ่าน Sheets เสร็จ ใช้เวลา X ms`  
    - ตัวไหนมาก = จุดนั้นเป็นจุดช้า
-3. ฝั่งเบราว์เซอร์: ถ้าเห็น `Timeout! เรียก abort()` = ต้องรอเซิร์ฟเวอร์ทำงานให้จบก่อนถึงจะเห็น response (หรือเพิ่ม timeout ฝั่ง client อีกนิด)  
-   - กด **ลองใหม่** อีกครั้งหลัง cold start มักจะเร็วขึ้นเพราะ server ร้อนแล้ว
+3. ฝั่งเบราว์เซอร์: ถ้าเห็น `Timeout! เรียก abort()` = เซิร์ฟเวอร์ยังไม่ตอบภายในเวลา (ตอนนี้ 120 วินาทีเมื่อเปิดจาก Telegram)  
+   - **กด "ลองใหม่"** — request รอบสองมักเร็วขึ้นเพราะ instance ร้อนแล้ว  
+4. **ลด cold start (ถ้าพร้อมจ่ายค่าโฮสต์มากขึ้น):** ใน Firebase App Hosting ตั้ง `minInstances: 1` ใน `apphosting.yaml` หรือใน Console เพื่อให้มี instance รันค้างไว้ แรกโหลดจะไม่รอนาน (มีค่าใช้จ่ายเพิ่ม)

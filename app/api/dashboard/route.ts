@@ -113,8 +113,12 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[Dashboard API] Error:", err);
     LOG("ส่ง response 500:", message, "| ใช้เวลา", Date.now() - reqStart, "ms");
+    const hint =
+      message.includes("403") || message.toLowerCase().includes("permission")
+        ? " แชร์ Google Sheet ให้อีเมล Service Account (client_email ใน JSON) — ดู docs/SHEETS-TROUBLESHOOTING.md"
+        : "";
     return NextResponse.json(
-      { error: "Failed to load dashboard data", message },
+      { error: "Failed to load dashboard data", message: message + hint },
       { status: 500 }
     );
   }
