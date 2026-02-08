@@ -10,7 +10,7 @@ import {
 import {
   answerTelegramCallback,
   buildTelegramInlineKeyboard,
-  buildTelegramWebAppKeyboard,
+  buildTelegramUrlKeyboard,
   getLargestPhoto,
   getTelegramFileBuffer,
   sendTelegramMessage,
@@ -56,7 +56,7 @@ async function handleTelegramText(params: {
     const lines = [
       "คำสั่งแอดมิน",
       "- เมนู / help",
-      "- dashboard (เปิดแดชบอร์ด Web App)",
+      "- dashboard (แดชบอร์ด)",
       "- myid (ดู Telegram userId ของตัวเอง)",
       "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
       "- review (รายการรอตรวจ M)",
@@ -69,7 +69,7 @@ async function handleTelegramText(params: {
       text: lines.join("\n"),
       replyToMessageId: params.messageId,
       inlineKeyboard:
-        dashboardUrl ? buildTelegramWebAppKeyboard("📊 เปิดแดชบอร์ด", dashboardUrl) : undefined,
+        dashboardUrl ? buildTelegramUrlKeyboard("📊 แดชบอร์ด", dashboardUrl) : undefined,
     });
     return;
   }
@@ -86,9 +86,9 @@ async function handleTelegramText(params: {
     }
     await sendTelegramMessage({
       chatId: params.chatId,
-      text: "กดปุ่มด้านล่างเพื่อเปิดแดชบอร์ด",
+      text: "กดปุ่มด้านล่างเพื่อเปิดแดชบอร์ด\n(ถ้าต้องการล็อกอินด้วย Google: กดค้างปุ่ม แล้วเลือก \"เปิดในเบราว์เซอร์\")",
       replyToMessageId: params.messageId,
-      inlineKeyboard: buildTelegramWebAppKeyboard("📊 เปิดแดชบอร์ด", dashboardUrl),
+      inlineKeyboard: buildTelegramUrlKeyboard("📊 แดชบอร์ด", dashboardUrl),
     });
     return;
   }

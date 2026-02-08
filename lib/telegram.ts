@@ -11,6 +11,7 @@ type TelegramPhotoSize = {
 
 type TelegramInlineKeyboardButton =
   | { text: string; callback_data: string }
+  | { text: string; url: string }
   | { text: string; web_app: { url: string } };
 
 type TelegramInlineKeyboard = {
@@ -113,7 +114,7 @@ export function buildTelegramInlineKeyboard(
   };
 }
 
-/** สร้าง inline keyboard ที่มีปุ่มเปิด Web App */
+/** สร้าง inline keyboard ที่มีปุ่มเปิด Web App (เปิดในแอป Telegram) */
 export function buildTelegramWebAppKeyboard(
   text: string,
   url: string
@@ -123,12 +124,22 @@ export function buildTelegramWebAppKeyboard(
   };
 }
 
+/** สร้าง inline keyboard ปุ่มลิงก์ธรรมดา — กดค้างแล้วเลือก "เปิดในเบราว์เซอร์" ได้ (เหมาะกับล็อกอิน Google) */
+export function buildTelegramUrlKeyboard(
+  text: string,
+  url: string
+): TelegramInlineKeyboard {
+  return {
+    inline_keyboard: [[{ text, url }]],
+  };
+}
+
 /** ตั้งค่า Menu button ให้เปิด Web App (เรียกครั้งเดียวหลัง deploy) */
 export async function setTelegramMenuButton(url: string): Promise<void> {
   await telegramRequest("setChatMenuButton", {
     menu_button: {
       type: "web_app",
-      text: "เปิดแดชบอร์ด",
+      text: "แดชบอร์ด",
       web_app: { url },
     },
   });
@@ -140,7 +151,7 @@ export async function setTelegramCommands(): Promise<void> {
     commands: [
       { command: "help", description: "แสดงรายการคำสั่ง" },
       { command: "myid", description: "ดู Telegram userId" },
-      { command: "dashboard", description: "เปิดแดชบอร์ด" },
+      { command: "dashboard", description: "แดชบอร์ด" },
       { command: "sync", description: "ซิงก์ slip → index" },
       { command: "review", description: "รายการรอตรวจ" },
       { command: "invalid", description: "รายการข้อมูลไม่ถูกต้อง" },
