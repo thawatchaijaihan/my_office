@@ -17,7 +17,9 @@ let _sheetNameCache: Map<number, string> | null = null;
  */
 async function getSheetNameByGid(gid: number): Promise<string | null> {
   if (!_sheetNameCache) {
+    const t0 = Date.now();
     const tabs = await listSpreadsheetTabs();
+    LOG("listSpreadsheetTabs เสร็จ ได้", tabs.length, "แท็บ ใช้เวลา", Date.now() - t0, "ms");
     _sheetNameCache = new Map(tabs.map((t) => [t.gid, t.title]));
   }
   return _sheetNameCache.get(gid) ?? null;
@@ -82,10 +84,13 @@ export async function readIndexRows(): Promise<IndexRow[]> {
     defaultName: INDEX_SHEET_NAME,
     gid: config.google.indexSheetGid,
   });
-  LOG("resolveSheetName เสร็จ แท็บ:", sheetName, "ใช้เวลา", Date.now() - t0, "ms");
+  const resolveMs = Date.now() - t0;
+  LOG("resolveSheetName เสร็จ แท็บ:", sheetName, "ใช้เวลา", resolveMs, "ms");
   const t1 = Date.now();
+  LOG("readValues เริ่ม range:", `${sheetName}!A2:O`);
   const values = await readValues({ range: `${sheetName}!A2:O` });
-  LOG("readValues เสร็จ ได้", values.length, "แถว ใช้เวลา", Date.now() - t1, "ms");
+  const readMs = Date.now() - t1;
+  LOG("readValues เสร็จ ได้", values.length, "แถว ใช้เวลา", readMs, "ms | readIndexRows รวม", Date.now() - t0, "ms");
   const rows: IndexRow[] = [];
   for (let i = 0; i < values.length; i++) {
     const r = values[i]!;

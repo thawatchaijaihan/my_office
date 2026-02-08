@@ -26,8 +26,10 @@ function getAdminApp(): App | null {
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
   if (b64) {
     try {
+      const t0 = Date.now();
       const json = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
       adminApp = initializeApp({ credential: cert(json) });
+      console.log("[Firebase Admin] init (default app) ใช้เวลา", Date.now() - t0, "ms");
       return adminApp;
     } catch {
       console.error("[Firebase Admin] Invalid GOOGLE_SERVICE_ACCOUNT_KEY_BASE64");
@@ -35,7 +37,9 @@ function getAdminApp(): App | null {
     }
   }
   try {
+    const t0 = Date.now();
     adminApp = initializeApp({ projectId: process.env.GCLOUD_PROJECT || "jaihan-assistant" });
+    console.log("[Firebase Admin] init (default credentials) ใช้เวลา", Date.now() - t0, "ms");
     return adminApp;
   } catch (e) {
     console.error("[Firebase Admin] Init failed:", e);
@@ -56,11 +60,13 @@ function getDatabaseApp(): App | null {
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
   if (b64) {
     try {
+      const t0 = Date.now();
       const json = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
       databaseApp = initializeApp(
         { credential: cert(json), databaseURL: dbUrl },
         REALTIME_DB_APP_NAME
       );
+      console.log("[Firebase Admin] init (realtime-db app) ใช้เวลา", Date.now() - t0, "ms");
       return databaseApp;
     } catch (e) {
       console.error("[Firebase Admin] Realtime DB app init failed:", e);

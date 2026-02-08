@@ -19,16 +19,21 @@ export async function isDashboardAuthorized(req: NextRequest): Promise<boolean> 
 
   // 1. Firebase Auth - ถ้ามี Bearer token ให้ตรวจสิทธิ์จาก Realtime Database ก่อน แล้ว fallback เป็น env
   if (bearerToken) {
+    const authPhaseStart = Date.now();
     const t0 = Date.now();
     const user = await verifyFirebaseToken(bearerToken);
-    LOG("verifyFirebaseToken ใช้เวลา", Date.now() - t0, "ms", user ? "ได้ user" : "ไม่ผ่าน");
+    const verifyMs = Date.now() - t0;
+    LOG("verifyFirebaseToken ใช้เวลา", verifyMs, "ms", user ? "ได้ user" : "ไม่ผ่าน");
     if (user) {
       const t1 = Date.now();
       const emailAllowedDb = await isEmailAllowedInDb(user.email);
-      LOG("isEmailAllowedInDb ใช้เวลา", Date.now() - t1, "ms, ผล:", emailAllowedDb);
+      const emailMs = Date.now() - t1;
+      LOG("isEmailAllowedInDb ใช้เวลา", emailMs, "ms, ผล:", emailAllowedDb);
       const t2 = Date.now();
       const uidAllowedDb = await isUidAllowedInDb(user.uid);
-      LOG("isUidAllowedInDb ใช้เวลา", Date.now() - t2, "ms, ผล:", uidAllowedDb);
+      const uidMs = Date.now() - t2;
+      LOG("isUidAllowedInDb ใช้เวลา", uidMs, "ms, ผล:", uidAllowedDb);
+      LOG("ตรวจสิทธิ์รวม (token+email+uid):", Date.now() - authPhaseStart, "ms");
       if (emailAllowedDb || uidAllowedDb) return true;
 
       const emailOk =

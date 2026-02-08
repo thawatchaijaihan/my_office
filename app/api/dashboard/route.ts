@@ -79,11 +79,13 @@ async function buildDashboardData() {
 
 export async function GET(req: NextRequest) {
   const reqStart = Date.now();
-  LOG("GET /api/dashboard ถูกเรียก");
+  const logMs = () => `+${Date.now() - reqStart}ms`;
+  LOG("GET /api/dashboard ถูกเรียก", logMs());
 
   const authStart = Date.now();
   const authorized = await isDashboardAuthorized(req);
-  LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)", "ใช้เวลา", Date.now() - authStart, "ms");
+  const authMs = Date.now() - authStart;
+  LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)", "ใช้เวลา", authMs, "ms", logMs());
   if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -91,21 +93,26 @@ export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
     if (cache && now - cache.at < CACHE_TTL_MS) {
-      LOG("ใช้ cache (อายุ", Math.round((now - cache.at) / 1000), "วินาที) → ส่งข้อมูลทันที, รวม", Date.now() - reqStart, "ms");
+      const totalMs = Date.now() - reqStart;
+      LOG("ใช้ cache (อายุ", Math.round((now - cache.at) / 1000), "วินาที) → ส่งข้อมูลทันที | รวม", totalMs, "ms (auth:", authMs, "ms, cache: hit)", logMs());
       return NextResponse.json(cache.data);
     }
 
-    LOG("ไม่มี cache / cache หมดอายุ → เริ่มอ่าน Google Sheets (readIndexRows)");
+    LOG("ไม่มี cache / cache หมดอายุ → เริ่มอ่าน Google Sheets", logMs());
     const sheetsStart = Date.now();
     const data = await buildDashboardData();
-    LOG("อ่าน Sheets เสร็จ ใช้เวลา", Date.now() - sheetsStart, "ms, total แถว:", data.summary.total);
+    const sheetsMs = Date.now() - sheetsStart;
     cache = { data, at: now };
-    LOG("ส่ง response 200 พร้อมข้อมูล, รวมทั้ง request", Date.now() - reqStart, "ms");
+    const totalMs = Date.now() - reqStart;
+    LOG(
+      "อ่าน Sheets เสร็จ | แยกรอบ: auth", authMs, "ms, sheets", sheetsMs, "ms | รวม", totalMs, "ms, แถว:", data.summary.total,
+      logMs()
+    );
     return NextResponse.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[Dashboard API] Error:", err);
-    LOG("ส่ง response 500:", message);
+    LOG("ส่ง response 500:", message, "| ใช้เวลา", Date.now() - reqStart, "ms");
     return NextResponse.json(
       { error: "Failed to load dashboard data", message },
       { status: 500 }

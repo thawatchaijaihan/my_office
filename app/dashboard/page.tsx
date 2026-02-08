@@ -23,7 +23,7 @@ type DashboardData = {
 };
 
 const FETCH_TIMEOUT_DEFAULT_MS = 30_000;
-const FETCH_TIMEOUT_TELEGRAM_MS = 60_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน
+const FETCH_TIMEOUT_TELEGRAM_MS = 90_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard]", msg, ...args);
 
 function getFetchTimeoutMs(): number {
@@ -36,10 +36,18 @@ function getFetchTimeoutMs(): number {
 export default function DashboardPage() {
   const { getAuthHeaders } = useDashboardAuth();
   const [mounted, setMounted] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingLong, setLoadingLong] = useState(false);
+
+  const handleRetry = () => {
+    setError(null);
+    setData(null);
+    setLoading(true);
+    setRetryKey((k) => k + 1);
+  };
 
   useEffect(() => {
     LOG("1. Component mounted on client");
@@ -60,6 +68,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!mounted) return;
     const fetchTimeoutMs = getFetchTimeoutMs();
+    setError(null);
     let cancelled = false;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -68,17 +77,22 @@ export default function DashboardPage() {
     }, fetchTimeoutMs);
 
     (async () => {
+      const loadStart = Date.now();
       LOG("3. mounted = true → เริ่มโหลด API");
       setLoadingLong(false);
       const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
+      const authStart = Date.now();
       const authHeaders = await getAuthHeaders();
+      const authMs = Date.now() - authStart;
+      LOG("3a. getAuthHeaders ใช้เวลา", authMs, "ms", authHeaders.Authorization ? "(มี Bearer)" : "(ไม่มี auth)");
       const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
-      LOG("3a. URL ที่เรียก:", url, key ? "(มี key)" : authHeaders.Authorization ? "(มี Bearer)" : "(ไม่มี auth)");
-      LOG("3b. Timeout หลัง", fetchTimeoutMs / 1000, "วินาที");
-      const start = Date.now();
+      LOG("3b. URL:", url, "| Timeout หลัง", fetchTimeoutMs / 1000, "วินาที");
+      const fetchStart = Date.now();
       try {
+        LOG("3d. ส่ง fetch ไป", url);
         const res = await fetch(url, { signal: controller.signal, headers: authHeaders });
-        LOG("4. ได้ response จาก API:", res.status, res.statusText, "ใช้เวลา", Date.now() - start, "ms");
+        const fetchMs = Date.now() - fetchStart;
+        LOG("4. ได้ response:", res.status, res.statusText, "| รอ API", fetchMs, "ms | รวมตั้งแต่โหลด", Date.now() - loadStart, "ms");
         if (!res.ok) {
           LOG("4a. ❌ สถานะไม่ OK → throw Error");
           throw new Error(res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ");
@@ -102,7 +116,7 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) {
           clearTimeout(timeoutId);
-          LOG("6. finally → setLoading(false), รวมใช้เวลา", Date.now() - start, "ms");
+          LOG("6. finally → setLoading(false), รวมใช้เวลา", Date.now() - loadStart, "ms");
           setLoading(false);
         }
       }
@@ -114,7 +128,7 @@ export default function DashboardPage() {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mounted, getAuthHeaders]);
+  }, [mounted, getAuthHeaders, retryKey]);
 
   if (!mounted || loading) {
     LOG("render: สถานะโหลด (mounted:", mounted, ", loading:", loading, ")");
@@ -122,15 +136,13 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-full p-4 sm:p-6 md:p-8 bg-slate-100 text-slate-800">
         <p className="text-sm text-slate-500 mb-3">กำลังโหลดข้อมูลจาก Google Sheets...</p>
         {loadingLong && (
-          <>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mb-4 px-4 py-2 rounded-lg font-medium text-slate-700 border border-slate-300 hover:bg-slate-200 transition"
-            >
-              ลองใหม่
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="mb-4 px-4 py-2 rounded-lg font-medium text-slate-700 border border-slate-300 hover:bg-slate-200 transition"
+          >
+            ลองใหม่
+          </button>
         )}
         {/* Skeleton ตรงกับ layout จริง: 6 KPI → 2 กราฟ → 2 กล่อง */}
         <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0">
@@ -167,7 +179,7 @@ export default function DashboardPage() {
           <p className="font-medium">{error ?? "ไม่พบข้อมูล"}</p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={handleRetry}
             className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
           >
             ลองใหม่
