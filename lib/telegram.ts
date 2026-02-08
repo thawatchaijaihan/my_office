@@ -134,7 +134,14 @@ export function buildTelegramUrlKeyboard(
   };
 }
 
-/** ตั้งค่า Menu button ให้เปิด Web App (เรียกครั้งเดียวหลัง deploy) */
+/** ตั้งค่า Menu button เป็นรายการคำสั่ง (ไม่ใช้ Web App เพื่อไม่ให้เปิด Mini App — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์แล้วเลือก "เปิดในเบราว์เซอร์") */
+export async function setTelegramMenuButtonToCommands(): Promise<void> {
+  await telegramRequest("setChatMenuButton", {
+    menu_button: { type: "commands" },
+  });
+}
+
+/** ตั้งค่า Menu button ให้เปิด Web App (เปิดเป็น Mini App ใน Telegram) — ถ้าไม่ต้องการ Mini App ให้ใช้ setTelegramMenuButtonToCommands แทน */
 export async function setTelegramMenuButton(url: string): Promise<void> {
   await telegramRequest("setChatMenuButton", {
     menu_button: {

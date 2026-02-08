@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
-import { setTelegramMenuButton, setTelegramCommands } from "@/lib/telegram";
+import { setTelegramMenuButtonToCommands, setTelegramCommands } from "@/lib/telegram";
 
 /**
  * POST /api/telegram/setup-menu
- * ตั้งค่า Menu button + รายการคำสั่งของ Telegram Bot
+ * ตั้งค่า Menu button เป็นรายการคำสั่ง + รายการคำสั่งของ Telegram Bot
+ * (ไม่ใช้ Web App เพื่อไม่ให้ปุ่มเปิด Mini App — เปิดแดชบอร์ดผ่าน /dashboard แล้วกดปุ่มลิงก์)
  * เรียกครั้งเดียวหลัง deploy (ส่ง x-admin-key หรือ ?key=)
  */
 export async function POST(req: NextRequest) {
@@ -17,20 +18,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const dashboardUrl = config.telegram.dashboardUrl;
-  if (!dashboardUrl) {
-    return NextResponse.json(
-      { error: "TELEGRAM_DASHBOARD_URL is not set" },
-      { status: 400 }
-    );
-  }
-
   try {
-    await setTelegramMenuButton(dashboardUrl);
+    await setTelegramMenuButtonToCommands();
     await setTelegramCommands();
     return NextResponse.json({
       ok: true,
-      message: "Menu button and commands updated",
+      message: "Menu button (commands) and commands updated",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
