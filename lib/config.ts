@@ -41,6 +41,8 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+    /** อีเมลคนเดียวที่เห็นเมนู "อนุมัติการเข้าถึง" และมีสิทธิ์อนุมัติ (ใช้ NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL) */
+    dashboardApproverEmail: (process.env.NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL ?? "").trim().toLowerCase(),
   },
   google: {
     serviceAccountKeyBase64: getEnv("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64"),

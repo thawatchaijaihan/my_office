@@ -59,8 +59,9 @@ cp .env.example .env.local
 | `LINE_CHANNEL_SECRET` | LINE Developers Console | ตรวจสอบ signature webhook |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers Console | ส่งข้อความ/ดึงเนื้อหารูป |
 | `ADMIN_API_KEY` | ตั้งเอง | ล็อกแดชบอร์ด (fallback ถ้าไม่ใช้ Firebase Auth) |
-| `ADMIN_FIREBASE_EMAILS` | (optional) | อีเมลที่เข้าแดชบอร์ดได้ คั่นด้วย comma |
-| `ADMIN_FIREBASE_UIDS` | (optional) | Firebase UID ที่เข้าแดชบอร์ดได้ คั่นด้วย comma |
+| `ADMIN_FIREBASE_EMAILS` | (optional) | อีเมลที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback ถ้าไม่ใช้ Realtime Database) |
+| `ADMIN_FIREBASE_UIDS` | (optional) | Firebase UID ที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback) |
+| `FIREBASE_DATABASE_URL` | (optional) | URL ของ Realtime Database (เช่น `https://jaihan-assistant-default-rtdb.asia-southeast1.firebasedatabase.app`) ใช้เก็บ allowlist อีเมล/UID สำหรับสิทธิ์แดชบอร์ด |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project Settings | ใช้ Firebase Auth แทน admin key |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | เช่น `xxx.firebaseapp.com` | |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | เช่น `jaihan-assistant` | |
@@ -140,6 +141,60 @@ npm run dev
 
 จากหน้าหลักมีลิงก์ "เปิดแดชบอร์ดสรุปข้อมูล" ไปยัง `/dashboard`
 
+### สิทธิ์แดชบอร์ดกับ Realtime Database (แนะนำ)
+
+แทนการใส่รายการอีเมลใน env สามารถใช้ **Firebase Realtime Database** เก็บ allowlist และกำหนดสิทธิ์ได้ (เพิ่ม/ลบคนได้จาก Firebase Console โดยไม่ต้อง redeploy)
+
+1. สร้าง Realtime Database ในโปรเจกต์ (Firebase Console → Build → Realtime Database) แล้วคัดลอก **Database URL**
+2. ตั้ง env `FIREBASE_DATABASE_URL` = URL ดังกล่าว (และใส่ใน App Hosting secrets ถ้า deploy)
+3. ใน Realtime Database สร้างโครงสร้างดังนี้ (เพิ่มจาก Firebase Console หรือ Rules ด้านล่าง):
+
+```
+dashboardAdmins/
+  emails/
+    user_at_gmail_dot_com: true      ← อีเมล user@gmail.com (แทนที่ . เป็น _dot_ และ @ เป็น _at_)
+    admin_at_company_dot_com: true
+  uids/
+    <Firebase UID>: true            ← หรือใช้ UID โดยตรง
+```
+
+- **emails**: key = อีเมลที่ encode แล้ว (ตัวเล็ก, `.` → `_dot_`, `@` → `_at_`) เช่น `you@gmail.com` → `you_at_gmail_dot_com`
+- **uids**: key = Firebase Auth UID ของผู้ใช้
+- ค่าเป็น `true` หรือ object เช่น `{ "role": "admin" }` ก็ได้
+
+ลำดับการตรวจสิทธิ์: ระบบจะเช็ค **Realtime Database ก่อน** (ถ้ามี `FIREBASE_DATABASE_URL`) ถ้าอีเมลหรือ UID อยู่ใน allowlist ใน DB จะให้เข้าได้ ถ้าไม่พบหรือไม่มี DB จะ fallback ไปใช้ `ADMIN_FIREBASE_EMAILS` / `ADMIN_FIREBASE_UIDS` จาก env
+
+**บันทึกผู้ล็อกอินอัตโนมัติ + จัดการสิทธิ์**
+
+เมื่อมีใครล็อกอินด้วย Google (หรืออีเมล/รหัสผ่าน) ที่หน้าแดชบอร์ด ระบบจะบันทึกข้อมูลลง Realtime Database อัตโนมัติที่ path `users/{uid}` (email, displayName, photoURL, lastLoginAt) ดังนั้นคุณจะเห็นรายชื่อคนที่เคยล็อกอินใน Realtime Database → แท็บ **Data**
+
+วิธีจัดการสิทธิ์:
+1. เปิด Firebase Console → Realtime Database → แท็บ **Data**
+2. ดูรายชื่อภายใต้ `users/` (แต่ละ key คือ UID มี email, lastLoginAt ฯลฯ)
+3. ต้องการให้คนนั้นเข้าแดชบอร์ดได้ → ไปที่ `dashboardAdmins/uids/` กด **+** ใส่ **Name** = UID ของคนนั้น (คัดลอกจาก `users/`) **Value** = `true`
+4. หรือใช้อีเมล: ไปที่ `dashboardAdmins/emails/` เพิ่ม key เป็นอีเมลที่ encode (เช่น `you_at_gmail_dot_com`) ค่า `true`
+
+ไม่ต้อง redeploy แค่แก้ใน Console แล้วคนที่ถูกเพิ่มจะเข้าแดชบอร์ดได้ทันที
+
+**กฎความปลอดภัย Realtime Database (ตัวอย่าง)** — ให้เฉพาะ server (Admin SDK) อ่านได้ หรือถ้าให้ client อ่านได้ต้องจำกัด path:
+
+```json
+{
+  "rules": {
+    "dashboardAdmins": {
+      ".read": "false",
+      ".write": "false"
+    },
+    "users": {
+      ".read": "false",
+      ".write": "false"
+    }
+  }
+}
+```
+
+(Server ใช้ Admin SDK ไม่ถูกบังคับโดย rules ดังนั้น API ยังอ่าน/เขียนได้)
+
 ## Telegram Bot – เมนูเปิด Web App
 
 ตั้งค่า `TELEGRAM_DASHBOARD_URL` (เช่น `https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/dashboard`) แล้วเรียก API เพื่อตั้งค่า Menu button:
@@ -170,7 +225,7 @@ POST https://<your-domain>/api/webhook
 
 | Secret name | ค่าที่ใส่ |
 |-------------|-----------|
-| `adminFirebaseEmails` | อีเมลที่เข้าแดชบอร์ดได้ (คั่น comma) เช่น `you@gmail.com` |
+| `firebaseDatabaseUrl` | (optional) URL Realtime Database ถ้าใช้ allowlist จาก DB |
 | `lineChannelSecret` | LINE Channel Secret |
 | `lineChannelAccessToken` | LINE Channel Access Token (long-lived) |
 | `geminiApiKey` | Google Gemini API key |
@@ -185,7 +240,7 @@ POST https://<your-domain>/api/webhook
 firebase login
 firebase use <PROJECT_ID>
 
-firebase apphosting:secrets:set adminFirebaseEmails
+firebase apphosting:secrets:set firebaseDatabaseUrl
 firebase apphosting:secrets:set lineChannelSecret
 firebase apphosting:secrets:set lineChannelAccessToken
 firebase apphosting:secrets:set geminiApiKey
@@ -196,6 +251,24 @@ firebase apphosting:secrets:set googleSheetsId
 ```
 
 5. Trigger rollout โดย push เข้า `main` หรือกด Deploy ใน Firebase Console
+
+### Deploy ไป Firebase Hosting (ใช้ config เดียวกัน → ได้ jaihan-assistant.web.app)
+
+ใช้ **config ชุดเดียว** กับโปรเจกต์นี้ (Realtime Database, Auth, env เดิม) แต่ deploy ผ่าน Firebase Hosting เพื่อให้ได้ **jaihan-assistant.web.app** และ **jaihan-assistant.firebaseapp.com**:
+
+1. คัดลอก `.env.local` เป็น `.env.jaihan-assistant` (หรือสร้างแล้วใส่ค่าตามตารางตัวแปร)
+2. รัน `firebase experiments:enable webframeworks` (ครั้งเดียว)
+3. รัน `firebase init hosting` ถ้ายังไม่เคย (เลือกใช้ web framework + Next.js)
+4. รัน `firebase deploy` หรือ `firebase deploy --only hosting`
+
+รายละเอียดเต็ม: [docs/FIREBASE-HOSTING-DEPLOY.md](docs/FIREBASE-HOSTING-DEPLOY.md)
+
+### ทางเลือกอื่นสำหรับ .web.app
+
+- **URL ปัจจุบัน**: App Hosting ให้ URL แบบ `https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app`
+- **ใช้ Custom domain กับ App Hosting**: Firebase Console → App Hosting → Settings → Add custom domain (เช่น `dashboard.yourdomain.com`)
+
+หลังตั้ง domain ใหม่แล้ว อย่าลืมอัปเดต `TELEGRAM_DASHBOARD_URL` ให้ชี้ไปที่ URL ที่ใช้จริง
 
 ## สิ่งที่จำเป็น
 

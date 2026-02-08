@@ -11,8 +11,10 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.jaihan-assistant
 
 # Google service account keys (never commit)
+jaihan-assistant-*.json
 jaihan-assistant-b98271495e18.json
 service-account*.json
 

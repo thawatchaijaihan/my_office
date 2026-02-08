@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavItem } from "./navData";
 import { NAV_ITEMS } from "./navData";
+import { useDashboardAuth } from "./DashboardAuthContext";
+
+const APPROVER_EMAIL = (process.env.NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL ?? "").trim().toLowerCase();
 
 const iconClass = "w-5 h-5 shrink-0";
 
@@ -45,6 +48,12 @@ function NavIcon({ icon }: { icon: NavItem["icon"] }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       );
+    case "access":
+      return (
+        <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -52,11 +61,18 @@ function NavIcon({ icon }: { icon: NavItem["icon"] }) {
 
 export default function DashboardNav() {
   const pathname = usePathname();
+  const { user } = useDashboardAuth();
+  const isApprover = APPROVER_EMAIL && user?.email?.toLowerCase() === APPROVER_EMAIL;
+
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.icon !== "access") return true;
+    return isApprover;
+  });
 
   return (
     <nav className="flex-1 overflow-y-auto p-3" aria-label="เมนูหลัก">
       <ul className="space-y-1" role="list">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(item.href + "/");

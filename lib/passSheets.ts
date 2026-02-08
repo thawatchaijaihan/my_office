@@ -73,12 +73,19 @@ function getCell(row: string[], idx: number): string {
   return (row[idx] ?? "").trim();
 }
 
+const LOG = (msg: string, ...args: unknown[]) => console.log("[passSheets]", msg, ...args);
+
 export async function readIndexRows(): Promise<IndexRow[]> {
+  const t0 = Date.now();
+  LOG("readIndexRows เริ่ม");
   const sheetName = await resolveSheetName({
     defaultName: INDEX_SHEET_NAME,
     gid: config.google.indexSheetGid,
   });
+  LOG("resolveSheetName เสร็จ แท็บ:", sheetName, "ใช้เวลา", Date.now() - t0, "ms");
+  const t1 = Date.now();
   const values = await readValues({ range: `${sheetName}!A2:O` });
+  LOG("readValues เสร็จ ได้", values.length, "แถว ใช้เวลา", Date.now() - t1, "ms");
   const rows: IndexRow[] = [];
   for (let i = 0; i < values.length; i++) {
     const r = values[i]!;

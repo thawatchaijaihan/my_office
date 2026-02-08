@@ -78,9 +78,12 @@ async function buildDashboardData() {
 }
 
 export async function GET(req: NextRequest) {
+  const reqStart = Date.now();
   LOG("GET /api/dashboard ถูกเรียก");
+
+  const authStart = Date.now();
   const authorized = await isDashboardAuthorized(req);
-  LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)");
+  LOG("ตรวจสอบสิทธิ์:", authorized ? "ผ่าน" : "ไม่ผ่าน (ส่ง 401)", "ใช้เวลา", Date.now() - authStart, "ms");
   if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -88,16 +91,16 @@ export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
     if (cache && now - cache.at < CACHE_TTL_MS) {
-      LOG("ใช้ cache (อายุ", Math.round((now - cache.at) / 1000), "วินาที) → ส่งข้อมูลทันที");
+      LOG("ใช้ cache (อายุ", Math.round((now - cache.at) / 1000), "วินาที) → ส่งข้อมูลทันที, รวม", Date.now() - reqStart, "ms");
       return NextResponse.json(cache.data);
     }
 
     LOG("ไม่มี cache / cache หมดอายุ → เริ่มอ่าน Google Sheets (readIndexRows)");
-    const t0 = Date.now();
+    const sheetsStart = Date.now();
     const data = await buildDashboardData();
-    LOG("อ่าน Sheets เสร็จ ใช้เวลา", Date.now() - t0, "ms, total แถว:", data.summary.total);
+    LOG("อ่าน Sheets เสร็จ ใช้เวลา", Date.now() - sheetsStart, "ms, total แถว:", data.summary.total);
     cache = { data, at: now };
-    LOG("ส่ง response 200 พร้อมข้อมูล");
+    LOG("ส่ง response 200 พร้อมข้อมูล, รวมทั้ง request", Date.now() - reqStart, "ms");
     return NextResponse.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -51,6 +51,30 @@ export function DashboardAuthProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, []);
 
+  // บันทึกผู้ใช้ที่ล็อกอินลง Realtime Database อัตโนมัติ (users/{uid}) เพื่อให้แอดมินจัดการสิทธิ์ได้
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        if (!token || cancelled) return;
+        const res = await fetch("/api/auth/record-user", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok && process.env.NODE_ENV === "development") {
+          console.warn("[Dashboard] record-user:", res.status, await res.text());
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === "development") console.warn("[Dashboard] record-user error", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const signOut = useCallback(async () => {
     const auth = getFirebaseAuth();
     if (auth) await auth.signOut();

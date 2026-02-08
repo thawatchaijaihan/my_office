@@ -22,8 +22,16 @@ type DashboardData = {
   latestEntries: { rowNumber: number; registeredAt: string; name: string; requestFor: string; plate: string }[];
 };
 
-const FETCH_TIMEOUT_MS = 15_000; // 15 วินาที
+const FETCH_TIMEOUT_DEFAULT_MS = 30_000;
+const FETCH_TIMEOUT_TELEGRAM_MS = 60_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard]", msg, ...args);
+
+function getFetchTimeoutMs(): number {
+  if (typeof window === "undefined") return FETCH_TIMEOUT_DEFAULT_MS;
+  return (window as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp
+    ? FETCH_TIMEOUT_TELEGRAM_MS
+    : FETCH_TIMEOUT_DEFAULT_MS;
+}
 
 export default function DashboardPage() {
   const { getAuthHeaders } = useDashboardAuth();
@@ -31,7 +39,6 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [needsKey, setNeedsKey] = useState(false);
   const [loadingLong, setLoadingLong] = useState(false);
 
   useEffect(() => {
@@ -52,12 +59,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!mounted) return;
+    const fetchTimeoutMs = getFetchTimeoutMs();
     let cancelled = false;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       LOG("3c. ⏱️ Timeout! เรียก abort()");
       controller.abort();
-    }, FETCH_TIMEOUT_MS);
+    }, fetchTimeoutMs);
 
     (async () => {
       LOG("3. mounted = true → เริ่มโหลด API");
@@ -66,15 +74,14 @@ export default function DashboardPage() {
       const authHeaders = await getAuthHeaders();
       const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
       LOG("3a. URL ที่เรียก:", url, key ? "(มี key)" : authHeaders.Authorization ? "(มี Bearer)" : "(ไม่มี auth)");
-      LOG("3b. Timeout หลัง", FETCH_TIMEOUT_MS / 1000, "วินาที");
+      LOG("3b. Timeout หลัง", fetchTimeoutMs / 1000, "วินาที");
       const start = Date.now();
       try {
         const res = await fetch(url, { signal: controller.signal, headers: authHeaders });
         LOG("4. ได้ response จาก API:", res.status, res.statusText, "ใช้เวลา", Date.now() - start, "ms");
         if (!res.ok) {
           LOG("4a. ❌ สถานะไม่ OK → throw Error");
-          if (res.status === 401) setNeedsKey(true);
-          throw new Error(res.status === 401 ? "ต้องการ Admin Key เพื่อเข้าดูแดชบอร์ด" : "โหลดข้อมูลไม่สำเร็จ");
+          throw new Error(res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ");
         }
         const json = await res.json();
         if (!cancelled) {
@@ -85,7 +92,12 @@ export default function DashboardPage() {
         if (cancelled) return;
         const err = e as Error;
         LOG("5a. ❌ Error:", err.name, err.message);
-        if (err.name === "AbortError") setError("โหลดข้อมูลช้าเกินไป (เกิน 15 วินาที) กรุณากดลองใหม่");
+        if (err.name === "AbortError")
+          setError(
+            (window as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp
+              ? "โหลดช้า (เปิดจาก Telegram ครั้งแรกอาจใช้เวลานาน) กดลองใหม่"
+              : "โหลดข้อมูลช้าเกินไป กรุณากดลองใหม่"
+          );
         else setError(err.message);
       } finally {
         if (!cancelled) {
@@ -111,9 +123,6 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-500 mb-3">กำลังโหลดข้อมูลจาก Google Sheets...</p>
         {loadingLong && (
           <>
-            <p className="text-xs text-slate-400 mb-1">
-              โหลดนาน? ถ้ามี ADMIN_API_KEY ให้ใส่ใน URL: /dashboard?key=ค่าของคุณ
-            </p>
             <button
               type="button"
               onClick={() => window.location.reload()}
@@ -148,7 +157,7 @@ export default function DashboardPage() {
   }
 
   if (error || !data) {
-    LOG("render: สถานะ error (error:", error, ", data:", !!data, ", needsKey:", needsKey, ")");
+    LOG("render: สถานะ error (error:", error, ", data:", !!data, ")");
     return (
       <div
         className="p-4 sm:p-8 min-h-full"
@@ -156,59 +165,13 @@ export default function DashboardPage() {
       >
         <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-red-800">
           <p className="font-medium">{error ?? "ไม่พบข้อมูล"}</p>
-          {needsKey ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem("adminKey") as HTMLInputElement;
-                const key = input?.value?.trim();
-                if (key) {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set("key", key);
-                  window.location.href = url.toString();
-                }
-              }}
-              className="mt-4 space-y-3 max-w-sm"
-            >
-              <label htmlFor="adminKey" className="block text-sm font-medium">
-                Admin Key
-              </label>
-              <input
-                id="adminKey"
-                name="adminKey"
-                type="password"
-                placeholder="ใส่ Admin Key"
-                className="w-full px-4 py-2 rounded-lg border border-red-200 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300"
-                autoComplete="off"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
-                >
-                  เข้าดูแดชบอร์ด
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
-                >
-                  ลองใหม่
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <p className="text-sm mt-1">หรือใส่ key ใน URL: /dashboard?key=YOUR_KEY</p>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
-              >
-                ลองใหม่
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
+          >
+            ลองใหม่
+          </button>
         </div>
       </div>
     );

@@ -1,1 +1,15 @@
-{}
+{
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "apphosting.yaml",
+      "*.md",
+      "docs/**",
+      "*.test.ts",
+      "vitest.config.ts"
+    ]
+  }
+}

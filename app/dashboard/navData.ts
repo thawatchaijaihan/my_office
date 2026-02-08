@@ -6,7 +6,7 @@ export type NavItem = {
   href: string;
   label: string;
   exact: boolean;
-  icon: "dashboard" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid";
+  icon: "dashboard" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid" | "access";
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -16,4 +16,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/pending-send", label: "รอนำเรียนส่ง ฝขว.พล.ป.", exact: true, icon: "pending-send" },
   { href: "/dashboard/pending-approval", label: "รออนุมัติจาก ฝขว.พล.ป.", exact: true, icon: "pending-approval" },
   { href: "/dashboard/invalid", label: "ข้อมูลไม่ถูกต้อง", exact: true, icon: "invalid" },
+  { href: "/dashboard/access", label: "อนุมัติการเข้าถึง", exact: true, icon: "access" },
 ];

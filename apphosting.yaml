@@ -30,11 +30,6 @@ env:
     availability:
       - RUNTIME
 
-  # Admin / Google Sheets (Pass system)
-  - variable: ADMIN_API_KEY
-    secret: adminApiKey
-    availability:
-      - RUNTIME
   # Firebase Auth (Google sign-in) สำหรับแดชบอร์ด
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyAR05w30yK5F4MtVjsez4SyMXXZ6fAhQwg"
@@ -56,10 +51,16 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: ADMIN_FIREBASE_EMAILS
-    secret: adminFirebaseEmails
+  - variable: ADMIN_API_KEY
+    secret: adminApiKey
     availability:
       - RUNTIME
+  # Realtime Database URL (optional) สำหรับ allowlist อีเมล/UID แดชบอร์ด
+  - variable: FIREBASE_DATABASE_URL
+    secret: firebaseDatabaseUrl
+    availability:
+      - RUNTIME
+  # Admin / Google Sheets (Pass system)
   - variable: ADMIN_LINE_USER_IDS
     secret: adminLineUserIds
     availability:

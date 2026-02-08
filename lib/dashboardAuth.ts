@@ -1,11 +1,14 @@
 import { NextRequest } from "next/server";
 import { config } from "./config";
 import { verifyFirebaseToken } from "./firebaseAdmin";
+import { isEmailAllowedInDb, isUidAllowedInDb } from "./dashboardAdminsDb";
+
+const LOG = (msg: string, ...args: unknown[]) => console.log("[dashboardAuth]", msg, ...args);
 
 /**
  * ตรวจว่า request นี้มีสิทธิ์เข้า API แดชบอร์ดหรือไม่
  * ลำดับการตรวจ:
- * 1. Firebase Auth token (Authorization: Bearer <idToken>) ถ้ามี ADMIN_FIREBASE_*
+ * 1. Firebase Auth token → ตรวจ allowlist จาก Realtime Database (dashboardAdmins/emails, uids) หรือจาก env (ADMIN_FIREBASE_*)
  * 2. localhost / ALLOWED_DASHBOARD_HOSTS = อนุญาต
  * 3. x-admin-key หรือ ?key= ตรงกับ ADMIN_API_KEY
  */
@@ -14,12 +17,20 @@ export async function isDashboardAuthorized(req: NextRequest): Promise<boolean> 
   const authHeader = req.headers.get("authorization");
   const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  // 1. Firebase Auth - ต้องมี allowlist (email หรือ uid) ถึงจะใช้
-  const useFirebaseAuth =
-    config.admin.firebaseEmails.length > 0 || config.admin.firebaseUids.length > 0;
-  if (bearerToken && useFirebaseAuth) {
+  // 1. Firebase Auth - ถ้ามี Bearer token ให้ตรวจสิทธิ์จาก Realtime Database ก่อน แล้ว fallback เป็น env
+  if (bearerToken) {
+    const t0 = Date.now();
     const user = await verifyFirebaseToken(bearerToken);
+    LOG("verifyFirebaseToken ใช้เวลา", Date.now() - t0, "ms", user ? "ได้ user" : "ไม่ผ่าน");
     if (user) {
+      const t1 = Date.now();
+      const emailAllowedDb = await isEmailAllowedInDb(user.email);
+      LOG("isEmailAllowedInDb ใช้เวลา", Date.now() - t1, "ms, ผล:", emailAllowedDb);
+      const t2 = Date.now();
+      const uidAllowedDb = await isUidAllowedInDb(user.uid);
+      LOG("isUidAllowedInDb ใช้เวลา", Date.now() - t2, "ms, ผล:", uidAllowedDb);
+      if (emailAllowedDb || uidAllowedDb) return true;
+
       const emailOk =
         config.admin.firebaseEmails.length === 0 ||
         (user.email && config.admin.firebaseEmails.includes(user.email.toLowerCase()));
