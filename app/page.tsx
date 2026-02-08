@@ -1,8 +1,35 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { getFirebaseAuth, isFirebaseAuthEnabled } from "@/lib/firebaseClient";
 
 export default function Home() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    if (isFirebaseAuthEnabled()) {
+      const auth = getFirebaseAuth();
+      if (!auth) return;
+      setError(null);
+      setLoading(true);
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        router.push("/dashboard");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes("popup-closed")) setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      router.push("/dashboard");
+    }
+  };
+
   return (
     <section
       className="w-full bg-cover bg-center bg-no-repeat px-4 pb-10 font-sans"
@@ -21,9 +48,11 @@ export default function Home() {
             Card request data management via Google Sheet — review requests, track inventory, and get notifications in one place.
           </p>
 
-          <Link
-            href="/dashboard"
-            className="flex items-center justify-center gap-2 bg-white border border-neutral-300 hover:bg-gray-50 h-[52px] max-w-[280px] w-full rounded-full mt-6 text-sm text-neutral-700 font-medium transition"
+          <button
+            type="button"
+            onClick={handleLogin}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 bg-white border border-neutral-300 hover:bg-gray-50 h-[52px] max-w-[280px] w-full rounded-full mt-6 text-sm text-neutral-700 font-medium transition disabled:opacity-60"
           >
             <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -31,8 +60,11 @@ export default function Home() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            Login with Google
-          </Link>
+            {loading ? "กำลังเข้าสู่ระบบ..." : "ล็อกอิน"}
+          </button>
+          {error && (
+            <p className="mt-3 text-sm text-red-600 max-w-[280px]">{error}</p>
+          )}
         </div>
 
         <div className="w-full max-w-md md:max-w-lg">
