@@ -51,8 +51,9 @@ async function buildDashboardData() {
     .slice(0, 10)
     .map(([name, { count, title }]) => ({ name, count, title }));
 
-  // รายการที่เพิ่มล่าสุด 10 รายการ (แถวล่างสุดของชีต = ล่าสุด)
-  const latestRows = indexRows.slice(-10).reverse();
+  // รายการที่เพิ่มล่าสุด 10 รายการ (ไม่รวม M = ลบข้อมูล, แถวล่างสุดของชีต = ล่าสุด)
+  const nonDeleted = indexRows.filter((r) => r.paymentStatus !== "ลบข้อมูล");
+  const latestRows = nonDeleted.slice(-10).reverse();
   const latestEntries = latestRows.map((r) => ({
     rowNumber: r.rowNumber,
     registeredAt: r.registeredAt || "",
