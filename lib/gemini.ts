@@ -18,6 +18,18 @@ const SYSTEM_PROMPT = `คุณคือผู้ช่วยอัจฉริ
 - ใช้ภาษาไทยเป็นหลัก
 - หากไม่แน่ใจให้ตอบอย่างสุภาพว่าไม่ทราบ`;
 
+const RAG_SYSTEM_PROMPT = `คุณคือผู้ช่วยอัจฉริยะที่ทำงานผ่าน LINE Bot
+- ตอบคำถามจาก "เอกสารอ้างอิง" ด้านล่างเท่านั้น
+- ตอบอย่างกระชับ เป็นกันเอง ใช้ภาษาไทย
+- ถ้าคำถามไม่อยู่ในเอกสารหรือไม่เกี่ยวข้อง ให้ตอบอย่างสุภาพว่า "ในคู่มือไม่มีข้อมูลนี้ครับ ถ้าต้องการความช่วยเหลือเพิ่มเติมลองติดต่อแอดมิน"
+- ห้ามแต่งเรื่องหรือตอบนอกเหนือจากเอกสารที่ให้มา`;
+
+const PERSONNEL_RAG_SYSTEM_PROMPT = `คุณคือผู้ช่วยตอบคำถามจาก "รายชื่อกำลังพล" (ฐานข้อมูล Firestore)
+- ตอบจากรายการด้านล่างเท่านั้น: ยศ ชื่อ สกุล เบอร์โทร ธนาคาร เลขที่บัญชี
+- ตอบอย่างกระชับ เป็นกันเอง ใช้ภาษาไทย
+- ถ้าไม่พบชื่อหรือข้อมูลในรายชื่อ ให้ตอบว่า "ไม่พบในรายชื่อกำลังพลครับ"
+- ห้ามแต่งเรื่องหรือให้ข้อมูลนอกเหนือจากรายชื่อที่ให้มา`;
+
 const SLIP_PROMPT = `คุณคือผู้ช่วยอ่านข้อความจาก "สลิปการโอนเงิน" (รูปภาพ)
 หน้าที่ของคุณคือดึงข้อมูลสำคัญเพื่อใช้ตรวจการชำระเงินค่าบัตรผ่าน
 
@@ -47,6 +59,62 @@ export async function chat(message: string): Promise<string> {
   });
 
   const result = await withRetry(() => model.generateContent(message));
+  const response = result.response;
+
+  if (!response.text) {
+    return "ขออภัย ไม่สามารถประมวลผลได้ในขณะนี้ ลองใหม่อีกครั้งนะครับ";
+  }
+
+  return response.text();
+}
+
+/**
+ * ตอบคำถามโดยอิงจากบริบท (RAG): ใส่เอกสารที่ดึงมาเป็น context
+ * ใช้เมื่อมี context จาก getRagContext()
+ */
+export async function chatWithContext(
+  message: string,
+  contextFromDocs: string
+): Promise<string> {
+  if (!contextFromDocs.trim()) {
+    return chat(message);
+  }
+
+  const model = getGenAI().getGenerativeModel({
+    model: config.gemini.model,
+    systemInstruction: RAG_SYSTEM_PROMPT,
+  });
+
+  const prompt = `เอกสารอ้างอิง:\n\n${contextFromDocs}\n\n---\n\nคำถามจากผู้ใช้: ${message}`;
+  const result = await withRetry(() => model.generateContent(prompt));
+  const response = result.response;
+
+  if (!response.text) {
+    return "ขออภัย ไม่สามารถประมวลผลได้ในขณะนี้ ลองใหม่อีกครั้งนะครับ";
+  }
+
+  return response.text();
+}
+
+/**
+ * ถาม-ตอบเกี่ยวกับฐานข้อมูลกำลังพล (RAG จาก Firestore)
+ * ใส่ context จาก getPersonnelRagContext()
+ */
+export async function chatWithPersonnelContext(
+  message: string,
+  personnelContext: string
+): Promise<string> {
+  if (!personnelContext.trim()) {
+    return "ขณะนี้ไม่มีข้อมูลรายชื่อกำลังพลในระบบครับ";
+  }
+
+  const model = getGenAI().getGenerativeModel({
+    model: config.gemini.model,
+    systemInstruction: PERSONNEL_RAG_SYSTEM_PROMPT,
+  });
+
+  const prompt = `${personnelContext}\n\n---\n\nคำถาม: ${message}`;
+  const result = await withRetry(() => model.generateContent(prompt));
   const response = result.response;
 
   if (!response.text) {

@@ -1,4 +1,6 @@
-import { chat } from "@/lib/gemini";
+import { chat, chatWithContext, chatWithPersonnelContext } from "@/lib/gemini";
+import { getRagContext } from "@/lib/rag";
+import { getPersonnelRagContext } from "@/lib/personnelDb";
 import { pushMessages, replyMessages, replyText, type LineMessage } from "@/lib/line";
 import {
   readIndexRows,
@@ -266,6 +268,44 @@ export async function handleAdminText(params: {
     return;
   }
 
-  const aiResponse = await chat(t);
-  await replyText(params.replyToken, aiResponse);
+  const MAX_QUESTION_LENGTH = 1000;
+  if (t.length > MAX_QUESTION_LENGTH) {
+    await replyText(
+      params.replyToken,
+      `ข้อความยาวเกิน ${MAX_QUESTION_LENGTH} ตัวอักษรครับ กรุณาสั้นลง`
+    );
+    return;
+  }
+
+  try {
+    const personnelKeywords =
+      /กำลังพล|รายชื่อ|เบอร์|โทร|ธนาคาร|บัญชี|พ\.?(ท|ต|อ|ท|ต)\.?|ร\.?(อ|ท|ต)\.?|จ\.?ส\.?(อ|ท|ต)\.?|ส\.?อ\.?/i;
+    const isPersonnelQuestion = personnelKeywords.test(t);
+    if (isPersonnelQuestion) {
+      const personnelContext = await getPersonnelRagContext(t, { maxDocs: 40 });
+      if (personnelContext) {
+        const aiResponse = await chatWithPersonnelContext(t, personnelContext);
+        await replyText(params.replyToken, aiResponse);
+        return;
+      }
+    }
+
+    const ragContext = await getRagContext(t, 5);
+    const aiResponse = ragContext
+      ? await chatWithContext(t, ragContext)
+      : await chat(t);
+    await replyText(params.replyToken, aiResponse);
+  } catch (err) {
+    const { logWebhookError } = await import("@/lib/logger");
+    logWebhookError({
+      userId: params.userId,
+      eventType: "message",
+      message: "RAG/chat error",
+      error: err,
+    });
+    await replyText(
+      params.replyToken,
+      "ขออภัย ระบบตอบคำถามขัดข้องชั่วคราว ลองใหม่อีกครั้งหรือติดต่อแอดมินครับ"
+    );
+  }
 }

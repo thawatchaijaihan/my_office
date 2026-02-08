@@ -8,6 +8,7 @@
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
 
 const REALTIME_DB_APP_NAME = "realtime-db";
 
@@ -114,6 +115,17 @@ export function getRealtimeDb() {
   if (!app) return null;
   try {
     return getDatabase(app);
+  } catch {
+    return null;
+  }
+}
+
+/** Cloud Firestore — ใช้ default app (project จาก credential) */
+export function getFirestoreDb() {
+  const app = getAdminApp();
+  if (!app) return null;
+  try {
+    return getFirestore(app);
   } catch {
     return null;
   }
