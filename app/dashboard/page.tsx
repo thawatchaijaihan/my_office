@@ -294,7 +294,7 @@ export default function DashboardPage() {
   LOG("render: แสดงแดชบอร์ด (ข้อมูลโหลดสำเร็จ, total:", data.summary.total, ")");
   return (
     <div
-      className="h-full flex flex-col p-4 sm:p-6 md:p-8"
+      className="h-full flex flex-col p-4 sm:p-5 md:p-6 lg:p-8"
       style={{ backgroundColor: "#f1f5f9", color: "#0f172a", minHeight: "100%" }}
     >
       <h1 className="text-xl sm:text-2xl font-bold shrink-0 mb-3 sm:mb-4" style={{ color: "#1e293b" }}>

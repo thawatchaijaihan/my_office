@@ -309,7 +309,7 @@ async function handleTelegramReview(params: {
 }) {
   const APPROVAL_MAP: Record<string, { n: string; m?: string }> = {
     waiting_approval: { n: "รออนุมัติจาก ฝขว.พล.ป." },
-    waiting_send: { n: "รอส่ง ฝขว.พล.ป." },
+    waiting_send: { n: "รอส่ง ฝขว.พล.ป.", m: "ค้างชำระเงิน" },
     waiting_delete: { n: "รอลบข้อมูล", m: "ลบข้อมูล" },
     incorrect: { n: "ข้อมูลไม่ถูกต้อง", m: "ลบข้อมูล" },
   };

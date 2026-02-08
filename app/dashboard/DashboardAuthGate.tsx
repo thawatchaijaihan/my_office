@@ -24,7 +24,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-screen flex overflow-hidden bg-slate-100">
       <aside
-        className="flex w-64 shrink-0 flex-col bg-slate-800 text-white"
+        className="flex w-64 md:w-56 lg:w-64 shrink-0 flex-col bg-slate-800 text-white"
         aria-label="เมนูด้านข้าง"
       >
         <div className="shrink-0 border-b border-slate-700 p-4">
