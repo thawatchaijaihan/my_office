@@ -7,17 +7,19 @@ const LOG = (msg: string, ...args: unknown[]) => console.log("[dashboardAuth]", 
 
 /**
  * ตรวจว่า request นี้มีสิทธิ์เข้า API แดชบอร์ดหรือไม่
+ * ให้เฉพาะผู้ที่ได้รับการอนุมัติ (อยู่ใน allowlist) เข้าถึงได้ โดยใช้ Bearer token จาก Firebase เท่านั้น
+ * ADMIN_API_KEY (secret adminApiKey) ไม่ใช้สำหรับ API แดชบอร์ด — ใช้เฉพาะใน /api/admin/* (เช่น sync-personnel)
+ *
  * ลำดับการตรวจ:
- * 1. Firebase Auth token → ตรวจ allowlist จาก Realtime Database (dashboardAdmins/emails, uids) หรือจาก env (ADMIN_FIREBASE_*)
- * 2. localhost / ALLOWED_DASHBOARD_HOSTS = อนุญาต
- * 3. x-admin-key หรือ ?key= ตรงกับ ADMIN_API_KEY
+ * 1. Firebase Auth Bearer token → ตรวจ allowlist (Realtime Database หรือ ADMIN_FIREBASE_*)
+ * 2. โหมด dev: ไม่มี ADMIN_API_KEY หรือ localhost = อนุญาต
  */
 export async function isDashboardAuthorized(req: NextRequest): Promise<boolean> {
   const host = (req.headers.get("host") ?? "").split(":")[0];
   const authHeader = req.headers.get("authorization");
   const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  // 1. Firebase Auth - ถ้ามี Bearer token ให้ตรวจสิทธิ์จาก Realtime Database ก่อน แล้ว fallback เป็น env
+  // 1. Firebase Auth - เฉพาะผู้ที่อยู่ใน allowlist (อนุมัติแล้ว) เท่านั้น
   if (bearerToken) {
     const authPhaseStart = Date.now();
     const t0 = Date.now();
@@ -46,19 +48,13 @@ export async function isDashboardAuthorized(req: NextRequest): Promise<boolean> 
     }
   }
 
-  // 2. ไม่มี ADMIN_API_KEY = อนุญาตทุก host (โหมด dev)
+  // 2. โหมด dev: ไม่มี ADMIN_API_KEY = อนุญาต (รัน npm run dev)
   const expected = config.admin.apiKey;
   if (!expected) return true;
 
-  // 3. localhost / 127.0.0.1
+  // 3. โหมด dev: localhost
   if (/^localhost$/.test(host) || /^127\.0\.0\.1$/.test(host)) return true;
 
-  // 4. ALLOWED_DASHBOARD_HOSTS
-  const allowed = config.admin.allowedDashboardHosts;
-  if (allowed.length > 0 && allowed.some((h) => host === h || host.endsWith("." + h))) return true;
-
-  // 5. x-admin-key หรือ ?key=
-  const provided =
-    req.headers.get("x-admin-key") ?? req.nextUrl.searchParams.get("key") ?? "";
-  return provided === expected;
+  // ไม่รับ x-admin-key / ?key= สำหรับ API แดชบอร์ด — ให้เฉพาะผู้ที่อนุมัติ (Bearer) เท่านั้น
+  return false;
 }
