@@ -1,27 +1,29 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DashboardAuthProvider, useDashboardAuth } from "./DashboardAuthContext";
-import { DashboardLogin } from "./DashboardLogin";
 import DashboardNav from "./DashboardNav";
 import { isFirebaseAuthEnabled } from "@/lib/firebaseClient";
-
-import { useState } from "react";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useDashboardAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && isFirebaseAuthEnabled() && !user) {
+      router.replace("/");
+    }
+  }, [user, loading, router]);
+
+  if (loading || (isFirebaseAuthEnabled() && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100">
         <p className="text-slate-500">กำลังโหลด...</p>
       </div>
     );
-  }
-
-  if (isFirebaseAuthEnabled() && !user) {
-    return <DashboardLogin />;
   }
 
   return (
