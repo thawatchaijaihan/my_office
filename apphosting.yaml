@@ -79,3 +79,9 @@ env:
     value: "https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/"
     availability:
       - RUNTIME
+  # แผนที่ติดตั้งกล้องวงจรปิด (embed ในแดชบอร์ด)
+  - variable: NEXT_PUBLIC_CCTV_MAP_URL
+    value: "https://map-cctv--gate-pass-713.asia-southeast1.hosted.app/"
+    availability:
+      - BUILD
+      - RUNTIME

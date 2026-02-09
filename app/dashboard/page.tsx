@@ -201,28 +201,6 @@ export default function DashboardPage() {
     LOG("render: สถานะโหลด (mounted:", mounted, ", loading:", loading, ")");
     return (
       <div className="flex flex-col min-h-full p-4 sm:p-6 md:p-8 bg-slate-100 text-slate-800">
-        <p className="text-sm text-slate-500 mb-3">กำลังโหลดข้อมูลจาก Google Sheets...</p>
-        {loadingLong && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleRetry}
-              className="px-4 py-2 rounded-lg font-medium text-slate-700 border border-slate-300 hover:bg-slate-200 transition"
-            >
-              ลองใหม่
-            </button>
-            <button
-              type="button"
-              onClick={handleSheetsTest}
-              className="px-4 py-2 rounded-lg font-medium text-slate-600 border border-slate-400 hover:bg-slate-200 transition"
-            >
-              ตรวจสอบการเชื่อมต่อ Sheet
-            </button>
-          </div>
-        )}
-        {sheetsTestResult && (
-          <p className="mb-3 text-sm text-slate-600">{sheetsTestResult}</p>
-        )}
         {/* Skeleton ตรงกับ layout จริง: 6 KPI → 2 กราฟ → 2 กล่อง */}
         <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0">
           <div className="h-8 bg-slate-200/80 rounded w-40 animate-pulse" />

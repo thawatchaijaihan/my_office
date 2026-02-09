@@ -6,7 +6,7 @@ export type NavItem = {
   href: string;
   label: string;
   exact: boolean;
-  icon: "dashboard" | "personnel" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid" | "access";
+  icon: "dashboard" | "personnel" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid" | "access" | "cctv";
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -18,4 +18,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/pending-approval", label: "รออนุมัติจาก ฝขว.พล.ป.", exact: true, icon: "pending-approval" },
   { href: "/dashboard/invalid", label: "ข้อมูลไม่ถูกต้อง", exact: true, icon: "invalid" },
   { href: "/dashboard/access", label: "อนุมัติการเข้าถึง", exact: true, icon: "access" },
+  { href: "/dashboard/cctv-map", label: "แผนที่ติดตั้งกล้องวงจรปิด", exact: true, icon: "cctv" },
 ];
