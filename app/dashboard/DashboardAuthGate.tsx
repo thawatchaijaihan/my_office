@@ -64,49 +64,74 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
         <DashboardNav />
-        <div className="shrink-0 border-t border-slate-700 p-3 space-y-2">
-          {user && !skipAuth && (
+        <div className="shrink-0 border-t border-slate-700 p-3">
+          {user && !skipAuth ? (
             <button
               type="button"
               onClick={() => signOut()}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-3 py-2.5 text-sm text-white hover:bg-slate-600 truncate"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 truncate"
             >
-              ออกจากระบบ
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className={isSidebarOpen ? "opacity-100" : "opacity-0"}>ออกจากระบบ</span>
             </button>
+          ) : (
+            <Link
+              href="/"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 truncate"
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className={isSidebarOpen ? "opacity-100" : "opacity-0"}>กลับหน้าหลัก</span>
+            </Link>
           )}
-          <Link
-            href="/"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 truncate"
-          >
-            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className={isSidebarOpen ? "opacity-100" : "opacity-0"}>กลับหน้าหลัก</span>
-          </Link>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex min-h-0 flex-1 flex-col bg-slate-100 min-[400px]:min-w-0" role="main">
-        {/* Toggle Header for when sidebar is closed or for easy access */}
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-white px-4 md:px-6">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-slate-500 hover:bg-slate-50 focus:outline-none"
-            aria-label={isSidebarOpen ? "ซ่อนเมนู" : "แสดงเมนู"}
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isSidebarOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
-          <h1 className="flex-1 text-xl sm:text-2xl font-bold text-slate-700">{pageTitle}</h1>
-        </header>
-
-        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+        {pathname === "/dashboard/cctv-map" ? (
+          <div className="relative min-h-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="absolute left-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 focus:outline-none"
+              aria-label={isSidebarOpen ? "ซ่อนเมนู" : "แสดงเมนู"}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isSidebarOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+            <div className="h-full w-full">{children}</div>
+          </div>
+        ) : (
+          <>
+            <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-white px-4 md:px-6">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-slate-500 hover:bg-slate-50 focus:outline-none"
+                aria-label={isSidebarOpen ? "ซ่อนเมนู" : "แสดงเมนู"}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isSidebarOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+              <h1 className="flex-1 text-xl sm:text-2xl font-bold text-slate-700">{pageTitle}</h1>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+          </>
+        )}
       </main>
     </div>
   );

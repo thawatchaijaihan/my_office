@@ -8,21 +8,11 @@ const CCTV_MAP_URL = process.env.NEXT_PUBLIC_CCTV_MAP_URL?.trim() || DEFAULT_CCT
 export default function CctvMapPage() {
   if (CCTV_MAP_URL) {
     return (
-      <div className="flex h-full min-h-0 flex-1 flex-col p-2 md:p-4" style={{ backgroundColor: "#f1f5f9" }}>
-        <div className="mb-2 flex items-center justify-end gap-2">
-          <a
-            href={CCTV_MAP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-emerald-600 underline hover:no-underline"
-          >
-            เปิดในแท็บใหม่
-          </a>
-        </div>
+      <div className="h-full w-full min-h-0">
         <iframe
           src={CCTV_MAP_URL}
           title="แผนที่ติดตั้งกล้องวงจรปิด"
-          className="min-h-[480px] flex-1 w-full rounded-lg border border-slate-200 bg-white"
+          className="h-full w-full border-0 bg-white"
           allow="geolocation"
           referrerPolicy="no-referrer-when-downgrade"
         />
