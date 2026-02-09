@@ -11,12 +11,15 @@ import {
 import {
   getFirebaseAuth,
   isFirebaseAuthEnabled,
+  isDashboardSkipAuth,
 } from "@/lib/firebaseClient";
 import type { User } from "firebase/auth";
 
 type AuthState = {
   user: User | null;
   loading: boolean;
+  /** โหมด dev ไม่ต้องล็อกอิน */
+  skipAuth: boolean;
   signOut: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
   getAuthHeaders: () => Promise<Record<string, string>>;
@@ -33,9 +36,10 @@ export function useDashboardAuth(): AuthState {
 export function DashboardAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const skipAuth = isDashboardSkipAuth();
 
   useEffect(() => {
-    if (!isFirebaseAuthEnabled()) {
+    if (skipAuth || !isFirebaseAuthEnabled()) {
       setLoading(false);
       return;
     }
@@ -49,7 +53,7 @@ export function DashboardAuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [skipAuth]);
 
   // บันทึกผู้ใช้ที่ล็อกอินลง Realtime Database อัตโนมัติ (users/{uid}) เพื่อให้แอดมินจัดการสิทธิ์ได้
   useEffect(() => {
@@ -91,14 +95,16 @@ export function DashboardAuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    if (skipAuth) return {};
     const token = await getIdToken();
     if (token) return { Authorization: `Bearer ${token}` };
     return {};
-  }, [getIdToken]);
+  }, [getIdToken, skipAuth]);
 
   const value: AuthState = {
     user,
     loading,
+    skipAuth,
     signOut,
     getIdToken,
     getAuthHeaders,

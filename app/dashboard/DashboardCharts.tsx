@@ -70,7 +70,7 @@ function ChartsRoot(props: ChartsRootProps) {
   const className = "flex flex-col min-h-0 gap-3 sm:gap-4";
   return (
     <ChartsRootWrapper className={className}>
-      {/* จำนวน - 6 รายการ (จอกลาง: 3 คอลัมน์, จอใหญ่: 6 คอลัมน์) */}
+      {/* จำนวน - 6 รายการ (อยู่ด้านบน) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-3 shrink-0">
         <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
           <p className="text-xs text-slate-500 truncate">รายการทั้งหมด</p>
@@ -111,21 +111,21 @@ function ChartsRoot(props: ChartsRootProps) {
       </div>
 
       {/* กราฟ M และกราฟ N (จอกลางขึ้นไป: 2 คอลัมน์) */}
-      <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4">
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col">
-            <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-4 shrink-0">
-              การชำระเงิน
-            </h2>
+      <div className="shrink-0 flex flex-col gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
             {paymentPieData.length === 0 ? (
               <p className="text-slate-500 text-sm py-8 text-center">
                 ไม่มีข้อมูล
               </p>
             ) : (
-              <div className="flex-1 min-h-[180px] sm:min-h-[200px] w-full min-w-0 flex flex-row items-center gap-3 max-h-[280px]">
-                <ul className="shrink-0 flex flex-col gap-1.5 text-xs sm:text-sm" aria-label="การชำระเงิน">
+              <>
+                <div className="flex-1 w-full min-w-0 flex flex-row items-center gap-3 h-[220px] sm:h-[240px]">
+                <div className="shrink-0 flex flex-col gap-1 items-center">
+                  <div className="text-base sm:text-lg font-semibold text-slate-800 text-center">การชำระเงิน</div>
+                  <ul className="flex flex-col gap-1.5 text-xs sm:text-sm justify-center items-center" aria-label="การชำระเงิน">
                   {paymentPieData.map((entry, index) => (
-                    <li key={index} className="flex items-center gap-2">
+                    <li key={index} className="flex items-center justify-center gap-2">
                       <span
                         className="shrink-0 w-3 h-3 rounded-sm"
                         style={{ backgroundColor: entry.color }}
@@ -135,7 +135,7 @@ function ChartsRoot(props: ChartsRootProps) {
                       <span className="font-bold text-slate-900 tabular-nums text-right w-8">{entry.value}</span>
                     </li>
                   ))}
-                  <li className="flex items-center gap-2 pt-1 mt-0.5 border-t border-slate-200">
+                  <li className="flex items-center justify-center gap-2 pt-1 mt-0.5 border-t border-slate-200">
                     <span className="w-3 shrink-0" aria-hidden />
                     <span className="text-slate-600 font-medium min-w-[4.5rem]">รวม</span>
                     <span className="font-bold text-slate-900 tabular-nums text-right w-8">
@@ -143,15 +143,16 @@ function ChartsRoot(props: ChartsRootProps) {
                     </span>
                   </li>
                 </ul>
-                <div className="flex-1 min-w-0 min-h-[160px]">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={160}>
-                    <PieChart margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                </div>
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
                         data={paymentPieData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={68}
+                        innerRadius={28}
+                        outerRadius={52}
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
@@ -164,42 +165,48 @@ function ChartsRoot(props: ChartsRootProps) {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col">
-            <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-4 shrink-0">
-              ผลการตรวจข้อมูล
-            </h2>
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
             {approvalPieData.length === 0 ? (
               <p className="text-slate-500 text-sm py-8 text-center">
                 ไม่มีข้อมูล
               </p>
             ) : (
-              <div className="flex-1 min-h-[180px] sm:min-h-[200px] w-full min-w-0 flex flex-row items-center gap-3 max-h-[280px]">
-                <ul className="shrink-0 flex flex-col gap-1.5 text-xs sm:text-sm min-w-[140px] sm:min-w-[160px]" aria-label="ผลการตรวจข้อมูล">
+              <>
+                <div className="flex-1 w-full min-w-0 flex flex-row items-center gap-3 h-[220px] sm:h-[240px]">
+                <div className="shrink-0 flex flex-col gap-1 items-center">
+                  <div className="text-base sm:text-lg font-semibold text-slate-800 text-center">ผลการตรวจข้อมูล</div>
+                  <ul className="flex flex-col gap-1.5 text-xs sm:text-sm justify-center items-center" aria-label="ผลการตรวจข้อมูล">
                   {approvalPieData.map((entry, index) => (
-                    <li key={index} className="flex items-center gap-2">
+                    <li key={index} className="flex items-center justify-center gap-2">
                       <span
                         className="shrink-0 w-3 h-3 rounded-sm"
                         style={{ backgroundColor: entry.color }}
                         aria-hidden
                       />
-                      <span className="text-slate-700 break-words">{entry.fullName ?? entry.name}</span>
-                      <span className="font-bold text-slate-900 shrink-0">{entry.value}</span>
+                      <span className="text-slate-700 min-w-[9.5rem] sm:min-w-[10.5rem] break-words">
+                        {entry.fullName ?? entry.name}
+                      </span>
+                      <span className="font-bold text-slate-900 tabular-nums text-right w-8">
+                        {entry.value}
+                      </span>
                     </li>
                   ))}
                 </ul>
-                <div className="flex-1 min-w-0 min-h-[160px]">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={160}>
-                    <PieChart margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                </div>
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
                         data={approvalPieData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={68}
+                        innerRadius={28}
+                        outerRadius={52}
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
@@ -217,7 +224,8 @@ function ChartsRoot(props: ChartsRootProps) {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -230,7 +238,7 @@ function ChartsRoot(props: ChartsRootProps) {
             rank: i + 1,
           }));
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch relative z-20">
               {/* Top 10 - Custom Progress Bars */}
               <div className="min-w-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 <h2 className="text-base sm:text-lg font-semibold text-slate-800 bg-slate-100 px-4 py-2 border-b border-slate-200 shrink-0">ผู้ขอบัตรผ่านมากที่สุด (Top 10)</h2>
@@ -273,7 +281,7 @@ function ChartsRoot(props: ChartsRootProps) {
                   ) : (
                     <div className="flex flex-col gap-2 text-sm min-w-0">
                       {/* หัวคอลัมน์ - ซ่อนบนจอเล็ก */}
-                      <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr] gap-2 sm:gap-3 text-slate-500 text-xs border-b border-slate-200 pb-1 hidden sm:grid">
+                      <div className="hidden sm:grid grid-cols-[2rem_1fr_1fr_1fr_1fr] gap-2 sm:gap-3 text-slate-500 text-xs border-b border-slate-200 pb-1">
                         <span></span>
                         <span>ชื่อ</span>
                         <span>ขอสำหรับ</span>
@@ -286,9 +294,9 @@ function ChartsRoot(props: ChartsRootProps) {
                           className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr] gap-2 sm:gap-3 items-center min-w-0"
                         >
                           <span className="text-slate-500 shrink-0">{index + 1}.</span>
-                          <span className="min-w-0 truncate text-slate-800">{entry.name}</span>
+                          <span className="min-w-0 truncate text-slate-900 font-semibold">{entry.name}</span>
                           <span className="min-w-0 truncate text-slate-700 hidden sm:block">{entry.requestFor || "-"}</span>
-                          <span className="min-w-0 truncate text-slate-700" title={entry.plate || undefined}>
+                          <span className="min-w-0 truncate text-slate-900 font-semibold" title={entry.plate || undefined}>
                             {entry.plate || "-"}
                           </span>
                           <span className="text-slate-500 text-xs text-right shrink-0 whitespace-nowrap">

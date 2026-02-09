@@ -6,11 +6,12 @@ export type NavItem = {
   href: string;
   label: string;
   exact: boolean;
-  icon: "dashboard" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid" | "access";
+  icon: "dashboard" | "personnel" | "review" | "pending-check" | "pending-send" | "pending-approval" | "invalid" | "access";
 };
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "แดชบอร์ด", exact: true, icon: "dashboard" },
+  { href: "/dashboard/personnel", label: "ข้อมูลกำลังพล", exact: true, icon: "personnel" },
   { href: "/dashboard/review", label: "รายการขอบัตรผ่าน", exact: true, icon: "review" },
   { href: "/dashboard/pending-check", label: "รอการตรวจสอบข้อมูล", exact: true, icon: "pending-check" },
   { href: "/dashboard/pending-send", label: "รอนำเรียนส่ง ฝขว.พล.ป.", exact: true, icon: "pending-send" },

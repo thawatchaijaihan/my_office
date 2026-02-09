@@ -93,7 +93,6 @@ export default function AccessPage() {
   if (loading && users.length === 0) {
     return (
       <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <h1 className="text-2xl font-bold text-slate-800 mb-4">อนุมัติการเข้าถึงแดชบอร์ด</h1>
         <p className="text-slate-600">กำลังโหลด...</p>
       </div>
     );
@@ -101,7 +100,6 @@ export default function AccessPage() {
 
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-      <h1 className="text-2xl font-bold text-slate-800 mb-2">อนุมัติการเข้าถึงแดชบอร์ด</h1>
       <p className="text-slate-600 text-sm mb-6">
         รายชื่อผู้ที่เคยล็อกอิน — กด อนุญาต / ถอนสิทธิ์ เพื่อให้หรือยกเลิกการเข้าแดชบอร์ด
       </p>

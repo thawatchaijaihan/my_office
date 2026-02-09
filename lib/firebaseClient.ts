@@ -40,3 +40,12 @@ export function getFirebaseAuth(): Auth | null {
 export function isFirebaseAuthEnabled(): boolean {
   return !!getFirebaseConfig();
 }
+
+/** โหมด dev: ไม่ต้องล็อกอินเข้าแดชบอร์ด (รัน npm run dev = ข้ามล็อกอินโดยอัตโนมัติ, ตั้ง false ถ้าอยากทดสอบล็อกอิน) */
+export function isDashboardSkipAuth(): boolean {
+  const explicit = process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "true" || process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "1";
+  const explicitOff = process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "false" || process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "0";
+  if (explicitOff) return false;
+  if (explicit) return true;
+  return process.env.NODE_ENV === "development";
+}

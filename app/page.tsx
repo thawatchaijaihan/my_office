@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { getFirebaseAuth, isFirebaseAuthEnabled } from "@/lib/firebaseClient";
+import { getFirebaseAuth, isFirebaseAuthEnabled, isDashboardSkipAuth } from "@/lib/firebaseClient";
 
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const skipAuth = isDashboardSkipAuth();
 
   const handleLogin = async () => {
     if (isFirebaseAuthEnabled()) {
@@ -57,6 +58,15 @@ export default function Home() {
             Card request data management via Google Sheet — review requests, track inventory, and get notifications in one place.
           </p>
 
+          {skipAuth && (
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white h-[52px] max-w-[280px] w-full rounded-full mt-4 text-sm font-medium transition"
+            >
+              เข้าแดชบอร์ด (ไม่ต้องล็อกอิน)
+            </button>
+          )}
           <button
             type="button"
             onClick={handleLogin}

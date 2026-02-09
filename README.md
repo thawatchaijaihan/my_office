@@ -64,6 +64,7 @@ cp .env.example .env.local
 | ตัวแปร | ที่มา | ใช้ทำอะไร |
 |--------|--------|------------|
 | `ADMIN_API_KEY` | ตั้งเอง | ล็อกแดชบอร์ด (fallback ถ้าไม่ใช้ Firebase Auth) |
+| `NEXT_PUBLIC_DASHBOARD_SKIP_AUTH` | (optional) | โหมด dev (`npm run dev`) ข้ามล็อกอินโดยอัตโนมัติ — ตั้งเป็น `false` ถ้าอยากทดสอบล็อกอินบนเครื่อง |
 | `ADMIN_FIREBASE_EMAILS` | (optional) | อีเมลที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback ถ้าไม่ใช้ Realtime Database) |
 | `ADMIN_FIREBASE_UIDS` | (optional) | Firebase UID ที่เข้าแดชบอร์ดได้ คั่นด้วย comma (fallback) |
 | `FIREBASE_DATABASE_URL` | (optional) | URL ของ Realtime Database — ใช้ DB asia-southeast1 (Singapore): `https://jaihan-assistant.asia-southeast1.firebasedatabase.app` เก็บ allowlist อีเมล/UID สำหรับสิทธิ์แดชบอร์ด |

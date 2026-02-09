@@ -297,9 +297,6 @@ export default function DashboardPage() {
       className="h-full flex flex-col p-4 sm:p-5 md:p-6 lg:p-8"
       style={{ backgroundColor: "#f1f5f9", color: "#0f172a", minHeight: "100%" }}
     >
-      <h1 className="text-xl sm:text-2xl font-bold shrink-0 mb-3 sm:mb-4" style={{ color: "#1e293b" }}>
-        แดชบอร์ด
-      </h1>
       <div className="flex-1 min-h-0 flex flex-col">
         <DashboardCharts data={data} />
       </div>

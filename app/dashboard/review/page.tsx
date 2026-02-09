@@ -81,7 +81,6 @@ export default function ReviewPage() {
   if (loading) {
     return (
       <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <h1 className="text-2xl font-bold text-slate-800 mb-4">รายการขอบัตรผ่าน</h1>
         <p className="text-slate-600">กำลังโหลด...</p>
       </div>
     );
@@ -90,7 +89,6 @@ export default function ReviewPage() {
   if (error) {
     return (
       <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <h1 className="text-2xl font-bold text-slate-800 mb-4">รายการขอบัตรผ่าน</h1>
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800">{error}</div>
       </div>
     );
@@ -98,7 +96,6 @@ export default function ReviewPage() {
 
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-      <h1 className="text-2xl font-bold text-slate-800 mb-2">รายการขอบัตรผ่าน</h1>
       <p className="text-slate-600 text-sm mb-6">รายการขอบัตรผ่านทั้งหมด {rows.length} รายการ</p>
 
       {rows.length === 0 ? (

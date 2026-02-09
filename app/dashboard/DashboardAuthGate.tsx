@@ -1,24 +1,38 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DashboardAuthProvider, useDashboardAuth } from "./DashboardAuthContext";
 import DashboardNav from "./DashboardNav";
 import { isFirebaseAuthEnabled } from "@/lib/firebaseClient";
 
+const PAGE_TITLES: Record<string, string> = {
+  "/dashboard": "แดชบอร์ด",
+  "/dashboard/personnel": "ข้อมูลกำลังพล",
+  "/dashboard/review": "รายการขอบัตรผ่าน",
+  "/dashboard/access": "อนุมัติการเข้าถึงแดชบอร์ด",
+  "/dashboard/invalid": "ข้อมูลไม่ถูกต้อง",
+  "/dashboard/pending-check": "รอการตรวจสอบข้อมูล",
+  "/dashboard/pending-send": "รอนำเรียนส่ง ฝขว.พล.ป.",
+  "/dashboard/pending-approval": "รออนุมัติจาก ฝขว.พล.ป.",
+};
+
 function DashboardContent({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut } = useDashboardAuth();
+  const { user, loading, signOut, skipAuth } = useDashboardAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
+  const pageTitle = PAGE_TITLES[pathname] ?? "แดชบอร์ด";
 
   useEffect(() => {
+    if (skipAuth) return;
     if (!loading && isFirebaseAuthEnabled() && !user) {
       router.replace("/");
     }
-  }, [user, loading, router]);
+  }, [user, loading, skipAuth, router]);
 
-  if (loading || (isFirebaseAuthEnabled() && !user)) {
+  if (!skipAuth && (loading || (isFirebaseAuthEnabled() && !user))) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100">
         <p className="text-slate-500">กำลังโหลด...</p>
@@ -48,17 +62,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-slate-400">Jaihan Assistant</div>
             </div>
           </Link>
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden lg:hidden p-1 hover:bg-slate-700 rounded text-slate-400"
-            title="ซ่อนเมนู"
-          >
-             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
         </div>
         <DashboardNav />
         <div className="shrink-0 border-t border-slate-700 p-3 space-y-2">
-          {user && (
+          {user && !skipAuth && (
             <button
               type="button"
               onClick={() => signOut()}
@@ -96,7 +103,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
               )}
             </svg>
           </button>
-          <div className="flex-1 font-medium text-slate-700">แดชบอร์ด</div>
+          <h1 className="flex-1 text-xl sm:text-2xl font-bold text-slate-700">{pageTitle}</h1>
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>

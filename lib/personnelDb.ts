@@ -153,3 +153,29 @@ export async function getPersonnelRagContext(
   });
   return "รายชื่อกำลังพล (ยศ ชื่อ สกุล | เบอร์ | ธนาคาร | เลขบัญชี):\n" + lines.join("\n");
 }
+
+/**
+ * ดึงรายชื่อกำลังพลทั้งหมดจาก Firestore สำหรับแสดงในแดชบอร์ด (สูงสุด 2000 รายการ)
+ */
+export async function getAllPersonnel(limit = 2000): Promise<PersonnelDoc[]> {
+  const db = getFirestoreDb();
+  if (!db) return [];
+
+  const snapshot = await db.collection(PERSONNEL_COLLECTION).limit(limit).get();
+  const docs: PersonnelDoc[] = [];
+  snapshot.forEach((doc) => {
+    const d = doc.data() as PersonnelDoc;
+    if (d?.rank != null || d?.firstName != null || d?.lastName != null) {
+      docs.push({
+        rank: String(d.rank ?? ""),
+        firstName: String(d.firstName ?? ""),
+        lastName: String(d.lastName ?? ""),
+        phone: String(d.phone ?? ""),
+        bank: String(d.bank ?? ""),
+        accountNumber: String(d.accountNumber ?? ""),
+        updatedAt: String(d.updatedAt ?? ""),
+      });
+    }
+  });
+  return docs;
+}
