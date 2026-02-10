@@ -43,6 +43,35 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 
 const NARROW_COLUMN_KEYS: ColumnKey[] = ["requestFor", "vehicleType", "vehicleModel", "vehicleColor"];
 
+const PREF_KEY = "dashboard-review-table-preferences";
+
+type SavedPrefs = {
+  columnOrder?: ColumnKey[];
+  visibleColumns?: Record<ColumnKey, boolean>;
+  selectedMStatuses?: Record<string, boolean>;
+  selectedNStatuses?: Record<string, boolean>;
+};
+
+function loadPrefsFromStorage(): SavedPrefs | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PREF_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SavedPrefs;
+  } catch {
+    return null;
+  }
+}
+
+function savePrefsToStorage(data: SavedPrefs) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PREF_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}
+
 function getNameValue(r: IndexTableRow): string {
   const parts = [r.rank, r.firstName, r.lastName].filter(Boolean);
   if (parts.length <= 1) return parts[0] || "-";
@@ -101,15 +130,23 @@ export default function ReviewPage() {
 
     async function load() {
       try {
+        let prefs: SavedPrefs = {};
         const res = await dashboardFetch("/api/dashboard/review/preferences");
-        if (!res.ok) return;
-        const prefs = (await res.json()) as {
-          columnOrder?: ColumnKey[];
-          visibleColumns?: Record<ColumnKey, boolean>;
-          selectedMStatuses?: Record<string, boolean>;
-          selectedNStatuses?: Record<string, boolean>;
-        };
+        if (res.ok) {
+          prefs = (await res.json()) as SavedPrefs;
+        }
         if (cancelled) return;
+
+        const hasApiPrefs =
+          (Array.isArray(prefs.columnOrder) && prefs.columnOrder.length > 0) ||
+          (prefs.visibleColumns && Object.keys(prefs.visibleColumns).length > 0) ||
+          (prefs.selectedMStatuses && Object.keys(prefs.selectedMStatuses).length > 0) ||
+          (prefs.selectedNStatuses && Object.keys(prefs.selectedNStatuses).length > 0);
+
+        if (!hasApiPrefs) {
+          const fromStorage = loadPrefsFromStorage();
+          if (fromStorage) prefs = fromStorage;
+        }
 
         const defaultOrder = COLUMNS.map((c) => c.key);
         if (Array.isArray(prefs.columnOrder) && prefs.columnOrder.length > 0) {
@@ -123,17 +160,17 @@ export default function ReviewPage() {
           setColumnOrder(cleanedOrder);
         }
 
-        if (prefs.visibleColumns) {
+        if (prefs.visibleColumns && Object.keys(prefs.visibleColumns).length > 0) {
           setVisibleColumns((prev) => ({
             ...prev,
             ...prefs.visibleColumns,
           }));
         }
 
-        if (prefs.selectedMStatuses) {
+        if (prefs.selectedMStatuses && Object.keys(prefs.selectedMStatuses).length > 0) {
           setSelectedMStatuses(prefs.selectedMStatuses);
         }
-        if (prefs.selectedNStatuses) {
+        if (prefs.selectedNStatuses && Object.keys(prefs.selectedNStatuses).length > 0) {
           setSelectedNStatuses(prefs.selectedNStatuses);
         }
       } finally {
@@ -178,21 +215,24 @@ export default function ReviewPage() {
     if (!prefsLoaded) return;
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
+    const payload = {
+      columnOrder,
+      visibleColumns,
+      selectedMStatuses,
+      selectedNStatuses,
+    };
+
     async function save() {
       try {
         await dashboardFetch("/api/dashboard/review/preferences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            columnOrder,
-            visibleColumns,
-            selectedMStatuses,
-            selectedNStatuses,
-          }),
+          body: JSON.stringify(payload),
         });
       } catch {
         // best-effort only
       }
+      savePrefsToStorage(payload);
     }
 
     timeout = setTimeout(save, 800);
@@ -500,7 +540,7 @@ export default function ReviewPage() {
                 {visibleCols.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : col.key === "columnP" ? "w-[1%]" : ""}`}
+                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : col.key === "columnP" ? "w-24 min-w-24 max-w-24" : ""}`}
                   >
                     {col.label}
                   </th>
@@ -522,14 +562,14 @@ export default function ReviewPage() {
                     return (
                       <td
                         key={`${r.rowNumber}-${col.key}`}
-                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : isCardNumber ? "w-[1%]" : "max-w-[200px] truncate"}`}
+                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : isCardNumber ? "w-24 min-w-24 max-w-24" : "max-w-[200px] truncate"}`}
                         title={value}
                       >
                         {isCardNumber ? (
                           <input
                             type="text"
-                            size={Math.max(8, Math.min(20, (r.columnP?.length ?? 0) + 2))}
-                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            maxLength={20}
+                            className="w-full max-w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             value={r.columnP ?? ""}
                             onChange={(e) => handleCardNumberChange(r.rowNumber, e.target.value)}
                             onBlur={(e) => handleCardNumberBlur(r.rowNumber, e.target.value)}
