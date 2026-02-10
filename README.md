@@ -11,6 +11,11 @@ jaihan-assistant-linebot/
 │   │   ├── admin/
 │   │   │   ├── sheets/tabs/        # Admin API (รายชื่อแท็บใน Spreadsheet)
 │   │   │   └── sync-personnel/     # POST ซิงก์ Sheets → Firestore กำลังพล
+│   │   ├── dashboard/
+│   │   │   ├── review/
+│   │   │   │   ├── preferences/    # GET/POST ตั้งค่าตาราง (ลำดับคอลัมน์, ตัวกรอง M/N) → Realtime DB
+│   │   │   │   └── card-number/    # POST แก้ไขเลขบัตร (คอลัมน์ P) → แท็บ index
+│   │   │   └── ...
 │   │   └── ...
 │   ├── layout.tsx
 │   ├── page.tsx
@@ -25,7 +30,8 @@ jaihan-assistant-linebot/
 │   ├── logger.ts                   # Structured logging (JSON)
 │   ├── gemini.ts                   # Gemini AI + อ่านสลิปจากรูป + RAG
 │   ├── googleSheets.ts             # Google Sheets API
-│   ├── passSheets.ts               # อ่าน/เขียน แท็บ index, slip
+│   ├── passSheets.ts               # อ่าน/เขียน แท็บ index (A–P), slip
+│   ├── indexRowsCache.ts           # In-memory cache index rows (60s TTL) ใช้ร่วมทุก endpoint
 │   ├── paymentAllocation.ts        # logic allocate สลิป → index
 │   ├── rag.ts                      # RAG คู่มือ (แบ่ง chunk, ค้น keyword)
 │   ├── ragKnowledge.ts             # โหลดคู่มือจากไฟล์หรือ inline
@@ -91,9 +97,10 @@ cp .env.example .env.local
 - แถว 1: หัวคอลัมน์
 - แถว 2 ลงไป: รายการขอ (ชื่อ, ทะเบียน, ฯลฯ)
 - คอลัมน์สำคัญ:
-- **M** = สถานะชำระเงิน: `ชำระเงินแล้ว` / `ค้างชำระเงิน` / `ลบข้อมูล` (ถ้าว่าง ระบบสรุปจะนับรวมเป็น "ค้างชำระ")
+  - **M** = สถานะชำระเงิน: `ชำระเงินแล้ว` / `ค้างชำระเงิน` / `ลบข้อมูล` (ถ้าว่าง ระบบสรุปจะนับรวมเป็น "ค้างชำระ")
   - **N** = สถานะการตรวจ: `รออนุมัติจาก ฝขว.พล.ป.`, `รอส่ง ฝขว.พล.ป.`, `รอลบข้อมูล`, `ข้อมูลไม่ถูกต้อง` ฯลฯ
   - **O** = วันที่ตรวจ/อัปเดต (dd/mm/yyyy HH:mm:ss)
+  - **P** = เลขบัตร (แก้ไขได้จากแดชบอร์ด หน้ารายการขอบัตรผ่าน)
   - **L** = หมายเหตุ (ใช้เป็น link ได้ สำหรับปุ่มใน review)
 
 ### แท็บ `slip`
@@ -218,6 +225,23 @@ npm run dev
 
 จากหน้าหลักมีลิงก์ "เปิดแดชบอร์ดสรุปข้อมูล" ไปยัง `/dashboard`
 
+### หน้ารายการขอบัตรผ่าน (`/dashboard/review`)
+
+- **ตาราง**: แสดงรายการจากแท็บ index (รวมคอลัมน์ P เลขบัตร) พร้อมช่องค้นหา (ชื่อ, ทะเบียน, ขอบัตรให้, เจ้าของรถ, สถานะ, เลขบัตร)
+- **ตัวเลือกตาราง** (ปุ่มดรอปดาว):
+  - **คอลัมน์**: ติ๊กเลือกคอลัมน์ที่แสดง + ลากเรียงลำดับ (≡)
+  - **สถานะชำระ (M) / สถานะ N**: ติ๊กเลือกว่าสถานะใดบ้างให้แสดง → ตารางกรองทันที
+- **เลขบัตร (คอลัมน์ P)**: แก้ไขในช่อง input ได้ บันทึกลงชีต index อัตโนมัติเมื่อเลื่อนโฟกัสออก (blur) ความกว้างคอลัมน์ล็อกที่ 6rem
+- **การจำการตั้งค่า**:
+  - **Realtime DB**: เมื่อล็อกอินด้วย Firebase ระบบจะโหลด/บันทึก ลำดับคอลัมน์ + ตัวกรอง M/N ที่ path `dashboardPreferences/{uid}/review` (ใช้ข้ามอุปกรณ์)
+  - **localStorage**: ถ้า API ไม่คืนค่า (ยังไม่ล็อกอิน) จะโหลด/บันทึกจาก localStorage (จำในเครื่องเดียวกัน)
+
+### Cache ข้อมูล index (ความเร็ว)
+
+- ข้อมูลจากแท็บ index ถูก cache ในหน่วยความจำ (TTL 60 วินาที) ผ่าน `lib/indexRowsCache.ts`
+- Dashboard summary, หน้ารายการขอบัตรผ่าน, pending-approval/check/send, invalid ใช้ cache ร่วมกัน → ลดการอ่าน Google Sheets ซ้ำ
+- หลัง sync หรืออัปเดตจาก Telegram/API ที่เขียนชีต จะเคลียร์ cache ให้โหลดข้อมูลใหม่
+
 ### สิทธิ์แดชบอร์ดกับ Realtime Database (แนะนำ)
 
 แทนการใส่รายการอีเมลใน env สามารถใช้ **Firebase Realtime Database** เก็บ allowlist และกำหนดสิทธิ์ได้ (เพิ่ม/ลบคนได้จาก Firebase Console โดยไม่ต้อง redeploy)
@@ -232,7 +256,12 @@ dashboardAdmins/
     user_at_gmail_dot_com: true      ← อีเมล user@gmail.com (แทนที่ . เป็น _dot_ และ @ เป็น _at_)
     admin_at_company_dot_com: true
   uids/
-    <Firebase UID>: true            ← หรือใช้ UID โดยตรง
+    <Firebase UID>: true             ← หรือใช้ UID โดยตรง
+
+dashboardPreferences/                ← (optional) ตั้งค่าตารางรายการขอบัตรผ่าน ตาม uid
+  <uid>/
+    review/
+      columnOrder, visibleColumns, selectedMStatuses, selectedNStatuses, updatedAt
 ```
 
 - **emails**: key = อีเมลที่ encode แล้ว (ตัวเล็ก, `.` → `_dot_`, `@` → `_at_`) เช่น `you@gmail.com` → `you_at_gmail_dot_com`

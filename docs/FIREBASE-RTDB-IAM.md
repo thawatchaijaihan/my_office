@@ -1,4 +1,25 @@
-# ให้ Service Account เข้า Realtime Database ได้
+# Firebase Realtime Database – IAM และ Security Rules
+
+## 1. Security Rules (กฎ Realtime Database)
+
+ใน Firebase Console → Realtime Database → เลือก DB `jaihan-assistant` (asia-southeast1) → แท็บ **Rules** ถ้ากฎเป็น `".read": false, ".write": false` ทั้งหมด จะล็อกการเข้าถึงจาก client; **การเข้าจาก backend ใช้ Admin SDK จึงยังอ่าน/เขียนได้อยู่**
+
+ถ้าต้องการปลดล็อกและตั้งกฎให้ปลอดภัย (เผื่อใช้จาก client ภายหลัง):
+
+1. กด **Dismiss** ที่แบนเนอร์ "Default security rules are locked" (หรือ Learn more แล้วทำตามขั้นตอนปลดล็อก)
+2. ใช้กฎจากไฟล์ในโปรเจกต์: **`firebase-realtime-db-rules.json`**  
+   - คัดลอกเนื้อหาในไฟล์ไปวางใน Rules editor แล้วกด **Publish**
+
+กฎนี้จะ:
+
+- ปิด read/write ทั้งต้นทาง (`.read: false`, `.write: false`)
+- อนุญาตเฉพาะ path `dashboardPreferences/{uid}/review` โดยให้เฉพาะผู้ใช้ที่ล็อกอิน (Firebase Auth) อ่าน/เขียนได้เฉพาะของตัวเอง (`auth.uid == $uid`)
+
+path อื่น (เช่น `dashboardAdmins`, `users`) ใช้เฉพาะจาก backend (Admin SDK) ไม่เปิดให้ client ดังนั้นไม่ต้องเพิ่ม rule ให้ path เหล่านั้น
+
+---
+
+## 2. ให้ Service Account เข้า Realtime Database ได้ (IAM)
 
 ถ้าเทอร์มินัลขึ้น warning:
 

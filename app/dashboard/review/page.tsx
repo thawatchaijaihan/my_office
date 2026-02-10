@@ -130,23 +130,21 @@ export default function ReviewPage() {
 
     async function load() {
       try {
-        let prefs: SavedPrefs = {};
+        const fromStorage = loadPrefsFromStorage() ?? {};
         const res = await dashboardFetch("/api/dashboard/review/preferences");
+        let apiPrefs: SavedPrefs = {};
         if (res.ok) {
-          prefs = (await res.json()) as SavedPrefs;
+          apiPrefs = (await res.json()) as SavedPrefs;
         }
         if (cancelled) return;
 
-        const hasApiPrefs =
-          (Array.isArray(prefs.columnOrder) && prefs.columnOrder.length > 0) ||
-          (prefs.visibleColumns && Object.keys(prefs.visibleColumns).length > 0) ||
-          (prefs.selectedMStatuses && Object.keys(prefs.selectedMStatuses).length > 0) ||
-          (prefs.selectedNStatuses && Object.keys(prefs.selectedNStatuses).length > 0);
-
-        if (!hasApiPrefs) {
-          const fromStorage = loadPrefsFromStorage();
-          if (fromStorage) prefs = fromStorage;
-        }
+        // รวม localStorage + API (API ทับเฉพาะส่วนที่มีค่า) เพื่อให้จำการตั้งค่าได้แม้ API คืนว่างหรือไม่ครบ
+        const prefs: SavedPrefs = {
+          columnOrder: Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0 ? apiPrefs.columnOrder : fromStorage.columnOrder,
+          visibleColumns: apiPrefs.visibleColumns && Object.keys(apiPrefs.visibleColumns).length > 0 ? apiPrefs.visibleColumns : fromStorage.visibleColumns,
+          selectedMStatuses: apiPrefs.selectedMStatuses && Object.keys(apiPrefs.selectedMStatuses || {}).length > 0 ? apiPrefs.selectedMStatuses : fromStorage.selectedMStatuses,
+          selectedNStatuses: apiPrefs.selectedNStatuses && Object.keys(apiPrefs.selectedNStatuses || {}).length > 0 ? apiPrefs.selectedNStatuses : fromStorage.selectedNStatuses,
+        };
 
         const defaultOrder = COLUMNS.map((c) => c.key);
         if (Array.isArray(prefs.columnOrder) && prefs.columnOrder.length > 0) {
@@ -185,9 +183,9 @@ export default function ReviewPage() {
     };
   }, [dashboardFetch, prefsLoaded]);
 
-  // สร้างค่าเริ่มต้นของตัวกรองสถานะจากข้อมูลครั้งแรกที่โหลดมา
+  // สร้างค่าเริ่มต้นของตัวกรอง M/N จาก rows เฉพาะเมื่อยังไม่มีค่าที่โหลดจาก preferences (รอ prefs โหลดก่อนเพื่อไม่ให้เขียนทับ)
   useEffect(() => {
-    if (rows.length === 0) return;
+    if (rows.length === 0 || !prefsLoaded) return;
 
     setSelectedMStatuses((prev) => {
       if (Object.keys(prev).length > 0) return prev;
@@ -208,7 +206,7 @@ export default function ReviewPage() {
       }
       return next;
     });
-  }, [rows]);
+  }, [rows, prefsLoaded]);
 
   // บันทึกค่าปัจจุบันไป Realtime DB (debounce)
   useEffect(() => {
