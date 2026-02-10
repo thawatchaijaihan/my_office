@@ -28,6 +28,8 @@ type ColumnKey = keyof IndexTableRow | "name";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "rowNumber", label: "ลำดับ" },
+  { key: "checkedAt", label: "อัพเดทล่าสุด" },
+  { key: "columnP", label: "เลขบัตร" },
   { key: "name", label: "ยศ. ชื่อ-สกุล" },
   { key: "requestFor", label: "ขอบัตรให้" },
   { key: "vehicleOwner", label: "เจ้าของรถ" },
@@ -35,10 +37,8 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "vehicleModel", label: "รุ่น" },
   { key: "vehicleColor", label: "สี" },
   { key: "plate", label: "ทะเบียน" },
-  { key: "paymentStatus", label: "สถานะชำระ (M)" },
-  { key: "approvalStatus", label: "สถานะ N" },
-  { key: "checkedAt", label: "อัพเดทล่าสุด" },
-  { key: "columnP", label: "เลขบัตร" },
+  { key: "paymentStatus", label: "การชำระเงิน" },
+  { key: "approvalStatus", label: "ผลการตรวจ" },
 ];
 
 const NARROW_COLUMN_KEYS: ColumnKey[] = ["requestFor", "vehicleType", "vehicleModel", "vehicleColor"];
@@ -439,7 +439,7 @@ export default function ReviewPage() {
 
                 <div className="mb-2 border-y border-slate-200 pb-2 mt-2 pt-2">
                   <p className="px-1 pb-1 text-xs font-semibold text-slate-500">
-                    สถานะชำระ (M)
+                    การชำระเงิน
                   </p>
                   {paymentStatusOptions.length === 0 ? (
                     <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะ</p>
@@ -463,7 +463,7 @@ export default function ReviewPage() {
                   )}
                 </div>
                 <div>
-                  <p className="px-1 pb-1 text-xs font-semibold text-slate-500">สถานะ N</p>
+                  <p className="px-1 pb-1 text-xs font-semibold text-slate-500">ผลการตรวจ</p>
                   {approvalStatusOptions.length === 0 ? (
                     <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะ</p>
                   ) : (

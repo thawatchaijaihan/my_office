@@ -13,7 +13,7 @@
 - **ส่งรูปสลิป** → เลือก "รูปสลิปโอนเงิน" → อ่านยอด/ชื่อ/วันโอนด้วย Vision → บันทึกลง slip แล้ว allocate ไป index
 - **คำสั่งแอดมิน (Telegram)**: `sync`, `review`, `summary`, `help`, `myid`, `invalid`
 - **Review flow**: แสดงรายการรอตรวจ (N ว่าง) พร้อมปุ่มกำหนด N (รออนุมัติ/รอส่ง/รอลบ/ข้อมูลไม่ถูกต้อง) แล้วอัปเดต M,N,O ใน index
-- **แดชบอร์ดเว็บ** (`/dashboard`): สรุปจำนวน, กราฟ, หน้ารายการขอบัตรผ่าน (ค้นหา, เลือก/เรียงคอลัมน์, ตัวกรอง M/N, แก้ไขเลขบัตรคอลัมน์ P), จำการตั้งค่าตาราง (Realtime DB + localStorage)
+- **แดชบอร์ดเว็บ** (`/dashboard`): สรุปจำนวน, กราฟ, หน้ารายการขอบัตรผ่าน (ค้นหา, เลือก/เรียงคอลัมน์, ตัวกรอง M/N, แก้ไขเลขบัตรคอลัมน์ P), จำการตั้งค่าตารางผ่าน Realtime Database
 - **Cache index**: In-memory cache 60s สำหรับข้อมูลแท็บ index ใช้ร่วมทุก endpoint แดชบอร์ด/Telegram
 - **Admin API**: `GET /api/admin/sheets/tabs`, `POST /api/admin/sync-personnel` (ใช้ `x-admin-key`)
 
@@ -67,7 +67,7 @@
 10. **Dashboard หน้าแอดมินบนเว็บ** ✅
     - Firebase Auth + Realtime DB allowlist, หน้าสรุป/กราฟ, หน้ารายการขอบัตรผ่าน
     - ช่องค้นหา, เลือกคอลัมน์ + ลากเรียง, ตัวกรองสถานะ M/N, แก้ไขเลขบัตร (คอลัมน์ P) บันทึกลง index
-    - จำการตั้งค่าตาราง: Realtime DB (`dashboardPreferences/{uid}/review`) + localStorage fallback
+    - จำการตั้งค่าตาราง: Realtime DB (`dashboardPreferences/{uid}/review`) ผูกกับ Firebase UID ของผู้ใช้
 11. **Cache ข้อมูล index** ✅
     - `lib/indexRowsCache.ts` TTL 60s ใช้ร่วม dashboard/review/pending*/invalid และ Telegram sync/summary/review/invalid
 
@@ -82,5 +82,5 @@
 ## 4. สรุปสั้นๆ
 
 - โปรเจกต์ทำงานครบตามเป้า: **Telegram Bot** + Gemini + Google Sheets (index + slip) พร้อมคำสั่ง sync/review/summary/invalid และ **แดชบอร์ดเว็บ** (สรุป, รายการขอบัตรผ่าน, แก้ไขเลขบัตร, จำการตั้งค่า)
-- **ทำแล้วทั้งหมด:** secret ใน apphosting, README, rate limiting, retry, unit tests (Vitest + paymentAllocation, rag, personnelDb), structured logging, GEMINI_MODEL ตรง production, แดชบอร์ด + Firebase Auth + Realtime DB allowlist, หน้ารายการขอบัตรผ่าน (ค้นหา/คอลัมน์/ตัวกรอง M,N/เลขบัตร), cache index 60s, preferences (RTDB + localStorage)
+- **ทำแล้วทั้งหมด:** secret ใน apphosting, README, rate limiting, retry, unit tests (Vitest + paymentAllocation, rag, personnelDb), structured logging, GEMINI_MODEL ตรง production, แดชบอร์ด + Firebase Auth + Realtime DB allowlist, หน้ารายการขอบัตรผ่าน (ค้นหา/คอลัมน์/ตัวกรอง M,N/เลขบัตร), cache index 60s, preferences (บันทึกใน Realtime Database ต่อผู้ใช้)
 - **เลือกได้ต่อไป:** e2e/integration test สำหรับ Telegram webhook, แจ้งเตือน needsReview, รองรับหลาย Spreadsheet
