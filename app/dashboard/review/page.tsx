@@ -500,7 +500,7 @@ export default function ReviewPage() {
                 {visibleCols.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : ""}`}
+                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : col.key === "columnP" ? "w-[1%]" : ""}`}
                   >
                     {col.label}
                   </th>
@@ -522,13 +522,14 @@ export default function ReviewPage() {
                     return (
                       <td
                         key={`${r.rowNumber}-${col.key}`}
-                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : "max-w-[200px] truncate"}`}
+                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : isCardNumber ? "w-[1%]" : "max-w-[200px] truncate"}`}
                         title={value}
                       >
                         {isCardNumber ? (
                           <input
                             type="text"
-                            className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            size={Math.max(8, Math.min(20, (r.columnP?.length ?? 0) + 2))}
+                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             value={r.columnP ?? ""}
                             onChange={(e) => handleCardNumberChange(r.rowNumber, e.target.value)}
                             onBlur={(e) => handleCardNumberBlur(r.rowNumber, e.target.value)}
