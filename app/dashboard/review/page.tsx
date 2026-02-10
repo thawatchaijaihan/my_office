@@ -112,10 +112,14 @@ export default function ReviewPage() {
         const apiPrefs: SavedPrefs = res.ok ? ((await res.json()) as SavedPrefs) : {};
         if (cancelled) return;
 
+        const hasColumnOrder = Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0;
+        console.log("[Review prefs] GET result:", { ok: res.ok, hasColumnOrder, columnOrder: apiPrefs.columnOrder ?? "(none)" });
+
         const defaultOrder = COLUMNS.map((c) => c.key);
-        if (Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0) {
+        if (hasColumnOrder && apiPrefs.columnOrder) {
+          const order = apiPrefs.columnOrder;
           const cleanedOrder: ColumnKey[] = [];
-          for (const k of apiPrefs.columnOrder) {
+          for (const k of order) {
             if (defaultOrder.includes(k) && !cleanedOrder.includes(k)) cleanedOrder.push(k);
           }
           for (const k of defaultOrder) {
@@ -138,7 +142,10 @@ export default function ReviewPage() {
           setSelectedNStatuses(apiPrefs.selectedNStatuses);
         }
       } finally {
-        if (!cancelled) setPrefsLoaded(true);
+        if (!cancelled) {
+          setPrefsLoaded(true);
+          console.log("[Review prefs] load done, default columnOrder:", COLUMNS.map((c) => c.key));
+        }
       }
     }
 
@@ -188,17 +195,20 @@ export default function ReviewPage() {
 
     async function save() {
       try {
-        await dashboardFetch("/api/dashboard/review/preferences", {
+        const res = await dashboardFetch("/api/dashboard/review/preferences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-      } catch {
-        // best-effort only
+        const data = await res.json().catch(() => ({}));
+        console.log("[Review prefs] POST result:", { status: res.status, ok: (data as { ok?: boolean }).ok, columnOrder: payload.columnOrder });
+      } catch (e) {
+        console.warn("[Review prefs] POST failed", e);
       }
     }
 
-    timeout = setTimeout(save, 800);
+    console.log("[Review prefs] schedule save in 1200ms, columnOrder:", payload.columnOrder);
+    timeout = setTimeout(save, 1200);
     return () => {
       if (timeout) clearTimeout(timeout);
     };
