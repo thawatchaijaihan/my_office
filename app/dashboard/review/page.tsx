@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
 
 type IndexTableRow = {
@@ -89,6 +89,7 @@ export default function ReviewPage() {
   const [selectedMStatuses, setSelectedMStatuses] = useState<Record<string, boolean>>({});
   const [selectedNStatuses, setSelectedNStatuses] = useState<Record<string, boolean>>({});
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const lastSavedPayloadRef = useRef<string>("");
 
   useEffect(() => {
     dashboardFetch("/api/dashboard/review")
@@ -112,10 +113,9 @@ export default function ReviewPage() {
         const apiPrefs: SavedPrefs = res.ok ? ((await res.json()) as SavedPrefs) : {};
         if (cancelled) return;
 
-        const hasColumnOrder = Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0;
-        console.log("[Review prefs] GET result:", { ok: res.ok, hasColumnOrder, columnOrder: apiPrefs.columnOrder ?? "(none)" });
-
         const defaultOrder = COLUMNS.map((c) => c.key);
+        let appliedColumnOrder: ColumnKey[] = defaultOrder;
+        const hasColumnOrder = Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0;
         if (hasColumnOrder && apiPrefs.columnOrder) {
           const order = apiPrefs.columnOrder;
           const cleanedOrder: ColumnKey[] = [];
@@ -125,26 +125,36 @@ export default function ReviewPage() {
           for (const k of defaultOrder) {
             if (!cleanedOrder.includes(k)) cleanedOrder.push(k);
           }
+          appliedColumnOrder = cleanedOrder;
           setColumnOrder(cleanedOrder);
         }
 
-        if (apiPrefs.visibleColumns && Object.keys(apiPrefs.visibleColumns).length > 0) {
-          setVisibleColumns((prev) => ({
-            ...prev,
-            ...apiPrefs.visibleColumns,
-          }));
+        const defaultVisible: Record<ColumnKey, boolean> = {} as Record<ColumnKey, boolean>;
+        for (const col of COLUMNS) defaultVisible[col.key] = true;
+        const appliedVisibleColumns =
+          apiPrefs.visibleColumns && Object.keys(apiPrefs.visibleColumns).length > 0
+            ? { ...defaultVisible, ...apiPrefs.visibleColumns }
+            : defaultVisible;
+        if (Object.keys(apiPrefs.visibleColumns || {}).length > 0) {
+          setVisibleColumns((prev) => ({ ...prev, ...apiPrefs.visibleColumns }));
         }
 
-        if (apiPrefs.selectedMStatuses && Object.keys(apiPrefs.selectedMStatuses).length > 0) {
-          setSelectedMStatuses(apiPrefs.selectedMStatuses);
-        }
-        if (apiPrefs.selectedNStatuses && Object.keys(apiPrefs.selectedNStatuses).length > 0) {
-          setSelectedNStatuses(apiPrefs.selectedNStatuses);
+        const appliedM = apiPrefs.selectedMStatuses && Object.keys(apiPrefs.selectedMStatuses).length > 0 ? apiPrefs.selectedMStatuses : {};
+        const appliedN = apiPrefs.selectedNStatuses && Object.keys(apiPrefs.selectedNStatuses).length > 0 ? apiPrefs.selectedNStatuses : {};
+        if (Object.keys(appliedM).length > 0) setSelectedMStatuses(appliedM);
+        if (Object.keys(appliedN).length > 0) setSelectedNStatuses(appliedN);
+
+        if (!cancelled) {
+          lastSavedPayloadRef.current = JSON.stringify({
+            columnOrder: appliedColumnOrder,
+            visibleColumns: appliedVisibleColumns,
+            selectedMStatuses: appliedM,
+            selectedNStatuses: appliedN,
+          });
         }
       } finally {
         if (!cancelled) {
           setPrefsLoaded(true);
-          console.log("[Review prefs] load done, default columnOrder:", COLUMNS.map((c) => c.key));
         }
       }
     }
@@ -181,17 +191,19 @@ export default function ReviewPage() {
     });
   }, [rows, prefsLoaded]);
 
-  // บันทึกค่าปัจจุบันไป Realtime DB (debounce)
+  // บันทึกค่าปัจจุบันไป Realtime DB (debounce) — ส่ง POST เฉพาะเมื่อ payload เปลี่ยนจากครั้งล่าสุดที่บันทึกแล้ว
   useEffect(() => {
     if (!prefsLoaded) return;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
     const payload = {
       columnOrder,
       visibleColumns,
       selectedMStatuses,
       selectedNStatuses,
     };
+    const serialized = JSON.stringify(payload);
+    if (serialized === lastSavedPayloadRef.current) return;
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     async function save() {
       try {
@@ -201,13 +213,15 @@ export default function ReviewPage() {
           body: JSON.stringify(payload),
         });
         const data = await res.json().catch(() => ({}));
-        console.log("[Review prefs] POST result:", { status: res.status, ok: (data as { ok?: boolean }).ok, columnOrder: payload.columnOrder });
+        if ((data as { ok?: boolean }).ok) lastSavedPayloadRef.current = serialized;
+        if (process.env.NODE_ENV === "development") {
+          console.log("[Review prefs] POST result:", { status: res.status, ok: (data as { ok?: boolean }).ok });
+        }
       } catch (e) {
-        console.warn("[Review prefs] POST failed", e);
+        if (process.env.NODE_ENV === "development") console.warn("[Review prefs] POST failed", e);
       }
     }
 
-    console.log("[Review prefs] schedule save in 1200ms, columnOrder:", payload.columnOrder);
     timeout = setTimeout(save, 1200);
     return () => {
       if (timeout) clearTimeout(timeout);
