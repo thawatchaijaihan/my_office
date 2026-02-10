@@ -535,6 +535,14 @@ export default function ReviewPage() {
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto max-h-[calc(100vh-12rem)]">
           <table className="w-full text-sm border-collapse min-w-[1200px]">
+            <colgroup>
+              {visibleCols.map((col) => (
+                <col
+                  key={col.key}
+                  style={col.key === "columnP" ? { width: "6rem", minWidth: "6rem", maxWidth: "6rem" } : undefined}
+                />
+              ))}
+            </colgroup>
             <thead className="sticky top-0 bg-slate-700 text-white z-10">
               <tr>
                 {visibleCols.map((col) => (
