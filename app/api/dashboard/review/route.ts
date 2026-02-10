@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -21,6 +21,7 @@ export type IndexTableRow = {
   paymentStatus: string;
   approvalStatus: string;
   checkedAt: string;
+  columnP: string;
 };
 
 export async function GET(req: NextRequest) {
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const rows: IndexTableRow[] = indexRows.slice(0, 1000).map((r) => ({
       rowNumber: r.rowNumber,
       registeredAt: r.registeredAt || "",
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
       paymentStatus: r.paymentStatus || "",
       approvalStatus: r.approvalStatus || "",
       checkedAt: r.checkedAt || "",
+      columnP: r.columnP || "",
     }));
 
     return NextResponse.json({ rows });

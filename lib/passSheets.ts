@@ -59,6 +59,7 @@ export type IndexRow = {
   paymentStatus: string; // M - ชำระเงินแล้ว, ค้างชำระเงิน, ลบข้อมูล
   approvalStatus: string; // N - รออนุมัติจาก..., ข้อมูลไม่ถูกต้อง, etc.
   checkedAt: string; // O
+  columnP: string; // P - ใช้สำหรับแสดงข้อมูลเพิ่มเติมในแดชบอร์ด
 };
 
 export type SlipRow = {
@@ -87,8 +88,8 @@ export async function readIndexRows(): Promise<IndexRow[]> {
   const resolveMs = Date.now() - t0;
   LOG("resolveSheetName เสร็จ แท็บ:", sheetName, "ใช้เวลา", resolveMs, "ms");
   const t1 = Date.now();
-  LOG("readValues เริ่ม range:", `${sheetName}!A2:O`);
-  const values = await readValues({ range: `${sheetName}!A2:O` });
+  LOG("readValues เริ่ม range:", `${sheetName}!A2:P`);
+  const values = await readValues({ range: `${sheetName}!A2:P` });
   const readMs = Date.now() - t1;
   LOG("readValues เสร็จ ได้", values.length, "แถว ใช้เวลา", readMs, "ms | readIndexRows รวม", Date.now() - t0, "ms");
   const rows: IndexRow[] = [];
@@ -114,6 +115,7 @@ export async function readIndexRows(): Promise<IndexRow[]> {
       paymentStatus: getCell(r, 12), // M
       approvalStatus: getCell(r, 13), // N
       checkedAt: getCell(r, 14), // O
+      columnP: getCell(r, 15), // P
     });
   }
   return rows;
@@ -161,6 +163,20 @@ export async function writeIndexUpdatesMR(updates: IndexUpdateMR[]) {
     updates: updates.map((u) => ({
       range: `${sheetName}!M${u.rowNumber}:O${u.rowNumber}`,
       values: [[u.paymentStatus, u.approvalStatus, u.checkedAt]],
+    })),
+  });
+}
+
+export async function updateIndexColumnP(updates: { rowNumber: number; columnP: string }[]) {
+  if (updates.length === 0) return;
+  const sheetName = await resolveSheetName({
+    defaultName: INDEX_SHEET_NAME,
+    gid: config.google.indexSheetGid,
+  });
+  await batchUpdateValues({
+    updates: updates.map((u) => ({
+      range: `${sheetName}!P${u.rowNumber}:P${u.rowNumber}`,
+      values: [[u.columnP]],
     })),
   });
 }

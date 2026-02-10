@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { getRealtimeDb } from "@/lib/firebaseAdmin";
 import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -66,7 +67,8 @@ export async function GET(req: NextRequest) {
 
   // เช็ก Google Sheets
   try {
-    const rows = await readIndexRows();
+    // ใช้ cache เพื่อลดภาระการอ่าน Sheets ถ้าถูกเรียกบ่อย
+    const rows = await getCachedIndexRows();
     result.sheetsOk = true;
     result.sheetsRowCount = rows.length;
   } catch (e) {

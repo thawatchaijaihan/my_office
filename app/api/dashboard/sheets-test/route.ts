@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const rows = await readIndexRows();
+    const rows = await getCachedIndexRows();
     return NextResponse.json({ ok: true, rowCount: rows.length });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -10,10 +10,10 @@ import { getRagContext } from "@/lib/rag";
 import { allocateSlipToIndex } from "@/lib/paymentAllocation";
 import {
   appendSlipRow,
-  readIndexRows,
   readSlipRows,
   writeIndexUpdatesMR,
 } from "@/lib/passSheets";
+import { getCachedIndexRows, clearIndexRowsCache } from "@/lib/indexRowsCache";
 import {
   answerTelegramCallback,
   buildTelegramInlineKeyboard,
@@ -111,7 +111,7 @@ async function handleTelegramText(params: {
 
   if (t === "sync") {
     const [indexRows, slipRows] = await Promise.all([
-      readIndexRows(),
+      getCachedIndexRows(),
       readSlipRows(),
     ]);
     const result = allocateSlipToIndex({
@@ -121,6 +121,7 @@ async function handleTelegramText(params: {
         slip.transferDate || slip.timestamp || formatDateTime(new Date()),
     });
     await writeIndexUpdatesMR(result.updates);
+    clearIndexRowsCache();
     await sendTelegramMessage({
       chatId: params.chatId,
       text: [
@@ -135,7 +136,7 @@ async function handleTelegramText(params: {
   }
 
   if (t === "summary" || t === "สรุป" || t === "สรุปวันนี้") {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const total = indexRows.length;
     const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินแล้ว").length;
     const outstanding = indexRows.filter(
@@ -182,7 +183,7 @@ async function handleTelegramText(params: {
   }
 
   if (t === "review") {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const pending = indexRows.filter((r) => !r.approvalStatus);
     if (pending.length === 0) {
       await sendTelegramMessage({
@@ -240,7 +241,7 @@ async function handleTelegramText(params: {
   }
 
   if (t === "invalid") {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const incorrect = indexRows.filter((r) =>
       r.approvalStatus?.includes("ข้อมูลไม่ถูกต้อง")
     );
@@ -363,7 +364,7 @@ async function handleTelegramReview(params: {
     incorrect: { n: "ข้อมูลไม่ถูกต้อง", m: "ลบข้อมูล" },
   };
 
-  const indexRows = await readIndexRows();
+  const indexRows = await getCachedIndexRows();
   const target = indexRows.find((r) => r.rowNumber === params.row);
   if (!target) {
     await sendTelegramMessage({
@@ -389,6 +390,7 @@ async function handleTelegramReview(params: {
       checkedAt: now,
     },
   ]);
+  clearIndexRowsCache();
   await sendTelegramMessage({
     chatId: params.chatId,
     text: `บันทึกแล้ว: แถว ${params.row}\nN = ${mapping.n}${
@@ -439,7 +441,7 @@ async function handleTelegramSlipIntent(params: { chatId: number; fileId: string
     transferDate,
   });
   const [indexRows, slipRows] = await Promise.all([
-    readIndexRows(),
+    getCachedIndexRows(),
     readSlipRows(),
   ]);
   const result = allocateSlipToIndex({
@@ -449,6 +451,7 @@ async function handleTelegramSlipIntent(params: { chatId: number; fileId: string
       slip.transferDate || slip.timestamp || formatDateTime(new Date()),
   });
   await writeIndexUpdatesMR(result.updates);
+  clearIndexRowsCache();
 
   await sendTelegramMessage({
     chatId: params.chatId,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
+import type { IndexRow } from "@/lib/passSheets";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ export type PendingRow = {
   paymentStatus: string;
 };
 
-function toRow(r: Awaited<ReturnType<typeof readIndexRows>>[number]) {
+function toRow(r: IndexRow) {
   return {
     rowNumber: r.rowNumber,
     name: `${r.rank}${r.firstName} ${r.lastName}`.trim() || "-",
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const filtered = indexRows
       .filter((r) => {
         const n = (r.approvalStatus || "").trim();

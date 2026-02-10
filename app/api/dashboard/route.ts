@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { config } from "@/lib/config";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
 import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,8 @@ let cache: { data: Awaited<ReturnType<typeof buildDashboardData>>; at: number } 
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard API]", msg, ...args);
 
 async function buildDashboardData() {
-  const indexRows = await readIndexRows();
+  // ใช้ cache กลางเพื่อไม่ต้องอ่าน Google Sheets ซ้ำทุก endpoint
+  const indexRows = await getCachedIndexRows();
   LOG("readIndexRows() คืนมา", indexRows.length, "แถว");
   const total = indexRows.length;
   const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินแล้ว").length;

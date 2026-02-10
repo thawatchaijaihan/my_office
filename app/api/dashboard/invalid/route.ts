@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { readIndexRows } from "@/lib/passSheets";
+import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const indexRows = await readIndexRows();
+    const indexRows = await getCachedIndexRows();
     const invalid = indexRows
       .filter((r) => (r.approvalStatus || "").trim() === INVALID_LABEL)
       .slice(0, 500)
