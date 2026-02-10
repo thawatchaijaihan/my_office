@@ -43,34 +43,12 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 
 const NARROW_COLUMN_KEYS: ColumnKey[] = ["requestFor", "vehicleType", "vehicleModel", "vehicleColor"];
 
-const PREF_KEY = "dashboard-review-table-preferences";
-
 type SavedPrefs = {
   columnOrder?: ColumnKey[];
   visibleColumns?: Record<ColumnKey, boolean>;
   selectedMStatuses?: Record<string, boolean>;
   selectedNStatuses?: Record<string, boolean>;
 };
-
-function loadPrefsFromStorage(): SavedPrefs | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(PREF_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SavedPrefs;
-  } catch {
-    return null;
-  }
-}
-
-function savePrefsToStorage(data: SavedPrefs) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(PREF_KEY, JSON.stringify(data));
-  } catch {
-    // ignore
-  }
-}
 
 function getNameValue(r: IndexTableRow): string {
   const parts = [r.rank, r.firstName, r.lastName].filter(Boolean);
@@ -130,26 +108,14 @@ export default function ReviewPage() {
 
     async function load() {
       try {
-        const fromStorage = loadPrefsFromStorage() ?? {};
         const res = await dashboardFetch("/api/dashboard/review/preferences");
-        let apiPrefs: SavedPrefs = {};
-        if (res.ok) {
-          apiPrefs = (await res.json()) as SavedPrefs;
-        }
+        const apiPrefs: SavedPrefs = res.ok ? ((await res.json()) as SavedPrefs) : {};
         if (cancelled) return;
 
-        // รวม localStorage + API (API ทับเฉพาะส่วนที่มีค่า) เพื่อให้จำการตั้งค่าได้แม้ API คืนว่างหรือไม่ครบ
-        const prefs: SavedPrefs = {
-          columnOrder: Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0 ? apiPrefs.columnOrder : fromStorage.columnOrder,
-          visibleColumns: apiPrefs.visibleColumns && Object.keys(apiPrefs.visibleColumns).length > 0 ? apiPrefs.visibleColumns : fromStorage.visibleColumns,
-          selectedMStatuses: apiPrefs.selectedMStatuses && Object.keys(apiPrefs.selectedMStatuses || {}).length > 0 ? apiPrefs.selectedMStatuses : fromStorage.selectedMStatuses,
-          selectedNStatuses: apiPrefs.selectedNStatuses && Object.keys(apiPrefs.selectedNStatuses || {}).length > 0 ? apiPrefs.selectedNStatuses : fromStorage.selectedNStatuses,
-        };
-
         const defaultOrder = COLUMNS.map((c) => c.key);
-        if (Array.isArray(prefs.columnOrder) && prefs.columnOrder.length > 0) {
+        if (Array.isArray(apiPrefs.columnOrder) && apiPrefs.columnOrder.length > 0) {
           const cleanedOrder: ColumnKey[] = [];
-          for (const k of prefs.columnOrder) {
+          for (const k of apiPrefs.columnOrder) {
             if (defaultOrder.includes(k) && !cleanedOrder.includes(k)) cleanedOrder.push(k);
           }
           for (const k of defaultOrder) {
@@ -158,18 +124,18 @@ export default function ReviewPage() {
           setColumnOrder(cleanedOrder);
         }
 
-        if (prefs.visibleColumns && Object.keys(prefs.visibleColumns).length > 0) {
+        if (apiPrefs.visibleColumns && Object.keys(apiPrefs.visibleColumns).length > 0) {
           setVisibleColumns((prev) => ({
             ...prev,
-            ...prefs.visibleColumns,
+            ...apiPrefs.visibleColumns,
           }));
         }
 
-        if (prefs.selectedMStatuses && Object.keys(prefs.selectedMStatuses).length > 0) {
-          setSelectedMStatuses(prefs.selectedMStatuses);
+        if (apiPrefs.selectedMStatuses && Object.keys(apiPrefs.selectedMStatuses).length > 0) {
+          setSelectedMStatuses(apiPrefs.selectedMStatuses);
         }
-        if (prefs.selectedNStatuses && Object.keys(prefs.selectedNStatuses).length > 0) {
-          setSelectedNStatuses(prefs.selectedNStatuses);
+        if (apiPrefs.selectedNStatuses && Object.keys(apiPrefs.selectedNStatuses).length > 0) {
+          setSelectedNStatuses(apiPrefs.selectedNStatuses);
         }
       } finally {
         if (!cancelled) setPrefsLoaded(true);
@@ -230,7 +196,6 @@ export default function ReviewPage() {
       } catch {
         // best-effort only
       }
-      savePrefsToStorage(payload);
     }
 
     timeout = setTimeout(save, 800);
