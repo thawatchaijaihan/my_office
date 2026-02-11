@@ -419,9 +419,25 @@ export default function ReviewPage() {
             </button>
             {showOptionsMenu && (
               <div className="absolute right-0 z-20 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-lg p-3 max-h-96 overflow-y-auto text-sm text-slate-700">
-                <p className="px-1 pb-2 text-xs font-medium text-slate-500 border-b border-slate-200">
-                  ตั้งค่าการแสดงตาราง
-                </p>
+                <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-200">
+                  <p className="text-xs font-medium text-slate-500">ตั้งค่าการแสดงตาราง</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultOrder = COLUMNS.map((c) => c.key);
+                      const defaultVisible: Record<ColumnKey, boolean> = {} as Record<ColumnKey, boolean>;
+                      for (const col of COLUMNS) defaultVisible[col.key] = true;
+                      setColumnOrder(defaultOrder);
+                      setVisibleColumns(defaultVisible);
+                      setSelectedMStatuses({});
+                      setSelectedNStatuses({});
+                      lastSavedPayloadRef.current = "";
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    รีเซ็ตเป็นค่าเริ่มต้น
+                  </button>
+                </div>
 
                 <div className="mt-2 mb-3">
                   <p className="px-1 pb-1 text-xs font-semibold text-slate-500">
