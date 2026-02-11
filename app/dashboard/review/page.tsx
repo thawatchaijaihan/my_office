@@ -228,17 +228,24 @@ export default function ReviewPage() {
     };
   }, [prefsLoaded, dashboardFetch, columnOrder, visibleColumns, selectedMStatuses, selectedNStatuses]);
 
-  const paymentStatusOptions = useMemo(
-    () =>
-      Object.keys(selectedMStatuses).sort((a, b) => a.localeCompare(b, "th")),
-    [selectedMStatuses]
-  );
+  // รายการสถานะ M/N จากข้อมูลในตาราง (ไม่จาก selected*) เพื่อไม่ให้แสดง "ไม่มีข้อมูลสถานะ" เมื่อมีแถวอยู่
+  const paymentStatusOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const k = (r.paymentStatus ?? "").trim();
+      if (k) set.add(k);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
+  }, [rows]);
 
-  const approvalStatusOptions = useMemo(
-    () =>
-      Object.keys(selectedNStatuses).sort((a, b) => a.localeCompare(b, "th")),
-    [selectedNStatuses]
-  );
+  const approvalStatusOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const k = (r.approvalStatus ?? "").trim();
+      if (k) set.add(k);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
+  }, [rows]);
 
   const activeMStatuses = useMemo(
     () => Object.entries(selectedMStatuses).filter(([, v]) => v).map(([k]) => k),
@@ -248,6 +255,16 @@ export default function ReviewPage() {
   const activeNStatuses = useMemo(
     () => Object.entries(selectedNStatuses).filter(([, v]) => v).map(([k]) => k),
     [selectedNStatuses]
+  );
+
+  // จำนวนที่ "แสดง" สำหรับปุ่มตัวเลือก (นับรวมที่ยังไม่เคยตั้ง = แสดง)
+  const activeMCount = useMemo(
+    () => paymentStatusOptions.filter((k) => selectedMStatuses[k] !== false).length,
+    [paymentStatusOptions, selectedMStatuses]
+  );
+  const activeNCount = useMemo(
+    () => approvalStatusOptions.filter((k) => selectedNStatuses[k] !== false).length,
+    [approvalStatusOptions, selectedNStatuses]
   );
 
   const filteredRows = useMemo(() => {
@@ -410,11 +427,7 @@ export default function ReviewPage() {
             >
               ตัวเลือกตาราง
               <span className="ml-1 text-xs text-slate-500">
-                คอลัมน์ {visibleCols.length}/{COLUMNS.length} · M{" "}
-                {activeMStatuses.length || paymentStatusOptions.length}/
-                {paymentStatusOptions.length || 0} · N{" "}
-                {activeNStatuses.length || approvalStatusOptions.length}/
-                {approvalStatusOptions.length || 0}
+                คอลัมน์ {visibleCols.length}/{COLUMNS.length} · M {activeMCount}/{paymentStatusOptions.length} · N {activeNCount}/{approvalStatusOptions.length}
               </span>
             </button>
             {showOptionsMenu && (
@@ -479,10 +492,10 @@ export default function ReviewPage() {
 
                 <div className="mb-2 border-y border-slate-200 pb-2 mt-2 pt-2">
                   <p className="px-1 pb-1 text-xs font-semibold text-slate-500">
-                    การชำระเงิน
+                    การชำระเงิน <span className="font-normal text-slate-400">(ตัวกรองสถานะ M)</span>
                   </p>
                   {paymentStatusOptions.length === 0 ? (
-                    <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะ</p>
+                    <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะในรายการ</p>
                   ) : (
                     <div className="space-y-1">
                       {paymentStatusOptions.map((value) => (
@@ -492,7 +505,7 @@ export default function ReviewPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={selectedMStatuses[value] ?? false}
+                            checked={selectedMStatuses[value] ?? true}
                             onChange={() => toggleMStatus(value)}
                             className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
@@ -503,9 +516,11 @@ export default function ReviewPage() {
                   )}
                 </div>
                 <div>
-                  <p className="px-1 pb-1 text-xs font-semibold text-slate-500">ผลการตรวจ</p>
+                  <p className="px-1 pb-1 text-xs font-semibold text-slate-500">
+                    ผลการตรวจ <span className="font-normal text-slate-400">(ตัวกรองสถานะ N)</span>
+                  </p>
                   {approvalStatusOptions.length === 0 ? (
-                    <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะ</p>
+                    <p className="px-1 text-xs text-slate-400">ไม่มีข้อมูลสถานะในรายการ</p>
                   ) : (
                     <div className="space-y-1">
                       {approvalStatusOptions.map((value) => (
@@ -515,7 +530,7 @@ export default function ReviewPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={selectedNStatuses[value] ?? false}
+                            checked={selectedNStatuses[value] ?? true}
                             onChange={() => toggleNStatus(value)}
                             className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
