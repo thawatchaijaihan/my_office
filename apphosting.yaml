@@ -81,7 +81,24 @@ env:
       - RUNTIME
   # แผนที่ติดตั้งกล้องวงจรปิด (embed ในแดชบอร์ด)
   - variable: NEXT_PUBLIC_CCTV_MAP_URL
-    value: "https://map-cctv--gate-pass-713.asia-southeast1.hosted.app/"
+    value: "https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/map-cctv"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Google Maps API Key สำหรับ map-cctv
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    secret: googleMapsApiKey
+    availability:
+      - BUILD
+      - RUNTIME
+  # Firebase Storage Bucket
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "jaihan-assistant.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "179210405463"
     availability:
       - BUILD
       - RUNTIME
