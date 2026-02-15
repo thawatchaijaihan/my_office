@@ -102,3 +102,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+    value: "https://jaihan-assistant.asia-southeast1.firebasedatabase.app"
+    availability:
+      - BUILD
+      - RUNTIME
