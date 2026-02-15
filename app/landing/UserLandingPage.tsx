@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const API_URL = "/api/search";
@@ -30,11 +30,17 @@ export default function UserLandingPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
   // Password modal state for opening protected links
   const [pwModalOpen, setPwModalOpen] = useState(false);
   const [pwModalUrl, setPwModalUrl] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState("");
+
+  // ตรวจสอบว่าอยู่ใน iframe หรือไม่
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top);
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,10 +145,12 @@ export default function UserLandingPage() {
   if (view === "home") {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] p-8 flex flex-col items-center justify-center font-sans">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 drop-shadow-lg">หมู่การข่าว ป.71 พัน.713</h1>
-          <p className="text-xl text-white opacity-90">กรุณาเลือกรายการที่ต้องการใช้บริการ</p>
-        </div>
+        {!isInIframe && (
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 drop-shadow-lg">หมู่การข่าว ป.71 พัน.713</h1>
+            <p className="text-xl text-white opacity-90">กรุณาเลือกรายการที่ต้องการใช้บริการ</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
           <a
             href="https://docs.google.com/forms/d/e/1FAIpQLSfCHZhNhdwIKiQoZH3FpSRZWTsuH5qOxD-DsTYAji2i7iKdCw/viewform"
