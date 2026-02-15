@@ -11,6 +11,7 @@ import {
 import type { DashboardData } from "./dashboardChartData";
 import { buildChartData } from "./dashboardChartData";
 import ChartsRootWrapper from "./ChartsRootWrapper";
+import BillingCard from "./BillingCard";
 
 type ChartsRootProps = {
   summary: {
@@ -108,6 +109,11 @@ function ChartsRoot(props: ChartsRootProps) {
             {summary.outstanding}
           </p>
         </div>
+      </div>
+
+      {/* Billing Card - แสดงค่าใช้จ่าย */}
+      <div className="shrink-0">
+        <BillingCard />
       </div>
 
       {/* กราฟ M และกราฟ N (จอกลางขึ้นไป: 2 คอลัมน์) */}

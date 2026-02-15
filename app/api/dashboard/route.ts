@@ -4,6 +4,7 @@ import { readIndexRows } from "@/lib/passSheets";
 import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const CACHE_TTL_MS = 60 * 1000; // 60 วินาที
 let cache: { data: Awaited<ReturnType<typeof buildDashboardData>>; at: number } | null = null;

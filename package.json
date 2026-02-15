@@ -15,6 +15,7 @@
     "sync-personnel": "node scripts/sync-personnel.mjs"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^7.9.4",
     "@google/generative-ai": "^0.21.0",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.6.1",
