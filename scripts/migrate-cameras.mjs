@@ -13,7 +13,7 @@ admin.initializeApp({
   databaseURL: process.env.FIREBASE_DATABASE_URL
 });
 
-const cameras = JSON.parse(readFileSync('cameras_backup.json', 'utf8'));
+const cameras = JSON.parse(readFileSync('cameras_backup_new.json', 'utf8'));
 
 admin.database().ref('cameras').set(cameras)
   .then(() => {

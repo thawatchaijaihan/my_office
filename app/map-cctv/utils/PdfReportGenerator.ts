@@ -105,6 +105,7 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
         img.style.height = "50mm";
         img.style.objectFit = "cover";
         img.style.display = "block";
+        img.setAttribute('data-camera-id', camera.id);
         
         const label = document.createElement("div");
         label.style.position = "absolute";
@@ -125,6 +126,19 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
       });
 
       container.appendChild(grid);
+
+      // รอให้รูปภาพโหลดเสร็จทั้งหมด
+      const images = container.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if ((img as HTMLImageElement).complete) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            img.addEventListener('load', resolve);
+            img.addEventListener('error', reject);
+            setTimeout(reject, 10000); // timeout 10 วินาที
+          });
+        })
+      );
 
       // Add Signature Footer
       const footer = document.createElement("div");
