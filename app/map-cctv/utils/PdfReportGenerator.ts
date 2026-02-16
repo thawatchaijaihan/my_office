@@ -117,7 +117,6 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
         cell.style.overflow = "hidden";
 
         const img = document.createElement("img");
-        img.crossOrigin = "anonymous";
         img.src = camera.lastCheckedImage!;
         img.style.width = "100%";
         img.style.height = "50mm";
@@ -150,33 +149,32 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
       const images = container.querySelectorAll('img');
       console.log('[PDF]   จำนวนรูป:', images.length);
       
-      const loadPromises = Array.from(images).map((img, idx) => {
+      // แปลงรูปเป็น base64 เพื่อหลีก CORS
+      const loadPromises = Array.from(images).map(async (img, idx) => {
         const htmlImg = img as HTMLImageElement;
         const cameraId = htmlImg.getAttribute('data-camera-id');
+        const originalSrc = htmlImg.src;
         
-        if (htmlImg.complete) {
-          console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): โหลดแล้ว`);
-          return Promise.resolve();
+        try {
+          console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): กำลังโหลด...`);
+          
+          // Fetch และแปลงเป็น base64
+          const response = await fetch(originalSrc);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          
+          const blob = await response.blob();
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          
+          htmlImg.src = base64;
+          console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): แปลง base64 สำเร็จ`);
+        } catch (error) {
+          console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): ERROR`, error);
+          throw error;
         }
-        
-        return new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): TIMEOUT`);
-            reject(new Error(`Timeout loading image ${idx + 1}`));
-          }, 10000);
-          
-          htmlImg.addEventListener('load', () => {
-            clearTimeout(timeout);
-            console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): โหลดสำเร็จ`);
-            resolve();
-          });
-          
-          htmlImg.addEventListener('error', (e) => {
-            clearTimeout(timeout);
-            console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): ERROR`, e);
-            reject(new Error(`Error loading image ${idx + 1}`));
-          });
-        });
       });
       
       try {
@@ -184,7 +182,9 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
         console.log('[PDF]   โหลดรูปเสร็จทั้งหมด');
       } catch (error) {
         console.error('[PDF]   มีรูปโหลดไม่สำเร็จ:', error);
-        // ดำเนินการต่อแม้รูปบางรูปโหลดไม่สำเร็จ
+        alert('ไม่สามารถโหลดรูปภาพบางรูปได้ กรุณาลองใหม่อีกครั้ง');
+        document.body.removeChild(container);
+        return;
       }
 
       // Add Signature Footer
