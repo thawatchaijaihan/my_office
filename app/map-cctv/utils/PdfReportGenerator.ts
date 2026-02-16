@@ -159,7 +159,7 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
           return Promise.resolve();
         }
         
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
             console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): TIMEOUT`);
             reject(new Error(`Timeout loading image ${idx + 1}`));
