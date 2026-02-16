@@ -15,8 +15,13 @@ const toThaiNumerals = (text: string) => {
 export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
   const imagesPerPage = 12;
   
+  console.log('[PDF] เริ่มสร้าง PDF');
+  console.log('[PDF] กล้องทั้งหมด:', cameras.length);
+  
   // Filter cameras that have images
   const camerasWithImages = cameras.filter(c => c.lastCheckedImage);
+  
+  console.log('[PDF] กล้องที่มีรูป:', camerasWithImages.length);
   
   if (camerasWithImages.length === 0) {
     alert("ไม่มีรูปภาพกล้องที่ตรวจสอบแล้วสำหรับออกรายงาน");
@@ -27,6 +32,11 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
   camerasWithImages.forEach(camera => {
     if (!grouped[camera.type]) grouped[camera.type] = [];
     grouped[camera.type].push(camera);
+  });
+
+  console.log('[PDF] จัดกลุ่มตามประเภท:', Object.keys(grouped));
+  Object.entries(grouped).forEach(([type, cams]) => {
+    console.log(`[PDF]   ${type}: ${cams.length} กล้อง`);
   });
 
   const pdf = new jsPDF("p", "mm", "a4");
@@ -49,8 +59,14 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
   container.style.padding = "10mm"; // Reset padding for grid pages
 
   let isFirstPage = true;
+  let pageCount = 0;
   for (const [type, groupCameras] of Object.entries(grouped)) {
+    console.log(`[PDF] กำลังสร้างหน้าสำหรับ ${type}...`);
+    
     for (let i = 0; i < groupCameras.length; i += imagesPerPage) {
+      pageCount++;
+      console.log(`[PDF] หน้าที่ ${pageCount}...`);
+      
       if (!isFirstPage) {
         pdf.addPage();
       }
@@ -58,6 +74,8 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
       
       container.innerHTML = "";
       const pageCameras = groupCameras.slice(i, i + imagesPerPage);
+      
+      console.log(`[PDF]   กล้อง ${pageCameras.length} ตัว:`, pageCameras.map(c => c.name).join(', '));
       
       // Add Header
       const header = document.createElement("div");
@@ -128,17 +146,46 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
       container.appendChild(grid);
 
       // รอให้รูปภาพโหลดเสร็จทั้งหมด
+      console.log('[PDF]   รอโหลดรูปภาพ...');
       const images = container.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if ((img as HTMLImageElement).complete) return Promise.resolve();
-          return new Promise((resolve, reject) => {
-            img.addEventListener('load', resolve);
-            img.addEventListener('error', reject);
-            setTimeout(reject, 10000); // timeout 10 วินาที
+      console.log('[PDF]   จำนวนรูป:', images.length);
+      
+      const loadPromises = Array.from(images).map((img, idx) => {
+        const htmlImg = img as HTMLImageElement;
+        const cameraId = htmlImg.getAttribute('data-camera-id');
+        
+        if (htmlImg.complete) {
+          console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): โหลดแล้ว`);
+          return Promise.resolve();
+        }
+        
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): TIMEOUT`);
+            reject(new Error(`Timeout loading image ${idx + 1}`));
+          }, 10000);
+          
+          htmlImg.addEventListener('load', () => {
+            clearTimeout(timeout);
+            console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): โหลดสำเร็จ`);
+            resolve();
           });
-        })
-      );
+          
+          htmlImg.addEventListener('error', (e) => {
+            clearTimeout(timeout);
+            console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): ERROR`, e);
+            reject(new Error(`Error loading image ${idx + 1}`));
+          });
+        });
+      });
+      
+      try {
+        await Promise.all(loadPromises);
+        console.log('[PDF]   โหลดรูปเสร็จทั้งหมด');
+      } catch (error) {
+        console.error('[PDF]   มีรูปโหลดไม่สำเร็จ:', error);
+        // ดำเนินการต่อแม้รูปบางรูปโหลดไม่สำเร็จ
+      }
 
       // Add Signature Footer
       const footer = document.createElement("div");
@@ -180,17 +227,26 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
       footer.appendChild(sigContainer);
       container.appendChild(footer);
 
+      console.log('[PDF]   กำลัง render canvas...');
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         logging: false,
+        allowTaint: true,
       });
 
+      console.log('[PDF]   เพิ่มหน้าลง PDF...');
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
       pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
+      console.log('[PDF]   เสร็จหน้าที่', pageCount);
     }
   }
 
+  console.log('[PDF] ลบ container');
   document.body.removeChild(container);
-  pdf.save(`cctv-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  
+  console.log('[PDF] บันทึกไฟล์...');
+  const filename = `cctv-report-${new Date().toISOString().split('T')[0]}.pdf`;
+  pdf.save(filename);
+  console.log('[PDF] เสร็จสิ้น:', filename);
 };
