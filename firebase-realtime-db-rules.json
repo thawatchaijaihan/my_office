@@ -9,6 +9,14 @@
           ".write": "auth != null && auth.uid == $uid"
         }
       }
+    },
+    "cameras": {
+      ".read": true,
+      ".write": true
+    },
+    "cctvReport": {
+      ".read": true,
+      ".write": true
     }
   }
 }

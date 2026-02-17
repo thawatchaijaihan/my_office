@@ -19,8 +19,8 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "แดชบอร์ด", exact: true, icon: "dashboard" },
-  { href: "/dashboard/personnel", label: "ข้อมูลกำลังพล", exact: true, icon: "personnel" },
+  { href: "/dashboard", label: "บัตรผ่านยานพาหนะ", exact: false, icon: "review" },
+  { href: "/dashboard/personnel", label: "ข้อมูลรายชื่อกำลังพล", exact: true, icon: "personnel" },
   { href: "/dashboard/access", label: "อนุมัติการเข้าถึง", exact: true, icon: "access" },
-  { href: "/dashboard/cctv-map", label: "แผนที่ติดตั้งกล้องวงจรปิด", exact: true, icon: "cctv" },
+  { href: "/dashboard/cctv-map", label: "ข้อมูลกล้องวงจรปิด", exact: true, icon: "cctv" },
 ];

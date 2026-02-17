@@ -3,7 +3,8 @@
 import { GoogleMap, MarkerF, OverlayViewF, useJsApiLoader } from "@react-google-maps/api";
 import { get, onValue, push, ref, remove, set, update } from "firebase/database";
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes, uploadString } from "firebase/storage";
-import { useEffect, useMemo, useRef, useState } from "react";
+import NextImage from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
 import { Camera, CameraType } from "../data/types";
@@ -43,8 +44,6 @@ const typeLabels: Record<CameraType, string> = {
   "ร้อย.บก.ป.71 พัน.713": "ร้อย.บก.",
   "ร้อย.บร.ป.71 พัน.713": "ร้อย.บร.",
 };
-
-const EDIT_PASSWORD = "713713713";
 
 const MAX_IMAGE_BYTES = 512_000;
 const MAX_IMAGE_DIMENSION = 1600;
@@ -139,6 +138,8 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const [markerMode, setMarkerMode] = useState<'all' | 'ok' | 'pending' | 'none'>('all');
   const [cameraItems, setCameraItems] = useState<CameraWithCheck[]>([]);
   const [openImages, setOpenImages] = useState<Record<string, boolean>>({});
+  const cameraListRef = useRef<HTMLDivElement | null>(null);
+  const cameraRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [editingCamera, setEditingCamera] = useState<CameraWithCheck | null>(null);
   const [editDraft, setEditDraft] = useState<CameraWithCheck | null>(null);
   const [isAddingCamera, setIsAddingCamera] = useState(false);
@@ -150,11 +151,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const overlayUploadCameraRef = useRef<CameraWithCheck | null>(null);
   const longPressTargetRef = useRef<CameraType | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const pendingActionRef = useRef<(() => void) | null>(null);
 
   const LONG_PRESS_MS = 500;
   const clearLongPressTimer = () => {
@@ -168,6 +164,10 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     id: "cctv-map",
     googleMapsApiKey: apiKey,
   });
+
+  const logDbWarning = (action: string, error: unknown) => {
+    console.warn(`[CCTV] ${action} failed:`, error);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -185,20 +185,27 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     }
 
     const camerasRef = ref(database, "cameras");
-    get(camerasRef).then((snapshot) => {
-      if (!snapshot.exists()) {
-        set(camerasRef, initialCamerasData as Record<string, Omit<Camera, "id">>);
-      }
-    });
+    get(camerasRef)
+      .then((snapshot) => {
+        if (!snapshot.exists()) {
+          return set(
+            camerasRef,
+            initialCamerasData as Record<string, Omit<Camera, "id">>,
+          ).catch((error) => logDbWarning("seed cameras", error));
+        }
+      })
+      .catch((error) => logDbWarning("load cameras", error));
 
     // โหลด cached PDF URL
     const reportRef = ref(database, "cctvReport");
-    get(reportRef).then((snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        setCachedPdfUrl(data.url);
-      }
-    });
+    get(reportRef)
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setCachedPdfUrl(data.url);
+        }
+      })
+      .catch((error) => logDbWarning("load cctvReport", error));
 
     const unsubscribe = onValue(camerasRef, (snapshot) => {
       const data = snapshot.val() as Record<string, CameraWithCheck> | null;
@@ -214,7 +221,9 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
           }
         });
         if (Object.keys(cleanupUpdates).length > 0) {
-          update(ref(database), cleanupUpdates);
+          update(ref(database), cleanupUpdates).catch((error) =>
+            logDbWarning("cleanup legacy image fields", error),
+          );
         }
         hasCleanedBase64.current = true;
       }
@@ -267,16 +276,18 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   }, [searchTerm, activeTypes, cameraItems]);
 
   /** แถบรายการ: เมื่อมีกล้องที่เลือกบนแผนที่ แสดงแค่กล้องนั้น */
-  const listCameras = useMemo(() => {
-    if (!selectedCameraId) return filteredCameras;
-    const one = filteredCameras.find((c) => c.id === selectedCameraId);
-    return one ? [one] : filteredCameras;
-  }, [filteredCameras, selectedCameraId]);
+  const listCameras = useMemo(() => filteredCameras, [filteredCameras]);
 
   const selectedCamera = useMemo(() => {
     if (!selectedCameraId) return null;
     return cameraItems.find((camera) => camera.id === selectedCameraId) ?? null;
   }, [cameraItems, selectedCameraId]);
+  useEffect(() => {
+    if (!selectedCameraId) return;
+    const targetRow = cameraRowRefs.current[selectedCameraId];
+    if (!targetRow) return;
+    targetRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedCameraId]);
 
   useEffect(() => {
     if (markerMode === 'none' && selectedCameraId) {
@@ -334,7 +345,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     };
   }, []);
 
-  const isCheckedInCurrentHalf = (camera: CameraWithCheck) => {
+  const isCheckedInCurrentHalf = useCallback((camera: CameraWithCheck) => {
     // โหมดพิเศษ: ถ้ามีภาพอยู่แล้ว ถือว่าใช้งานได้ (ไม่สนว่าอัปโหลดเมื่อไหร่)
     // ตั้งค่า NEXT_PUBLIC_CCTV_LEGACY_MODE=true เพื่อใช้โหมดนี้
     const legacyMode = process.env.NEXT_PUBLIC_CCTV_LEGACY_MODE === "true";
@@ -347,14 +358,14 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       return checkedAt >= checkWindow.start && checkedAt < checkWindow.mid;
     }
     return checkedAt >= checkWindow.mid && checkedAt < checkWindow.end;
-  };
+  }, [checkWindow]);
 
   const displayedCameras = useMemo(() => {
     if (markerMode === 'none') return [];
     if (markerMode === 'ok') return filteredCameras.filter(c => isCheckedInCurrentHalf(c));
     if (markerMode === 'pending') return filteredCameras.filter(c => !isCheckedInCurrentHalf(c));
     return filteredCameras;
-  }, [markerMode, filteredCameras]);
+  }, [markerMode, filteredCameras, isCheckedInCurrentHalf]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -559,37 +570,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     setEditDraft({ ...camera });
   };
 
-  const requirePassword = (action: () => void) => {
-    if (isUnlocked) {
-      action();
-      return;
-    }
-    pendingActionRef.current = action;
-    setPasswordInput("");
-    setPasswordError("");
-    setShowPasswordModal(true);
-  };
-
-  const submitPassword = () => {
-    if (passwordInput.trim() !== EDIT_PASSWORD) {
-      setPasswordError("รหัสผ่านไม่ถูกต้อง");
-      return;
-    }
-    setIsUnlocked(true);
-    setShowPasswordModal(false);
-    setPasswordInput("");
-    setPasswordError("");
-    pendingActionRef.current?.();
-    pendingActionRef.current = null;
-  };
-
-  const closePasswordModal = () => {
-    setShowPasswordModal(false);
-    setPasswordInput("");
-    setPasswordError("");
-    pendingActionRef.current = null;
-  };
-
   const closeEditForm = () => {
     setEditingCamera(null);
     setEditDraft(null);
@@ -630,15 +610,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     <>
       <div className="grid min-h-0 grid-cols-1 grid-rows-[auto_auto] gap-4 lg:h-full lg:grid-rows-none lg:grid-cols-[360px_1fr] lg:items-start xl:grid-cols-[380px_1fr] 2xl:grid-cols-[420px_1fr]">
         <section className="order-2 flex flex-col gap-4 bg-white p-5 shadow-sm ring-1 ring-green-100 lg:order-1 lg:h-full lg:min-h-0 lg:overflow-y-auto">
-          <h1 className="hidden text-2xl font-semibold text-green-900 lg:block">
-            แผนที่ติดตั้งกล้องวงจรปิด
-          </h1>
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-green-900">
-              รายการกล้องวงจรปิด
-            </h2>
-          </div>
-
         <div className="space-y-4">
           <label className="text-sm font-medium text-green-900">
             <input
@@ -657,10 +628,11 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
           <span>รอตรวจสอบ {listCameras.filter((c) => !isCheckedInCurrentHalf(c)).length} กล้อง</span>
         </div>
 
-        <div className="soft-scrollbar space-y-3 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-scroll">
+        <div ref={cameraListRef} className="soft-scrollbar space-y-3 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-scroll">
           {listCameras.map((camera) => (
             <div
               key={camera.id}
+              ref={(el) => { cameraRowRefs.current[camera.id] = el; }}
               role="button"
               tabIndex={0}
               onClick={() => handleSelect(camera.id)}
@@ -670,7 +642,11 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                   handleSelect(camera.id);
                 }
               }}
-              className="w-full border border-zinc-100 bg-white p-3 text-left transition hover:border-green-200 hover:bg-green-50"
+              className={`w-full rounded-md border p-3 text-left transition hover:border-green-200 hover:bg-green-50 ${
+                selectedCameraId === camera.id
+                  ? "border-transparent bg-green-50 ring-2 ring-green-400"
+                  : "border-zinc-100 bg-white"
+              }`}
             >
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
@@ -697,7 +673,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      requirePassword(() => openEditForm(camera));
+                      openEditForm(camera);
                     }}
                     aria-label="แก้ไขข้อมูลกล้อง"
                     className="text-green-700 hover:text-green-900"
@@ -718,7 +694,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      requirePassword(() => startMoveCamera(camera.id));
+                      startMoveCamera(camera.id);
                     }}
                     aria-label="ย้ายกล้อง"
                     className="text-amber-600 hover:text-amber-700"
@@ -739,16 +715,21 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      requirePassword(() => {
-                        const confirmDelete = window.confirm(
-                          `ลบกล้อง "${camera.name}" หรือไม่?`,
-                        );
-                        if (!confirmDelete) return;
-                        remove(ref(database, `cameras/${camera.id}`));
-                        if (selectedCameraId === camera.id) {
-                          setSelectedCameraId(null);
-                        }
-                      });
+                      const confirmDelete = window.confirm(
+                        `ลบกล้อง "${camera.name}" หรือไม่?`,
+                      );
+                      if (!confirmDelete) return;
+                      remove(ref(database, `cameras/${camera.id}`)).catch(
+                        (error) => {
+                          logDbWarning("delete camera", error);
+                          window.alert(
+                            "ลบกล้องไม่สำเร็จ (Permission denied หรือเครือข่ายผิดพลาด)",
+                          );
+                        },
+                      );
+                      if (selectedCameraId === camera.id) {
+                        setSelectedCameraId(null);
+                      }
                     }}
                     aria-label="ลบกล้อง"
                     className="text-red-600 hover:text-red-700"
@@ -769,14 +750,11 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 )}
               </div>
               <p className="mt-1 text-xs text-zinc-600">
-                {camera.description}
-              </p>
-              <p className="mt-2 text-[11px] text-zinc-500">
-                {typeLabels[camera.type]}
+                {camera.description} / {typeLabels[camera.type]}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <label className="inline-flex min-w-[96px] items-center justify-center border border-green-600 px-2 py-1 text-[11px] font-medium text-green-700 transition hover:bg-green-50 cursor-pointer">
-                  ภาพจากกล้อง
+                <label className="inline-flex min-w-[96px] items-center justify-center cursor-pointer rounded-md bg-green-600 px-2 py-1 text-[11px] font-bold text-white transition hover:bg-green-700">
+                  อัพโหลดภาพจากกล้อง
                   <input
                     type="file"
                     accept="image/*"
@@ -803,13 +781,12 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                           await uploadString(imageRef, result, "data_url");
                           const url = await getDownloadURL(imageRef);
 
-                          updateCamera(camera.id, {
+                          await updateCamera(camera.id, {
                             lastCheckedImage: url,
                             lastCheckedImagePath: imagePath,
                             lastCheckedAt: new Date().toISOString(),
-                          }).then(() => {
-                            schedulePdfRegeneration();
                           });
+                          schedulePdfRegeneration();
                           setOpenImages((prev) => ({
                             ...prev,
                             [camera.id]: false,
@@ -826,7 +803,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
               </div>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
                 <span>
-                  ตรวจสอบช่วงนี้:{" "}
+                  ตรวจสอบเมื่อ:{" "}
                   {camera.lastCheckedAt
                     ? new Date(camera.lastCheckedAt).toLocaleString("th-TH")
                     : "ยังไม่ตรวจสอบ"}
@@ -879,9 +856,11 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 </button>
               </div>
               {camera.lastCheckedImage && openImages[camera.id] && (
-                <img
+                <NextImage
                   src={camera.lastCheckedImage}
                   alt={`ภาพตรวจสอบล่าสุดของ ${camera.name}`}
+                  width={300}
+                  height={160}
                   className="mt-2 h-40 w-full border border-zinc-100 object-cover"
                 />
               )}
@@ -1014,7 +993,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 {!isAddingCamera && !movingCameraId ? (
               <button
                 type="button"
-                onClick={() => requirePassword(() => setIsAddingCamera(true))}
+                onClick={() => setIsAddingCamera(true)}
                 className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-green-700 bg-green-700 text-white shadow-lg transition hover:bg-green-800"
                 title="เพิ่มกล้อง"
               >
@@ -1217,13 +1196,12 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                                 const imageRef = storageRef(storage, imagePath);
                                 await uploadString(imageRef, result, "data_url");
                                 const url = await getDownloadURL(imageRef);
-                                updateCamera(camera.id, {
+                                await updateCamera(camera.id, {
                                   lastCheckedImage: url,
                                   lastCheckedImagePath: imagePath,
                                   lastCheckedAt: new Date().toISOString(),
-                                }).then(() => {
-                                  schedulePdfRegeneration();
                                 });
+                                schedulePdfRegeneration();
                               })
                               .catch((err) => {
                                 console.error("Image upload failed", err);
@@ -1341,7 +1319,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
               {!isAddingCamera && !movingCameraId ? (
             <button
               type="button"
-              onClick={() => requirePassword(() => setIsAddingCamera(true))}
+              onClick={() => setIsAddingCamera(true)}
               className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white"
               title="เพิ่มกล้อง"
             >
@@ -1387,53 +1365,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
         </div>
       </section>
       </div>
-    {isAdminMode && showPasswordModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-sm border border-zinc-200 bg-white p-4 shadow-lg">
-          <h2 className="text-base font-semibold text-green-900">
-            กรุณาป้อนรหัสผ่าน
-          </h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            สำหรับ แก้ไข / ย้าย / ลบ / เพิ่ม กล้องวงจรปิด
-          </p>
-          <input
-            type="password"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="รหัสผ่าน"
-            value={passwordInput}
-            onChange={(e) => {
-              setPasswordInput(e.target.value);
-              setPasswordError("");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitPassword();
-              if (e.key === "Escape") closePasswordModal();
-            }}
-            className="mt-3 w-full border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-          />
-          {passwordError && (
-            <p className="mt-1 text-sm text-red-600">{passwordError}</p>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={closePasswordModal}
-              className="border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="button"
-              onClick={submitPassword}
-              className="border border-green-700 bg-green-700 px-3 py-1.5 text-sm font-medium text-white"
-            >
-              ตกลง
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     {isAdminMode && editDraft && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="w-full max-w-lg border border-zinc-200 bg-white p-4 shadow-lg">
@@ -1717,3 +1648,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     </>
   );
 }
+
+
+

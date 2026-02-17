@@ -133,11 +133,11 @@ export default function PersonnelPage() {
           <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
               <tr className="bg-slate-700 text-white">
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap w-16">ลำดับ</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap">ยศ ชื่อ สกุล</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap">เบอร์โทร</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap">ธนาคาร</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap">เลขบัญชี</th>
+                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap w-16 border-b border-slate-600">ลำดับ</th>
+                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">ยศ ชื่อ สกุล</th>
+                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">เบอร์โทร</th>
+                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">ธนาคาร</th>
+                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">เลขบัญชี</th>
               </tr>
             </thead>
             <tbody>
@@ -160,3 +160,4 @@ export default function PersonnelPage() {
     </div>
   );
 }
+

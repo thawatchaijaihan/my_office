@@ -15,6 +15,7 @@ export type InvalidRow = {
   vehicleOwner: string;
   registeredAt: string;
   paymentStatus: string;
+  approvalStatus: string;
 };
 
 export async function GET(req: NextRequest) {
@@ -35,7 +36,8 @@ export async function GET(req: NextRequest) {
         requestFor: r.requestFor || "-",
         vehicleOwner: r.vehicleOwner || "",
         registeredAt: r.registeredAt || "-",
-        paymentStatus: r.paymentStatus || "(ว่าง)",
+        paymentStatus: r.paymentStatus === "ลบข้อมูล" ? "ค้างชำระเงิน" : (r.paymentStatus || "(ว่าง)"),
+        approvalStatus: r.approvalStatus || "-",
       }));
 
     return NextResponse.json({ rows: invalid });

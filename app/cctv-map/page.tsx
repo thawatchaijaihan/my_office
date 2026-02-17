@@ -7,9 +7,6 @@ export default function PublicCctvMapPage() {
         <header className="shrink-0 space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2 lg:hidden">
-              <h1 className="text-2xl font-semibold text-green-900 sm:text-3xl">
-                แผนที่ติดตั้งกล้องวงจรปิด
-              </h1>
             </div>
           </div>
         </header>

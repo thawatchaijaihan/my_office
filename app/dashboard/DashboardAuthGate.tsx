@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,14 +8,15 @@ import DashboardNav from "./DashboardNav";
 import { isFirebaseAuthEnabled } from "@/lib/firebaseClient";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/dashboard": "แดชบอร์ด",
-  "/dashboard/personnel": "ข้อมูลกำลังพล",
+  "/dashboard": "บัตรผ่านยานพาหนะ",
+  "/dashboard/personnel": "ข้อมูลรายชื่อกำลังพล",
   "/dashboard/review": "รายการขอบัตรผ่าน",
   "/dashboard/access": "อนุมัติการเข้าถึงแดชบอร์ด",
   "/dashboard/invalid": "ข้อมูลไม่ถูกต้อง",
   "/dashboard/pending-check": "รอการตรวจสอบข้อมูล",
   "/dashboard/pending-send": "รอนำเรียนส่ง ฝขว.พล.ป.",
   "/dashboard/pending-approval": "รออนุมัติจาก ฝขว.พล.ป.",
+  "/dashboard/cctv-map": "ข้อมูลกล้องวงจรปิด",
 };
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
@@ -42,14 +43,13 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-screen flex overflow-hidden bg-slate-100">
-      {/* Sidebar Aside */}
       <aside
         className={`flex h-full shrink-0 flex-col bg-slate-800 text-white transition-all duration-300 ease-in-out ${
           isSidebarOpen ? "w-64 md:w-56 lg:w-64" : "w-0 overflow-hidden"
         }`}
         aria-label="เมนูด้านข้าง"
       >
-        <div className="shrink-0 border-b border-slate-700 p-4 flex items-center justify-between">
+        <div className="h-14 shrink-0 border-b border-slate-700 px-4 flex items-center justify-between">
           <Link
             href="/"
             className="flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-800 overflow-hidden"
@@ -90,25 +90,27 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex min-h-0 flex-1 flex-col bg-slate-100 min-[400px]:min-w-0" role="main">
         {pathname === "/dashboard/cctv-map" ? (
-          <div className="relative min-h-0 flex-1">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="absolute left-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 focus:outline-none"
-              aria-label={isSidebarOpen ? "ซ่อนเมนู" : "แสดงเมนู"}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isSidebarOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-            <div className="h-full w-full">{children}</div>
+          <div className="min-h-0 flex flex-1 flex-col">
+            <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-white px-4 md:px-6">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-slate-500 hover:bg-slate-50 focus:outline-none"
+                aria-label={isSidebarOpen ? "ซ่อนเมนู" : "แสดงเมนู"}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isSidebarOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+              <h1 className="flex-1 text-xl sm:text-2xl font-bold text-slate-700">{pageTitle}</h1>
+            </header>
+            <div className="min-h-0 flex-1">{children}</div>
           </div>
         ) : (
           <>

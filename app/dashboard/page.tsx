@@ -28,7 +28,8 @@ type DashboardPanelKey =
   | "pending-check"
   | "pending-send"
   | "pending-approval"
-  | "outstanding";
+  | "outstanding"
+  | "invalid";
 
 const DashboardCharts = dynamic(() => import("./DashboardCharts"), { ssr: false });
 const ReviewPage = dynamic(() => import("./review/page"), { ssr: false });
@@ -36,6 +37,7 @@ const PendingCheckPage = dynamic(() => import("./pending-check/page"), { ssr: fa
 const PendingSendPage = dynamic(() => import("./pending-send/page"), { ssr: false });
 const PendingApprovalPage = dynamic(() => import("./pending-approval/page"), { ssr: false });
 const OutstandingPage = dynamic(() => import("./outstanding/page"), { ssr: false });
+const InvalidPage = dynamic(() => import("./invalid/page"), { ssr: false });
 
 const FETCH_TIMEOUT_DEFAULT_MS = 30_000;
 const FETCH_TIMEOUT_TELEGRAM_MS = 120_000;
@@ -179,8 +181,8 @@ export default function DashboardPage() {
   if (!mounted || loading) {
     return (
       <div className="flex flex-col min-h-full p-4 sm:p-6 md:p-8 bg-slate-100 text-slate-800">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2 sm:gap-3">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-2 sm:gap-3">
+          {[...Array(7)].map((_, i) => (
             <div key={i} className="rounded-xl bg-slate-200/80 border border-slate-200 p-3 animate-pulse">
               <div className="h-3 bg-slate-300/80 rounded w-3/4 mb-2" />
               <div className="h-7 bg-slate-300/80 rounded w-16" />
@@ -213,6 +215,10 @@ export default function DashboardPage() {
     data.approvalBreakdown ?? [],
     "รออนุมัติจาก ฝขว.พล.ป.",
   );
+  const countReceivedCard = getApprovalCount(
+    data.approvalBreakdown ?? [],
+    "รับบัตรเรียบร้อย",
+  );
   const cards: Array<{
     key: DashboardPanelKey;
     title: string;
@@ -224,8 +230,13 @@ export default function DashboardPage() {
     { key: "review", title: "รายการทั้งหมด", count: data.summary.total },
     { key: "pending-check", title: "รายการรอตรวจ", count: data.summary.pendingReview },
     { key: "pending-send", title: "รายการรอนำส่ง", count: data.summary.pendingSend },
-    { key: "pending-approval", title: "รายการรออนุมัติ", count: countPendingApproval },
+    {
+      key: "pending-approval",
+      title: "รายการรออนุมัติ",
+      valueText: `${countPendingApproval} / ${countReceivedCard}`,
+    },
     { key: "outstanding", title: "รายการค้างชำระ", count: data.summary.outstanding, tone: "warning" },
+    { key: "invalid", title: "ข้อมูลไม่ถูกต้อง", count: data.summary.dataIncorrect, tone: "warning" },
   ];
 
   const panelTitleMap: Record<DashboardPanelKey, string> = {
@@ -235,6 +246,7 @@ export default function DashboardPage() {
     "pending-send": "รายการรอนำส่ง",
     "pending-approval": "รายการรออนุมัติ",
     outstanding: "รายการค้างชำระ",
+    invalid: "ข้อมูลไม่ถูกต้อง",
   };
 
   const renderActivePanel = () => {
@@ -251,6 +263,8 @@ export default function DashboardPage() {
         return <PendingApprovalPage />;
       case "outstanding":
         return <OutstandingPage />;
+      case "invalid":
+        return <InvalidPage />;
       default:
         return null;
     }
@@ -262,7 +276,7 @@ export default function DashboardPage() {
       style={{ backgroundColor: "#f1f5f9", color: "#0f172a", minHeight: "100%" }}
     >
       <div className="sticky top-0 z-20 -mx-4 px-4 sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 pb-3" style={{ backgroundColor: "#f1f5f9" }}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-2 sm:gap-3">
           {cards.map((card) => {
             const isActive = activePanel === card.key;
             return (
@@ -296,7 +310,13 @@ export default function DashboardPage() {
             {panelTitleMap[activePanel]}
           </h2>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div
+          className={
+            activePanel === "overview"
+              ? "flex-1 min-h-0 overflow-auto"
+              : "flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm"
+          }
+        >
           {renderActivePanel()}
         </div>
       </div>

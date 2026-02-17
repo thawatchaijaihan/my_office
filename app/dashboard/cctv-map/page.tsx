@@ -1,4 +1,4 @@
-import CctvMap from "@/app/map-cctv/components/CctvMap";
+import CctvMap from "@/app/cctv-map/components/CctvMap";
 
 export default function AdminCctvMapPage() {
   return (

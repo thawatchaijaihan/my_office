@@ -227,14 +227,6 @@ function ChartsRoot(props: ChartsRootProps) {
                     <p className="text-slate-500 text-sm">ไม่มีข้อมูล</p>
                   ) : (
                     <div className="flex flex-col gap-2 text-sm min-w-0">
-                      {/* หัวคอลัมน์ - ซ่อนบนจอเล็ก */}
-                      <div className="hidden sm:grid grid-cols-[2rem_1fr_1fr_1fr_1fr] gap-2 sm:gap-3 text-slate-500 text-xs border-b border-slate-200 pb-1">
-                        <span></span>
-                        <span>ชื่อ</span>
-                        <span>ขอสำหรับ</span>
-                        <span>ทะเบียน</span>
-                        <span className="text-right">วันที่</span>
-                      </div>
                       {latestEntries.map((entry, index) => (
                         <div
                           key={entry.rowNumber}

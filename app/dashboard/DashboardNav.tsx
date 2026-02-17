@@ -100,9 +100,11 @@ export default function DashboardNav() {
 
   const menuGroups: Array<{ key: string; label?: string; items: NavItem[] }> = [
     {
-      key: "pass-requests",
+      key: "main",
       items: resolveItems([
         "/dashboard",
+        "/dashboard/personnel",
+        "/dashboard/cctv-map",
         "/dashboard/review",
         "/dashboard/pass-request",
         "/dashboard/pending-check",
@@ -110,14 +112,6 @@ export default function DashboardNav() {
         "/dashboard/pending-approval",
         "/dashboard/invalid",
       ]),
-    },
-    {
-      key: "personnel",
-      items: resolveItems(["/dashboard/personnel"]),
-    },
-    {
-      key: "cctv",
-      items: resolveItems(["/dashboard/cctv-map"]),
     },
   ];
 
@@ -141,9 +135,14 @@ export default function DashboardNav() {
             ) : null}
             <ul className="space-y-1" role="list">
               {group.items.map((item) => {
-                const isActive = item.exact
+                let isActive = item.exact
                   ? pathname === item.href
                   : pathname === item.href || pathname.startsWith(item.href + "/");
+                
+                if (item.href === "/dashboard" && (pathname === "/dashboard/personnel" || pathname === "/dashboard/cctv-map" || pathname === "/dashboard/access")) {
+                  isActive = false;
+                }
+
                 return (
                   <li key={item.href}>
                     <Link
