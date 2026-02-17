@@ -11,7 +11,7 @@ import {
 import type { DashboardData } from "./dashboardChartData";
 import { buildChartData } from "./dashboardChartData";
 import ChartsRootWrapper from "./ChartsRootWrapper";
-import BillingCard from "./BillingCard";
+import BillingCard, { type BillingData } from "./BillingCard";
 
 type ChartsRootProps = {
   summary: {
@@ -38,6 +38,8 @@ type ChartsRootProps = {
     value: number;
     color: string;
   }[];
+  billingData: BillingData | null;
+  animate: boolean;
 };
 
 function ChartsRoot(props: ChartsRootProps) {
@@ -47,13 +49,15 @@ function ChartsRoot(props: ChartsRootProps) {
     latestEntries,
     paymentPieData,
     approvalPieData,
+    billingData,
+    animate,
   } = props;
   const className = "flex flex-col min-h-0 gap-3 sm:gap-4";
   return (
     <ChartsRootWrapper className={className}>
       {/* กราฟหลัก 3 คอลัมน์ */}
       <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-        <BillingCard />
+        <BillingCard billingData={billingData} animate={animate} />
         <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
             {paymentPieData.length === 0 ? (
               <p className="text-slate-500 text-sm py-8 text-center">
@@ -97,6 +101,8 @@ function ChartsRoot(props: ChartsRootProps) {
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
+                        isAnimationActive={animate}
+                        animationDuration={1000}
                       >
                         {paymentPieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -150,6 +156,8 @@ function ChartsRoot(props: ChartsRootProps) {
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
+                        isAnimationActive={animate}
+                        animationDuration={1000}
                       >
                         {approvalPieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -254,7 +262,15 @@ function ChartsRoot(props: ChartsRootProps) {
   );
 }
 
-export default function DashboardCharts({ data }: { data: DashboardData }) {
+export default function DashboardCharts({
+  data,
+  billingData,
+  animate,
+}: {
+  data: DashboardData;
+  billingData: BillingData | null;
+  animate: boolean;
+}) {
   const { summary, topOutstanding, latestEntries } = data;
   const { paymentPieData, approvalPieData } = buildChartData(data);
   return (
@@ -264,6 +280,8 @@ export default function DashboardCharts({ data }: { data: DashboardData }) {
       latestEntries={latestEntries ?? []}
       paymentPieData={paymentPieData}
       approvalPieData={approvalPieData}
+      billingData={billingData}
+      animate={animate}
     />
   );
 }

@@ -56,7 +56,10 @@ function getDatabaseApp(): App | null {
     databaseApp = existing as App;
     return databaseApp;
   }
-  const dbUrl = process.env.FIREBASE_DATABASE_URL?.trim();
+  const dbUrl = (
+    process.env.FIREBASE_DATABASE_URL?.trim()
+    || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL?.trim()
+  );
   if (!dbUrl) return null;
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
   if (b64) {

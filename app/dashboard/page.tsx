@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useDashboardAuth } from "./DashboardAuthContext";
+import type { BillingData } from "./BillingCard";
 
 type DashboardData = {
   summary: {
@@ -12,18 +13,13 @@ type DashboardData = {
     deleted: number;
     dataIncorrect: number;
     pendingReview: number;
+    pendingSend: number;
     paidAmount: number;
     outstandingAmount: number;
   };
   approvalBreakdown: { label: string; count: number }[];
   topOutstanding: { name: string; count: number; title: string }[];
   latestEntries: { rowNumber: number; registeredAt: string; name: string; requestFor: string; plate: string }[];
-};
-
-type BillingSummaryData = {
-  currentMonth?: {
-    total?: number;
-  };
 };
 
 type DashboardPanelKey =
@@ -68,6 +64,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<DashboardPanelKey>("overview");
   const [billingTotal, setBillingTotal] = useState(0);
+  const [billingData, setBillingData] = useState<BillingData | null>(null);
+  const [chartsAnimate, setChartsAnimate] = useState(false);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("th-TH", {
@@ -80,6 +78,7 @@ export default function DashboardPage() {
     setError(null);
     setData(null);
     setLoading(true);
+    setChartsAnimate(false);
     setRetryKey((k) => k + 1);
   };
 
@@ -97,10 +96,14 @@ export default function DashboardPage() {
     (async () => {
       try {
         setError(null);
+        setChartsAnimate(false);
         const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
         const authHeaders = await getAuthHeaders();
         const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
-        const res = await fetch(url, { signal: controller.signal, headers: authHeaders });
+        const [res, billingRes] = await Promise.all([
+          fetch(url, { signal: controller.signal, headers: authHeaders }),
+          fetch("/api/billing", { signal: controller.signal }),
+        ]);
 
         if (!res.ok) {
           let errMsg = res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ";
@@ -117,15 +120,31 @@ export default function DashboardPage() {
         if (!cancelled) setData(json);
 
         try {
-          const billingRes = await fetch("/api/billing", { signal: controller.signal });
           if (billingRes.ok) {
-            const billingJson = (await billingRes.json()) as BillingSummaryData;
-            if (!cancelled) setBillingTotal(Number(billingJson?.currentMonth?.total ?? 0));
+            const billingJson = (await billingRes.json()) as BillingData;
+            if (!cancelled) {
+              setBillingData(billingJson);
+              setBillingTotal(Number(billingJson?.currentMonth?.total ?? 0));
+            }
           } else if (!cancelled) {
+            setBillingData({
+              currentMonth: {
+                total: 0,
+                services: [],
+              },
+            });
             setBillingTotal(0);
           }
         } catch {
-          if (!cancelled) setBillingTotal(0);
+          if (!cancelled) {
+            setBillingData({
+              currentMonth: {
+                total: 0,
+                services: [],
+              },
+            });
+            setBillingTotal(0);
+          }
         }
       } catch (e) {
         if (cancelled) return;
@@ -149,6 +168,13 @@ export default function DashboardPage() {
       controller.abort();
     };
   }, [mounted, getAuthHeaders, retryKey]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!data || !billingData) return;
+    const raf = requestAnimationFrame(() => setChartsAnimate(true));
+    return () => cancelAnimationFrame(raf);
+  }, [loading, data, billingData]);
 
   if (!mounted || loading) {
     return (
@@ -187,11 +213,6 @@ export default function DashboardPage() {
     data.approvalBreakdown ?? [],
     "รออนุมัติจาก ฝขว.พล.ป.",
   );
-  const countPendingSend = getApprovalCount(
-    data.approvalBreakdown ?? [],
-    "รอส่ง ฝขว.พล.ป.",
-  );
-
   const cards: Array<{
     key: DashboardPanelKey;
     title: string;
@@ -202,7 +223,7 @@ export default function DashboardPage() {
     { key: "overview", title: "ภาพรวม", valueText: formatCurrency(billingTotal) },
     { key: "review", title: "รายการทั้งหมด", count: data.summary.total },
     { key: "pending-check", title: "รายการรอตรวจ", count: data.summary.pendingReview },
-    { key: "pending-send", title: "รายการรอนำส่ง", count: countPendingSend },
+    { key: "pending-send", title: "รายการรอนำส่ง", count: data.summary.pendingSend },
     { key: "pending-approval", title: "รายการรออนุมัติ", count: countPendingApproval },
     { key: "outstanding", title: "รายการค้างชำระ", count: data.summary.outstanding, tone: "warning" },
   ];
@@ -219,7 +240,7 @@ export default function DashboardPage() {
   const renderActivePanel = () => {
     switch (activePanel) {
       case "overview":
-        return <DashboardCharts data={data} />;
+        return <DashboardCharts data={data} billingData={billingData} animate={chartsAnimate} />;
       case "review":
         return <ReviewPage />;
       case "pending-check":

@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
 import { getCachedIndexRows } from "@/lib/indexRowsCache";
 import type { IndexRow } from "@/lib/passSheets";
 
 export const runtime = "nodejs";
 
-const N_EMPTY_OR = ["รอส่ง ฝขว.พล.ป."];
+const N_LABEL = "รอส่ง ฝขว.พล.ป.";
+const M_LABEL = "ชำระเงินแล้ว";
 
 export type PendingRow = {
   rowNumber: number;
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest) {
     const filtered = indexRows
       .filter((r) => {
         const n = (r.approvalStatus || "").trim();
-        return !n || N_EMPTY_OR.includes(n);
+        const m = (r.paymentStatus || "").trim();
+        return n === N_LABEL && m === M_LABEL;
       })
       .slice(0, 500)
       .map(toRow);

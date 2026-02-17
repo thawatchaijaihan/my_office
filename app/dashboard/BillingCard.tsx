@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-interface BillingData {
+export interface BillingData {
   currentMonth: {
     total: number;
     services: { name: string; cost: number }[];
@@ -26,30 +26,23 @@ const CHART_COLORS = [
   "#334155",
 ];
 
-export default function BillingCard() {
-  const [billing, setBilling] = useState<BillingData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBilling = async () => {
-      try {
-        const response = await fetch("/api/billing");
-        const data = (await response.json()) as BillingData;
-        setBilling(data);
-      } catch {
-        setBilling({
-          currentMonth: {
-            total: 0,
-            services: [],
-          },
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBilling();
-  }, []);
+export default function BillingCard({
+  billingData,
+  animate,
+}: {
+  billingData: BillingData | null;
+  animate: boolean;
+}) {
+  const billing = useMemo<BillingData>(
+    () =>
+      billingData ?? {
+        currentMonth: {
+          total: 0,
+          services: [],
+        },
+      },
+    [billingData]
+  );
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("th-TH", {
@@ -59,7 +52,6 @@ export default function BillingCard() {
     }).format(amount);
 
   const serviceChartData = useMemo<BillingChartItem[]>(() => {
-    if (!billing) return [];
     const paidServices = billing.currentMonth.services
       .filter((service) => service.cost > 0)
       .map((service, index) => ({
@@ -79,32 +71,17 @@ export default function BillingCard() {
     ];
   }, [billing]);
 
-  if (loading || !billing) {
-    return (
-      <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden animate-pulse">
-        <div className="h-5 w-40 bg-slate-200 rounded mb-4" />
-        <div className="h-[220px] bg-slate-100 rounded" />
-      </div>
-    );
-  }
-
   const hasRealCost = billing.currentMonth.services.some((service) => service.cost > 0);
 
   return (
     <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
       <div className="flex-1 w-full min-w-0 flex flex-row items-center gap-3 h-[220px] sm:h-[240px]">
         <div className="shrink-0 flex flex-col gap-1 items-center">
-          <div className="text-base sm:text-lg font-semibold text-slate-800 text-center">
-            ค่าใช้จ่ายบริการ
-          </div>
+          <div className="text-base sm:text-lg font-semibold text-slate-800 text-center">ค่าใช้จ่ายบริการ</div>
           <ul className="flex flex-col gap-1.5 text-xs sm:text-sm justify-center items-center" aria-label="ค่าใช้จ่ายบริการ">
             {serviceChartData.map((entry) => (
               <li key={entry.name} className="flex items-center justify-center gap-2">
-                <span
-                  className="shrink-0 w-3 h-3 rounded-sm"
-                  style={{ backgroundColor: entry.color }}
-                  aria-hidden
-                />
+                <span className="shrink-0 w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} aria-hidden />
                 <span className="text-slate-700 min-w-[8rem]">{entry.name}</span>
                 <span className="font-bold text-slate-900 tabular-nums text-right w-24">
                   {hasRealCost ? formatCurrency(entry.value) : "฿0.00"}
@@ -133,6 +110,8 @@ export default function BillingCard() {
                 paddingAngle={2}
                 dataKey="value"
                 nameKey="name"
+                isAnimationActive={animate}
+                animationDuration={1000}
               >
                 {serviceChartData.map((entry, index) => (
                   <Cell key={`billing-cell-${index}`} fill={entry.color} />
