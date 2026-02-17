@@ -442,7 +442,26 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   };
 
   const openPdfUrl = (url: string) => {
-    window.location.assign(url);
+    const telegramWebApp = (window as Window & {
+      Telegram?: {
+        WebApp?: {
+          openLink?: (href: string, options?: Record<string, unknown>) => void;
+        };
+      };
+    }).Telegram?.WebApp;
+
+    if (telegramWebApp?.openLink) {
+      telegramWebApp.openLink(url, { try_instant_view: false });
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_self";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const schedulePdfRegeneration = () => {
@@ -961,6 +980,8 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                     const newPdfUrl = await regeneratePdf();
                     if (newPdfUrl) {
                       openPdfUrl(newPdfUrl);
+                    } else {
+                      alert("Unable to open PDF");
                     }
                   } catch (error) {
                     console.error('PDF generation failed:', error);
@@ -1299,6 +1320,8 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                   const newPdfUrl = await regeneratePdf();
                   if (newPdfUrl) {
                     openPdfUrl(newPdfUrl);
+                  } else {
+                    alert("Unable to open PDF");
                   }
                 } catch (error) {
                   console.error('PDF generation failed:', error);
