@@ -12,7 +12,9 @@ const toThaiNumerals = (text: string) => {
   return text.replace(/[0-9]/g, (digit) => thaiNumerals[parseInt(digit)]);
 };
 
-export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
+export const generateCctvReport = async (
+  cameras: CameraWithCheck[],
+): Promise<Blob | null> => {
   const imagesPerPage = 12;
   
   console.log('[PDF] เริ่มสร้าง PDF');
@@ -25,7 +27,7 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
   
   if (camerasWithImages.length === 0) {
     alert("ไม่มีรูปภาพกล้องที่ตรวจสอบแล้วสำหรับออกรายงาน");
-    return;
+    return null;
   }
 
   const grouped: Record<string, CameraWithCheck[]> = {};
@@ -186,7 +188,7 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
         console.error('[PDF]   มีรูปโหลดไม่สำเร็จ:', error);
         alert('ไม่สามารถโหลดรูปภาพบางรูปได้ กรุณาลองใหม่อีกครั้ง');
         document.body.removeChild(container);
-        return;
+        return null;
       }
 
       // Add Signature Footer
@@ -248,7 +250,7 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
   document.body.removeChild(container);
   
   console.log('[PDF] บันทึกไฟล์...');
-  const filename = `cctv-report-${new Date().toISOString().split('T')[0]}.pdf`;
-  pdf.save(filename);
-  console.log('[PDF] เสร็จสิ้น:', filename);
+  const pdfBlob = pdf.output("blob");
+  console.log('[PDF] เสร็จสิ้น');
+  return pdfBlob;
 };
