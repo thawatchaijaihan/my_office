@@ -441,6 +441,10 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     }
   };
 
+  const openPdfUrl = (url: string) => {
+    window.location.assign(url);
+  };
+
   const schedulePdfRegeneration = () => {
     setIsPdfOutdated(true);
     if (pdfGenerationTimeoutRef.current) {
@@ -949,14 +953,14 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 
                 if (cachedPdfUrl && !isPdfOutdated) {
                   console.log('[PDF Button] ใช้ cache - เปิดทันที');
-                  window.open(cachedPdfUrl, '_blank');
+                  openPdfUrl(cachedPdfUrl);
                 } else {
                   console.log('[PDF Button] สร้างใหม่');
                   setIsGeneratingPdf(true);
                   try {
                     const newPdfUrl = await regeneratePdf();
                     if (newPdfUrl) {
-                      window.open(newPdfUrl, '_blank');
+                      openPdfUrl(newPdfUrl);
                     }
                   } catch (error) {
                     console.error('PDF generation failed:', error);
@@ -1288,13 +1292,13 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
             disabled={isGeneratingPdf}
             onClick={async () => {
               if (cachedPdfUrl && !isPdfOutdated) {
-                window.open(cachedPdfUrl, '_blank');
+                openPdfUrl(cachedPdfUrl);
               } else {
                 setIsGeneratingPdf(true);
                 try {
                   const newPdfUrl = await regeneratePdf();
                   if (newPdfUrl) {
-                    window.open(newPdfUrl, '_blank');
+                    openPdfUrl(newPdfUrl);
                   }
                 } catch (error) {
                   console.error('PDF generation failed:', error);
