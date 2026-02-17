@@ -163,7 +163,8 @@ export const generateCctvReport = async (
           console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): กำลังโหลด...`);
           
           // Fetch และแปลงเป็น base64
-          const response = await fetch(originalSrc);
+          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(originalSrc)}`;
+          const response = await fetch(proxyUrl);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           
           const blob = await response.blob();

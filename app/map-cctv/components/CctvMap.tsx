@@ -424,10 +424,14 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       const pdfRef = storageRef(storage, pdfPath);
       await uploadBytes(pdfRef, pdfBlob);
       const pdfUrl = await getDownloadURL(pdfRef);
-      await set(ref(database, "cctvReport"), {
-        url: pdfUrl,
-        generatedAt: new Date().toISOString(),
-      });
+      try {
+        await set(ref(database, "cctvReport"), {
+          url: pdfUrl,
+          generatedAt: new Date().toISOString(),
+        });
+      } catch (dbError) {
+        console.warn("Unable to write cctvReport to database:", dbError);
+      }
       setCachedPdfUrl(pdfUrl);
       setIsPdfOutdated(false);
       return pdfUrl;
