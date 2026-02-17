@@ -3,18 +3,12 @@ import { get, ref, set } from "firebase/database";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { database, storage } from "@/app/map-cctv/lib/firebase";
 import { generateCctvReport } from "@/app/map-cctv/utils/PdfReportGenerator";
+import { Camera } from "@/app/map-cctv/data/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Camera = {
-  id: string;
-  name: string;
-  description: string;
-  type: string;
-  status: string;
-  lat: number;
-  lng: number;
+type CameraWithCheck = Camera & {
   lastCheckedAt?: string;
   lastCheckedImage?: string;
   lastCheckedImagePath?: string;
