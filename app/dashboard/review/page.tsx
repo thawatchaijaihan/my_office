@@ -574,10 +574,10 @@ export default function ReviewPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r) => (
+              {filteredRows.map((r, rowIdx) => (
                 <tr key={r.rowNumber} className="border-b border-slate-200 hover:bg-slate-50">
                   {visibleCols.map((col) => {
-                    const value = getCellValue(r, col.key);
+                    const value = col.key === "rowNumber" ? String(rowIdx + 1) : getCellValue(r, col.key);
                     const isPlate = col.key === "plate";
                     const isPayment = col.key === "paymentStatus";
                     const isCheckedAt = col.key === "checkedAt";

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import {
@@ -23,7 +23,6 @@ type ChartsRootProps = {
     paidAmount: number;
     outstandingAmount: number;
   };
-  approvalBreakdown: { label: string; count: number }[];
   topOutstanding: { name: string; count: number; title: string }[];
   latestEntries: {
     rowNumber: number;
@@ -41,85 +40,21 @@ type ChartsRootProps = {
   }[];
 };
 
-function getApprovalCount(
-  approvalBreakdown: { label: string; count: number }[],
-  match: string | RegExp,
-): number {
-  const item = approvalBreakdown.find((x) =>
-    typeof match === "string" ? x.label.includes(match) : match.test(x.label),
-  );
-  return item?.count ?? 0;
-}
-
 function ChartsRoot(props: ChartsRootProps) {
   const {
     summary,
-    approvalBreakdown,
     topOutstanding,
     latestEntries,
     paymentPieData,
     approvalPieData,
   } = props;
-  const countPendingApproval = getApprovalCount(
-    approvalBreakdown,
-    "รออนุมัติจาก ฝขว.พล.ป.",
-  );
-  const countPendingSend = getApprovalCount(
-    approvalBreakdown,
-    /รอส่ง|รอนำเรียนส่ง/,
-  );
   const className = "flex flex-col min-h-0 gap-3 sm:gap-4";
   return (
     <ChartsRootWrapper className={className}>
-      {/* จำนวน - 6 รายการ (อยู่ด้านบน) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-3 shrink-0">
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-slate-500 truncate">รายการทั้งหมด</p>
-          <p className="text-xl font-bold text-slate-800 mt-0.5">
-            {summary.total}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-slate-500 truncate">รอการตรวจสอบ</p>
-          <p className="text-xl font-bold text-slate-800 mt-0.5">
-            {summary.pendingReview}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-orange-600 truncate">ข้อมูลไม่ถูกต้อง</p>
-          <p className="text-xl font-bold mt-0.5 text-orange-600">
-            {summary.dataIncorrect}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-slate-500 truncate">ฝขว.พล.ป. อนุมัติ</p>
-          <p className="text-xl font-bold text-slate-800 mt-0.5">
-            {countPendingApproval}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-slate-500 truncate">รายการรอนำเรียน</p>
-          <p className="text-xl font-bold text-slate-800 mt-0.5">
-            {countPendingSend}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-3 md:p-4 shadow-sm">
-          <p className="text-xs text-red-600 truncate">รายการค้างชำระ</p>
-          <p className="text-xl font-bold mt-0.5 text-red-600">
-            {summary.outstanding}
-          </p>
-        </div>
-      </div>
-
-      {/* Billing Card - แสดงค่าใช้จ่าย */}
-      <div className="shrink-0">
+      {/* กราฟหลัก 3 คอลัมน์ */}
+      <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         <BillingCard />
-      </div>
-
-      {/* กราฟ M และกราฟ N (จอกลางขึ้นไป: 2 คอลัมน์) */}
-      <div className="shrink-0 flex flex-col gap-3 sm:gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
+        <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
             {paymentPieData.length === 0 ? (
               <p className="text-slate-500 text-sm py-8 text-center">
                 ไม่มีข้อมูล
@@ -174,9 +109,8 @@ function ChartsRoot(props: ChartsRootProps) {
                 </div>
               </>
             )}
-          </div>
-
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
+        </div>
+        <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
             {approvalPieData.length === 0 ? (
               <p className="text-slate-500 text-sm py-8 text-center">
                 ไม่มีข้อมูล
@@ -233,7 +167,6 @@ function ChartsRoot(props: ChartsRootProps) {
                 </div>
               </>
             )}
-          </div>
         </div>
       </div>
 
@@ -276,7 +209,7 @@ function ChartsRoot(props: ChartsRootProps) {
                   })()}
                 </div>
               </div>
-              {/* รายการที่เพิ่มล่าสุด 10 รายการ - แค่รายชื่อ */}
+              {/* รายการที่เพิ่มล่าสุด 10 รายการ */}
               <div className="min-w-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-800 bg-slate-100 px-4 py-2 border-b border-slate-200">
                   รายการที่เพิ่มล่าสุด 10 รายการ
@@ -322,12 +255,11 @@ function ChartsRoot(props: ChartsRootProps) {
 }
 
 export default function DashboardCharts({ data }: { data: DashboardData }) {
-  const { summary, approvalBreakdown, topOutstanding, latestEntries } = data;
+  const { summary, topOutstanding, latestEntries } = data;
   const { paymentPieData, approvalPieData } = buildChartData(data);
   return (
     <ChartsRoot
       summary={summary}
-      approvalBreakdown={approvalBreakdown ?? []}
       topOutstanding={topOutstanding}
       latestEntries={latestEntries ?? []}
       paymentPieData={paymentPieData}
@@ -335,3 +267,4 @@ export default function DashboardCharts({ data }: { data: DashboardData }) {
     />
   );
 }
+

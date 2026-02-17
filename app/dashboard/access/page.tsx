@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
@@ -25,7 +25,7 @@ export default function AccessPage() {
     dashboardFetch("/api/dashboard/access")
       .then((res) => {
         if (!res.ok) {
-          const msg = res.status === 401 ? "กรุณาเข้าสู่ระบบ" : res.status === 403 ? "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น" : "โหลดไม่สำเร็จ";
+          const msg = res.status === 401 ? "à¸à¸£à¸¸à¸“à¸²à¹€à¸‚à¹‰à¸²à¸ªà¸¹à¹ˆà¸£à¸°à¸šà¸š" : res.status === 403 ? "à¹€à¸‰à¸žà¸²à¸°à¸œà¸¹à¹‰à¸¡à¸µà¸ªà¸´à¸—à¸˜à¸´à¹Œà¸­à¸™à¸¸à¸¡à¸±à¸•à¸´à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™" : "à¹‚à¸«à¸¥à¸”à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ";
           throw new Error(msg);
         }
         return res.json();
@@ -53,10 +53,10 @@ export default function AccessPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid }),
           });
-      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
+      if (!res.ok) throw new Error("à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
+      setError(e instanceof Error ? e.message : "à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”");
     } finally {
       setActing(null);
     }
@@ -69,10 +69,10 @@ export default function AccessPage() {
         ? `/api/dashboard/access?email=${encodeURIComponent(email)}`
         : `/api/dashboard/access?uid=${encodeURIComponent(uid)}`;
       const res = await dashboardFetch(url, { method: "DELETE" });
-      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
+      if (!res.ok) throw new Error("à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
+      setError(e instanceof Error ? e.message : "à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”");
     } finally {
       setActing(null);
     }
@@ -93,7 +93,7 @@ export default function AccessPage() {
   if (loading && users.length === 0) {
     return (
       <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <p className="text-slate-600">กำลังโหลด...</p>
+        <p className="text-slate-600">à¸à¸³à¸¥à¸±à¸‡à¹‚à¸«à¸¥à¸”...</p>
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function AccessPage() {
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
       <p className="text-slate-600 text-sm mb-6">
-        รายชื่อผู้ที่เคยล็อกอิน — กด อนุญาต / ถอนสิทธิ์ เพื่อให้หรือยกเลิกการเข้าแดชบอร์ด
+        à¸£à¸²à¸¢à¸Šà¸·à¹ˆà¸­à¸œà¸¹à¹‰à¸—à¸µà¹ˆà¹€à¸„à¸¢à¸¥à¹‡à¸­à¸à¸­à¸´à¸™ â€” à¸à¸” à¸­à¸™à¸¸à¸à¸²à¸• / à¸–à¸­à¸™à¸ªà¸´à¸—à¸˜à¸´à¹Œ à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰à¸«à¸£à¸·à¸­à¸¢à¸à¹€à¸¥à¸´à¸à¸à¸²à¸£à¹€à¸‚à¹‰à¸²à¹à¸”à¸Šà¸šà¸­à¸£à¹Œà¸”
       </p>
 
       {error && (
@@ -110,24 +110,26 @@ export default function AccessPage() {
 
       {users.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
-          ยังไม่มีผู้ใช้ที่เคยล็อกอิน
+          à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸œà¸¹à¹‰à¹ƒà¸Šà¹‰à¸—à¸µà¹ˆà¹€à¸„à¸¢à¸¥à¹‡à¸­à¸à¸­à¸´à¸™
         </div>
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-slate-700 text-white">
+                <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
                 <th className="text-left px-4 py-3 font-medium w-12" />
-                <th className="text-left px-4 py-3 font-medium">ชื่อ</th>
-                <th className="text-left px-4 py-3 font-medium">อีเมล</th>
-                <th className="text-left px-4 py-3 font-medium">ล็อกอินล่าสุด</th>
-                <th className="text-left px-4 py-3 font-medium w-24">สิทธิ์</th>
-                <th className="text-left px-4 py-3 font-medium">ดำเนินการ</th>
+                <th className="text-left px-4 py-3 font-medium">à¸Šà¸·à¹ˆà¸­</th>
+                <th className="text-left px-4 py-3 font-medium">à¸­à¸µà¹€à¸¡à¸¥</th>
+                <th className="text-left px-4 py-3 font-medium">à¸¥à¹‡à¸­à¸à¸­à¸´à¸™à¸¥à¹ˆà¸²à¸ªà¸¸à¸”</th>
+                <th className="text-left px-4 py-3 font-medium w-24">à¸ªà¸´à¸—à¸˜à¸´à¹Œ</th>
+                <th className="text-left px-4 py-3 font-medium">à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {users.map((u, idx) => (
                 <tr key={u.uid} className="border-t border-slate-200 hover:bg-slate-50">
+                  <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
                   <td className="px-4 py-3">
                     {u.photoURL ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -150,11 +152,11 @@ export default function AccessPage() {
                   <td className="px-4 py-3">
                     {u.hasAccess ? (
                       <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                        อนุญาต
+                        à¸­à¸™à¸¸à¸à¸²à¸•
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                        ยังไม่มีสิทธิ์
+                        à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸ªà¸´à¸—à¸˜à¸´à¹Œ
                       </span>
                     )}
                   </td>
@@ -166,7 +168,7 @@ export default function AccessPage() {
                         onClick={() => revoke(u.uid, u.email)}
                         className="rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200 disabled:opacity-50"
                       >
-                        {acting === u.uid ? "..." : "ถอนสิทธิ์"}
+                        {acting === u.uid ? "..." : "à¸–à¸­à¸™à¸ªà¸´à¸—à¸˜à¸´à¹Œ"}
                       </button>
                     ) : (
                       <button
@@ -175,7 +177,7 @@ export default function AccessPage() {
                         onClick={() => approve(u.uid, u.email)}
                         className="rounded-lg bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-200 disabled:opacity-50"
                       >
-                        {acting === u.uid ? "..." : "อนุญาต"}
+                        {acting === u.uid ? "..." : "à¸­à¸™à¸¸à¸à¸²à¸•"}
                       </button>
                     )}
                   </td>
@@ -188,3 +190,5 @@ export default function AccessPage() {
     </div>
   );
 }
+
+

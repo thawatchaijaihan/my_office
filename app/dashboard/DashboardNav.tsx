@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { NavItem } from "./navData";
-import { NAV_ITEMS } from "./navData";
 import { useDashboardAuth } from "./DashboardAuthContext";
+import { NAV_ITEMS, type NavItem } from "./navData";
 
 const APPROVER_EMAIL = (process.env.NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL ?? "").trim().toLowerCase();
 
@@ -81,31 +80,91 @@ export default function DashboardNav() {
     return isApprover;
   });
 
+  const groupedHrefs = new Set([
+    "/dashboard",
+    "/dashboard/review",
+    "/dashboard/pass-request",
+    "/dashboard/pending-check",
+    "/dashboard/pending-send",
+    "/dashboard/pending-approval",
+    "/dashboard/invalid",
+    "/dashboard/personnel",
+    "/dashboard/cctv-map",
+  ]);
+
+  const itemByHref = new Map(visibleItems.map((item) => [item.href, item]));
+  const resolveItems = (hrefs: string[]) =>
+    hrefs
+      .map((href) => itemByHref.get(href))
+      .filter((item): item is NavItem => Boolean(item));
+
+  const menuGroups: Array<{ key: string; label?: string; items: NavItem[] }> = [
+    {
+      key: "pass-requests",
+      items: resolveItems([
+        "/dashboard",
+        "/dashboard/review",
+        "/dashboard/pass-request",
+        "/dashboard/pending-check",
+        "/dashboard/pending-send",
+        "/dashboard/pending-approval",
+        "/dashboard/invalid",
+      ]),
+    },
+    {
+      key: "personnel",
+      items: resolveItems(["/dashboard/personnel"]),
+    },
+    {
+      key: "cctv",
+      items: resolveItems(["/dashboard/cctv-map"]),
+    },
+  ];
+
+  const adminItems = visibleItems.filter((item) => !groupedHrefs.has(item.href));
+  if (adminItems.length > 0) {
+    menuGroups.push({ key: "admin", label: "ผู้ดูแลระบบ", items: adminItems });
+  }
+
+  const nonEmptyGroups = menuGroups.filter((group) => group.items.length > 0);
+
   return (
     <nav className="flex-1 overflow-y-auto p-3" aria-label="เมนูหลัก">
-      <ul className="space-y-1" role="list">
-        {visibleItems.map((item) => {
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                  isActive
-                    ? "bg-emerald-600/90 text-white font-medium"
-                    : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-                }`}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <NavIcon icon={item.icon} />
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="space-y-3">
+        {nonEmptyGroups.map((group, groupIndex) => (
+          <section
+            key={group.key}
+            className={groupIndex === 0 ? "" : "pt-3"}
+          >
+            {group.label ? (
+              <h3 className="mb-2 px-3 text-[11px] font-semibold tracking-wide text-slate-400">{group.label}</h3>
+            ) : null}
+            <ul className="space-y-1" role="list">
+              {group.items.map((item) => {
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+                        isActive
+                          ? "bg-emerald-600/90 text-white font-medium"
+                          : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                      }`}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <NavIcon icon={item.icon} />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
     </nav>
   );
 }

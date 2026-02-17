@@ -60,6 +60,7 @@ export default function PendingSendPage() {
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-slate-700 text-white">
+                <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
                 <th className="text-left px-4 py-3 font-medium">ชื่อ-สกุล</th>
                 <th className="text-left px-4 py-3 font-medium">ทะเบียน</th>
                 <th className="text-left px-4 py-3 font-medium">ขอบัตรให้</th>
@@ -69,8 +70,9 @@ export default function PendingSendPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r, idx) => (
                 <tr key={r.rowNumber} className="border-t border-slate-200 hover:bg-slate-50">
+                  <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">{r.name}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {r.note ? (

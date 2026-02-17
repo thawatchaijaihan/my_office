@@ -1,33 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface BillingData {
   currentMonth: {
     total: number;
     services: { name: string; cost: number }[];
   };
-  previousMonth: {
-    total: number;
-  };
-  trend: "up" | "down" | "stable";
-  error?: string;
-  isDemo?: boolean;
 }
+
+type BillingChartItem = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+const CHART_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#ea580c",
+  "#7c3aed",
+  "#0891b2",
+  "#dc2626",
+  "#334155",
+];
 
 export default function BillingCard() {
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBilling = async () => {
       try {
         const response = await fetch("/api/billing");
-        const data = await response.json();
+        const data = (await response.json()) as BillingData;
         setBilling(data);
-      } catch (err) {
-        setError("ไม่สามารถโหลดข้อมูลค่าใช้จ่ายได้");
+      } catch {
+        setBilling({
+          currentMonth: {
+            total: 0,
+            services: [],
+          },
+        });
       } finally {
         setLoading(false);
       }
@@ -36,99 +51,102 @@ export default function BillingCard() {
     fetchBilling();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 animate-pulse">
-        <div className="h-6 bg-slate-200 rounded w-32 mb-4"></div>
-        <div className="h-10 bg-slate-200 rounded w-24 mb-2"></div>
-        <div className="h-4 bg-slate-200 rounded w-40"></div>
-      </div>
-    );
-  }
-
-  if (error || !billing) {
-    return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-red-200">
-        <h3 className="text-lg font-bold text-red-600 mb-2">ค่าใช้จ่าย</h3>
-        <p className="text-sm text-red-500">{error || "ไม่พบข้อมูล"}</p>
-      </div>
-    );
-  }
-
-  const getTrendIcon = () => {
-    if (billing.trend === "up") return "↑";
-    if (billing.trend === "down") return "↓";
-    return "→";
-  };
-
-  const getTrendColor = () => {
-    if (billing.trend === "up") return "text-red-600";
-    if (billing.trend === "down") return "text-green-600";
-    return "text-slate-600";
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("th-TH", {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("th-TH", {
       style: "currency",
       currency: "THB",
       minimumFractionDigits: 2,
     }).format(amount);
-  };
+
+  const serviceChartData = useMemo<BillingChartItem[]>(() => {
+    if (!billing) return [];
+    const paidServices = billing.currentMonth.services
+      .filter((service) => service.cost > 0)
+      .map((service, index) => ({
+        name: service.name,
+        value: service.cost,
+        color: CHART_COLORS[index % CHART_COLORS.length],
+      }));
+
+    if (paidServices.length > 0) return paidServices;
+
+    return [
+      {
+        name: "ไม่มีค่าใช้จ่าย",
+        value: 1,
+        color: "#cbd5e1",
+      },
+    ];
+  }, [billing]);
+
+  if (loading || !billing) {
+    return (
+      <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden animate-pulse">
+        <div className="h-5 w-40 bg-slate-200 rounded mb-4" />
+        <div className="h-[220px] bg-slate-100 rounded" />
+      </div>
+    );
+  }
+
+  const hasRealCost = billing.currentMonth.services.some((service) => service.cost > 0);
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-slate-800">ค่าใช้จ่ายเดือนนี้</h3>
-        {billing.isDemo && (
-          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-semibold">
-            Demo
-          </span>
-        )}
-      </div>
-
-      <div className="mb-4">
-        <div className="text-3xl font-bold text-slate-900 mb-1">
-          {formatCurrency(billing.currentMonth.total)}
-        </div>
-        <div className={`text-sm font-semibold flex items-center gap-1 ${getTrendColor()}`}>
-          <span className="text-lg">{getTrendIcon()}</span>
-          <span>
-            เทียบกับเดือนที่แล้ว {formatCurrency(billing.previousMonth.total)}
-          </span>
-        </div>
-      </div>
-
-      {billing.error && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-xs text-yellow-800">{billing.error}</p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <h4 className="text-sm font-semibold text-slate-700 mb-2">แยกตามบริการ:</h4>
-        {billing.currentMonth.services.slice(0, 5).map((service, index) => (
-          <div key={index} className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">{service.name}</span>
-            <span className="font-semibold text-slate-900">{formatCurrency(service.cost)}</span>
+    <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 shadow-sm min-h-0 flex flex-col overflow-hidden">
+      <div className="flex-1 w-full min-w-0 flex flex-row items-center gap-3 h-[220px] sm:h-[240px]">
+        <div className="shrink-0 flex flex-col gap-1 items-center">
+          <div className="text-base sm:text-lg font-semibold text-slate-800 text-center">
+            ค่าใช้จ่ายบริการ
           </div>
-        ))}
-        {billing.currentMonth.services.length === 0 && (
-          <p className="text-sm text-slate-500 italic">ยังไม่มีข้อมูลการใช้งาน</p>
-        )}
-      </div>
+          <ul className="flex flex-col gap-1.5 text-xs sm:text-sm justify-center items-center" aria-label="ค่าใช้จ่ายบริการ">
+            {serviceChartData.map((entry) => (
+              <li key={entry.name} className="flex items-center justify-center gap-2">
+                <span
+                  className="shrink-0 w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: entry.color }}
+                  aria-hidden
+                />
+                <span className="text-slate-700 min-w-[8rem]">{entry.name}</span>
+                <span className="font-bold text-slate-900 tabular-nums text-right w-24">
+                  {hasRealCost ? formatCurrency(entry.value) : "฿0.00"}
+                </span>
+              </li>
+            ))}
+            <li className="flex items-center justify-center gap-2 pt-1 mt-0.5 border-t border-slate-200">
+              <span className="w-3 shrink-0" aria-hidden />
+              <span className="text-slate-600 font-medium min-w-[8rem]">รวม</span>
+              <span className="font-bold text-slate-900 tabular-nums text-right w-24">
+                {formatCurrency(billing.currentMonth.total ?? 0)}
+              </span>
+            </li>
+          </ul>
+        </div>
 
-      <div className="mt-4 pt-4 border-t border-slate-100">
-        <a
-          href="https://console.cloud.google.com/billing"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-        >
-          ดูรายละเอียดใน Google Cloud Console
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
+        <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+              <Pie
+                data={serviceChartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={28}
+                outerRadius={52}
+                paddingAngle={2}
+                dataKey="value"
+                nameKey="name"
+              >
+                {serviceChartData.map((entry, index) => (
+                  <Cell key={`billing-cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value, name) => {
+                  const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                  return [hasRealCost ? formatCurrency(numericValue) : "฿0.00", String(name ?? "")];
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

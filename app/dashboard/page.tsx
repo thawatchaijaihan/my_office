@@ -1,10 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { useDashboardAuth } from "./DashboardAuthContext";
-
-const DashboardCharts = dynamic(() => import("./DashboardCharts"), { ssr: false });
 
 type DashboardData = {
   summary: {
@@ -22,15 +20,43 @@ type DashboardData = {
   latestEntries: { rowNumber: number; registeredAt: string; name: string; requestFor: string; plate: string }[];
 };
 
+type BillingSummaryData = {
+  currentMonth?: {
+    total?: number;
+  };
+};
+
+type DashboardPanelKey =
+  | "overview"
+  | "review"
+  | "pending-check"
+  | "pending-send"
+  | "pending-approval"
+  | "outstanding";
+
+const DashboardCharts = dynamic(() => import("./DashboardCharts"), { ssr: false });
+const ReviewPage = dynamic(() => import("./review/page"), { ssr: false });
+const PendingCheckPage = dynamic(() => import("./pending-check/page"), { ssr: false });
+const PendingSendPage = dynamic(() => import("./pending-send/page"), { ssr: false });
+const PendingApprovalPage = dynamic(() => import("./pending-approval/page"), { ssr: false });
+const OutstandingPage = dynamic(() => import("./outstanding/page"), { ssr: false });
+
 const FETCH_TIMEOUT_DEFAULT_MS = 30_000;
-const FETCH_TIMEOUT_TELEGRAM_MS = 120_000; // เปิดจาก Telegram/WebView ครั้งแรกอาจ cold start นาน (2 นาที)
-const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard]", msg, ...args);
+const FETCH_TIMEOUT_TELEGRAM_MS = 120_000;
 
 function getFetchTimeoutMs(): number {
   if (typeof window === "undefined") return FETCH_TIMEOUT_DEFAULT_MS;
   return (window as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp
     ? FETCH_TIMEOUT_TELEGRAM_MS
     : FETCH_TIMEOUT_DEFAULT_MS;
+}
+
+function getApprovalCount(
+  approvalBreakdown: { label: string; count: number }[],
+  match: string,
+): number {
+  const item = approvalBreakdown.find((x) => x.label.includes(match));
+  return item?.count ?? 0;
 }
 
 export default function DashboardPage() {
@@ -40,150 +66,78 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingLong, setLoadingLong] = useState(false);
-  const [sheetsTestResult, setSheetsTestResult] = useState<string | null>(null);
-  const [pingTestResult, setPingTestResult] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<DashboardPanelKey>("overview");
+  const [billingTotal, setBillingTotal] = useState(0);
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("th-TH", {
+      style: "currency",
+      currency: "THB",
+      minimumFractionDigits: 2,
+    }).format(amount);
 
   const handleRetry = () => {
     setError(null);
     setData(null);
-    setSheetsTestResult(null);
-    setPingTestResult(null);
     setLoading(true);
     setRetryKey((k) => k + 1);
   };
 
-  const parseJsonOrNull = async (res: Response): Promise<Record<string, unknown> | null> => {
-    const text = await res.text();
-    try {
-      return JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  };
-
-  const handlePingTest = async () => {
-    setPingTestResult("กำลังตรวจสอบ...");
-    try {
-      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-      const authHeaders = await getAuthHeaders();
-      const url = "/api/dashboard/ping" + (key ? `?key=${encodeURIComponent(key)}` : "");
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15_000);
-      const res = await fetch(url, { headers: authHeaders, signal: ctrl.signal });
-      clearTimeout(t);
-      const json = await parseJsonOrNull(res);
-      if (res.ok && json && json.ok === true) {
-        setPingTestResult("เชื่อมต่อ backend ได้ (ping ผ่าน)");
-      } else if (json && typeof json.error === "string") {
-        setPingTestResult("ผิดพลาด: " + json.error);
-      } else if (!res.ok) {
-        setPingTestResult("เซิร์ฟเวอร์ส่งกลับ " + res.status + " (อาจเป็น HTML แทน JSON)");
-      } else {
-        setPingTestResult("ผิดพลาด: รูปแบบ response ไม่ถูกต้อง");
-      }
-    } catch (e) {
-      setPingTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));
-    }
-  };
-
-  const handleSheetsTest = async () => {
-    setSheetsTestResult("กำลังตรวจสอบ...");
-    try {
-      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-      const authHeaders = await getAuthHeaders();
-      const url = "/api/dashboard/sheets-test" + (key ? `?key=${encodeURIComponent(key)}` : "");
-      const res = await fetch(url, { headers: authHeaders });
-      const json = await parseJsonOrNull(res);
-      if (json && json.ok === true && typeof json.rowCount === "number") {
-        setSheetsTestResult(`เชื่อมต่อ Sheet ได้ — อ่านได้ ${json.rowCount} แถว`);
-      } else if (json && typeof json.error === "string") {
-        setSheetsTestResult("ผิดพลาด: " + json.error);
-      } else if (!res.ok) {
-        setSheetsTestResult("เซิร์ฟเวอร์ส่งกลับ " + res.status + " (อาจเป็น HTML แทน JSON)");
-      } else {
-        setSheetsTestResult("ผิดพลาด: รูปแบบ response ไม่ถูกต้อง");
-      }
-    } catch (e) {
-      setSheetsTestResult("ผิดพลาด: " + (e instanceof Error ? e.message : String(e)));
-    }
-  };
-
   useEffect(() => {
-    LOG("1. Component mounted on client");
     setMounted(true);
   }, []);
 
-  // แสดงปุ่ม "ลองใหม่" หลังโหลดเกิน 6 วินาที
-  useEffect(() => {
-    if (!loading) return;
-    LOG("2. เริ่มจับเวลา 6 วินาที สำหรับแสดงปุ่ม 'ลองใหม่'");
-    const t = setTimeout(() => {
-      LOG("2b. โหลดเกิน 6 วินาที → แสดงปุ่มลองใหม่");
-      setLoadingLong(true);
-    }, 6_000);
-    return () => clearTimeout(t);
-  }, [loading]);
-
   useEffect(() => {
     if (!mounted) return;
-    const fetchTimeoutMs = getFetchTimeoutMs();
-    setError(null);
+
     let cancelled = false;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      LOG("3c. ⏱️ Timeout! เรียก abort()");
-      controller.abort();
-    }, fetchTimeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), getFetchTimeoutMs());
 
     (async () => {
-      const loadStart = Date.now();
-      LOG("3. mounted = true → เริ่มโหลด API");
-      setLoadingLong(false);
-      const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
-      const authStart = Date.now();
-      const authHeaders = await getAuthHeaders();
-      const authMs = Date.now() - authStart;
-      LOG("3a. getAuthHeaders ใช้เวลา", authMs, "ms", authHeaders.Authorization ? "(มี Bearer)" : "(ไม่มี auth)");
-      const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
-      LOG("3b. URL:", url, "| Timeout หลัง", fetchTimeoutMs / 1000, "วินาที");
-      const fetchStart = Date.now();
       try {
-        LOG("3d. ส่ง fetch ไป", url);
+        setError(null);
+        const key = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("key") ?? "" : "";
+        const authHeaders = await getAuthHeaders();
+        const url = "/api/dashboard" + (key ? `?key=${encodeURIComponent(key)}` : "");
         const res = await fetch(url, { signal: controller.signal, headers: authHeaders });
-        const fetchMs = Date.now() - fetchStart;
-        LOG("4. ได้ response:", res.status, res.statusText, "| รอ API", fetchMs, "ms | รวมตั้งแต่โหลด", Date.now() - loadStart, "ms");
+
         if (!res.ok) {
-          LOG("4a. ❌ สถานะไม่ OK → throw Error");
           let errMsg = res.status === 401 ? "ไม่มีสิทธิ์เข้าดูแดชบอร์ด กรุณาเข้าสู่ระบบ" : "โหลดข้อมูลไม่สำเร็จ";
           try {
             const errBody = await res.clone().json();
             if (errBody?.message && typeof errBody.message === "string") errMsg = errBody.message;
           } catch {
-            // ใช้ errMsg เดิม
+            // keep errMsg
           }
           throw new Error(errMsg);
         }
-        const json = await res.json();
-        if (!cancelled) {
-          LOG("5. Parse JSON สำเร็จ → มี summary.total =", json?.summary?.total);
-          setData(json);
+
+        const json = (await res.json()) as DashboardData;
+        if (!cancelled) setData(json);
+
+        try {
+          const billingRes = await fetch("/api/billing", { signal: controller.signal });
+          if (billingRes.ok) {
+            const billingJson = (await billingRes.json()) as BillingSummaryData;
+            if (!cancelled) setBillingTotal(Number(billingJson?.currentMonth?.total ?? 0));
+          } else if (!cancelled) {
+            setBillingTotal(0);
+          }
+        } catch {
+          if (!cancelled) setBillingTotal(0);
         }
       } catch (e) {
         if (cancelled) return;
         const err = e as Error;
-        LOG("5a. ❌ Error:", err.name, err.message);
-        if (err.name === "AbortError")
-          setError(
-            (window as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp
-              ? "โหลดช้า (เปิดจาก Telegram ครั้งแรกอาจใช้เวลานาน) กดลองใหม่"
-              : "โหลดข้อมูลช้าเกินไป กรุณากดลองใหม่"
-          );
-        else setError(err.message);
+        if (err.name === "AbortError") {
+          setError("โหลดข้อมูลช้าเกินไป กรุณากดลองใหม่");
+        } else {
+          setError(err.message);
+        }
       } finally {
         if (!cancelled) {
           clearTimeout(timeoutId);
-          LOG("6. finally → setLoading(false), รวมใช้เวลา", Date.now() - loadStart, "ms");
           setLoading(false);
         }
       }
@@ -191,93 +145,142 @@ export default function DashboardPage() {
 
     return () => {
       cancelled = true;
-      LOG("3d. cleanup: ยกเลิก timeout และ abort");
       clearTimeout(timeoutId);
       controller.abort();
     };
   }, [mounted, getAuthHeaders, retryKey]);
 
   if (!mounted || loading) {
-    LOG("render: สถานะโหลด (mounted:", mounted, ", loading:", loading, ")");
     return (
       <div className="flex flex-col min-h-full p-4 sm:p-6 md:p-8 bg-slate-100 text-slate-800">
-        {/* Skeleton ตรงกับ layout จริง: 6 KPI → 2 กราฟ → 2 กล่อง */}
-        <div className="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0">
-          <div className="h-8 bg-slate-200/80 rounded w-40 animate-pulse" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 shrink-0">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-xl bg-slate-200/80 border border-slate-200 p-3 animate-pulse">
-                <div className="h-3 bg-slate-300/80 rounded w-3/4 mb-2" />
-                <div className="h-7 bg-slate-300/80 rounded w-12" />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6 flex-1 min-h-0">
-            <div className="rounded-xl bg-slate-200/80 border border-slate-200 p-4 animate-pulse min-h-[240px]" />
-            <div className="rounded-xl bg-slate-200/80 border border-slate-200 p-4 animate-pulse min-h-[240px]" />
-          </div>
-          <div className="flex gap-4 flex-wrap shrink-0">
-            <div className="flex-1 min-w-[280px] rounded-xl bg-slate-200/80 border border-slate-200 p-4 animate-pulse h-[320px]" />
-            <div className="flex-1 min-w-[280px] rounded-xl bg-slate-200/80 border border-slate-200 p-4 animate-pulse h-[280px]" />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2 sm:gap-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-xl bg-slate-200/80 border border-slate-200 p-3 animate-pulse">
+              <div className="h-3 bg-slate-300/80 rounded w-3/4 mb-2" />
+              <div className="h-7 bg-slate-300/80 rounded w-16" />
+            </div>
+          ))}
         </div>
+        <div className="mt-4 rounded-xl bg-slate-200/80 border border-slate-200 animate-pulse h-[420px]" />
       </div>
     );
   }
 
   if (error || !data) {
-    LOG("render: สถานะ error (error:", error, ", data:", !!data, ")");
     return (
-      <div
-        className="p-4 sm:p-8 min-h-full"
-        style={{ backgroundColor: "#f1f5f9", color: "#0f172a" }}
-      >
+      <div className="p-4 sm:p-8 min-h-full" style={{ backgroundColor: "#f1f5f9", color: "#0f172a" }}>
         <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-red-800">
           <p className="font-medium">{error ?? "ไม่พบข้อมูล"}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleRetry}
-              className="px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
-            >
-              ลองใหม่
-            </button>
-            <button
-              type="button"
-              onClick={handlePingTest}
-              className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-sm font-medium text-emerald-800"
-            >
-              ทดสอบ ping (เร็ว)
-            </button>
-            <button
-              type="button"
-              onClick={handleSheetsTest}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-800"
-            >
-              ตรวจสอบ Sheet
-            </button>
-          </div>
-          {(pingTestResult || sheetsTestResult) && (
-            <p className="mt-3 text-sm text-slate-700">
-              {pingTestResult}
-              {pingTestResult && sheetsTestResult ? " · " : ""}
-              {sheetsTestResult}
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium text-red-800"
+          >
+            ลองใหม่
+          </button>
         </div>
       </div>
     );
   }
 
-  LOG("render: แสดงแดชบอร์ด (ข้อมูลโหลดสำเร็จ, total:", data.summary.total, ")");
+  const countPendingApproval = getApprovalCount(
+    data.approvalBreakdown ?? [],
+    "รออนุมัติจาก ฝขว.พล.ป.",
+  );
+  const countPendingSend = getApprovalCount(
+    data.approvalBreakdown ?? [],
+    "รอส่ง ฝขว.พล.ป.",
+  );
+
+  const cards: Array<{
+    key: DashboardPanelKey;
+    title: string;
+    count?: number;
+    valueText?: string;
+    tone?: "default" | "warning";
+  }> = [
+    { key: "overview", title: "ภาพรวม", valueText: formatCurrency(billingTotal) },
+    { key: "review", title: "รายการทั้งหมด", count: data.summary.total },
+    { key: "pending-check", title: "รายการรอตรวจ", count: data.summary.pendingReview },
+    { key: "pending-send", title: "รายการรอนำส่ง", count: countPendingSend },
+    { key: "pending-approval", title: "รายการรออนุมัติ", count: countPendingApproval },
+    { key: "outstanding", title: "รายการค้างชำระ", count: data.summary.outstanding, tone: "warning" },
+  ];
+
+  const panelTitleMap: Record<DashboardPanelKey, string> = {
+    overview: "ภาพรวมแดชบอร์ด",
+    review: "รายการทั้งหมด",
+    "pending-check": "รายการรอตรวจ",
+    "pending-send": "รายการรอนำส่ง",
+    "pending-approval": "รายการรออนุมัติ",
+    outstanding: "รายการค้างชำระ",
+  };
+
+  const renderActivePanel = () => {
+    switch (activePanel) {
+      case "overview":
+        return <DashboardCharts data={data} />;
+      case "review":
+        return <ReviewPage />;
+      case "pending-check":
+        return <PendingCheckPage />;
+      case "pending-send":
+        return <PendingSendPage />;
+      case "pending-approval":
+        return <PendingApprovalPage />;
+      case "outstanding":
+        return <OutstandingPage />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div
       className="h-full flex flex-col p-4 sm:p-5 md:p-6 lg:p-8"
       style={{ backgroundColor: "#f1f5f9", color: "#0f172a", minHeight: "100%" }}
     >
+      <div className="sticky top-0 z-20 -mx-4 px-4 sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 pb-3" style={{ backgroundColor: "#f1f5f9" }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2 sm:gap-3">
+          {cards.map((card) => {
+            const isActive = activePanel === card.key;
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => setActivePanel(card.key)}
+                className={`text-left rounded-xl border p-3 md:p-4 shadow-sm transition ${
+                  isActive
+                    ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200"
+                    : "border-slate-200 bg-white hover:border-emerald-300"
+                }`}
+              >
+                <p className={`text-xs truncate ${card.tone === "warning" ? "text-orange-600" : "text-slate-500"}`}>{card.title}</p>
+                {typeof card.valueText === "string" ? (
+                  <p className={`text-xl font-bold mt-1 ${card.tone === "warning" ? "text-orange-600" : "text-slate-800"}`}>{card.valueText}</p>
+                ) : typeof card.count === "number" ? (
+                  <p className={`text-xl font-bold mt-1 ${card.tone === "warning" ? "text-orange-600" : "text-slate-800"}`}>{card.count}</p>
+                ) : (
+                  <div className="h-[1.75rem] mt-1" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex-1 min-h-0 flex flex-col">
-        <DashboardCharts data={data} />
+        <div className="px-1 pb-2">
+          <h2 className="text-sm sm:text-base font-semibold text-slate-800">
+            {panelTitleMap[activePanel]}
+          </h2>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          {renderActivePanel()}
+        </div>
       </div>
     </div>
   );
 }
+
+

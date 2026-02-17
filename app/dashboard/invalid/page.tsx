@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
@@ -23,7 +23,7 @@ export default function InvalidPage() {
   useEffect(() => {
     dashboardFetch("/api/dashboard/invalid")
       .then((res) => {
-        if (!res.ok) throw new Error(res.status === 401 ? "กรุณาใส่ key ใน URL" : "โหลดไม่สำเร็จ");
+        if (!res.ok) throw new Error(res.status === 401 ? "à¸à¸£à¸¸à¸“à¸²à¹ƒà¸ªà¹ˆ key à¹ƒà¸™ URL" : "à¹‚à¸«à¸¥à¸”à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ");
         return res.json();
       })
       .then((data) => setRows(data.rows ?? []))
@@ -34,7 +34,7 @@ export default function InvalidPage() {
   if (loading) {
     return (
       <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <p className="text-slate-600">กำลังโหลด...</p>
+        <p className="text-slate-600">à¸à¸³à¸¥à¸±à¸‡à¹‚à¸«à¸¥à¸”...</p>
       </div>
     );
   }
@@ -49,31 +49,33 @@ export default function InvalidPage() {
 
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-      <p className="text-slate-600 text-sm mb-6">ข้อมูลไม่ถูกต้องทั้งหมด {rows.length} รายการ</p>
+      <p className="text-slate-600 text-sm mb-6">à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹„à¸¡à¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸” {rows.length} à¸£à¸²à¸¢à¸à¸²à¸£</p>
 
       {rows.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
-          ไม่มีรายการ (N = ข้อมูลไม่ถูกต้อง)
+          à¹„à¸¡à¹ˆà¸¡à¸µà¸£à¸²à¸¢à¸à¸²à¸£ (N = à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹„à¸¡à¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡)
         </div>
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-amber-600 text-white">
-                <th className="text-left px-4 py-3 font-medium">ชื่อ-สกุล</th>
-                <th className="text-left px-4 py-3 font-medium">ทะเบียน</th>
-                <th className="text-left px-4 py-3 font-medium">ขอบัตรให้</th>
-                <th className="text-left px-4 py-3 font-medium">เจ้าของรถ</th>
-                <th className="text-left px-4 py-3 font-medium">สถานะชำระ</th>
-                <th className="text-left px-4 py-3 font-medium">วันที่ลงทะเบียน</th>
+                <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
+                <th className="text-left px-4 py-3 font-medium">à¸Šà¸·à¹ˆà¸­-à¸ªà¸à¸¸à¸¥</th>
+                <th className="text-left px-4 py-3 font-medium">à¸—à¸°à¹€à¸šà¸µà¸¢à¸™</th>
+                <th className="text-left px-4 py-3 font-medium">à¸‚à¸­à¸šà¸±à¸•à¸£à¹ƒà¸«à¹‰</th>
+                <th className="text-left px-4 py-3 font-medium">à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡à¸£à¸–</th>
+                <th className="text-left px-4 py-3 font-medium">à¸ªà¸–à¸²à¸™à¸°à¸Šà¸³à¸£à¸°</th>
+                <th className="text-left px-4 py-3 font-medium">à¸§à¸±à¸™à¸—à¸µà¹ˆà¸¥à¸‡à¸—à¸°à¹€à¸šà¸µà¸¢à¸™</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r, idx) => (
                 <tr
                   key={r.rowNumber}
                   className="border-t border-slate-200 hover:bg-slate-50"
                 >
+                  <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">{r.name}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {r.note ? (
@@ -93,9 +95,9 @@ export default function InvalidPage() {
                   <td className="px-4 py-3 text-slate-600">{r.vehicleOwner || r.name}</td>
                   <td
                     className={`px-4 py-3 font-medium ${
-                      r.paymentStatus.includes("ค้าง")
+                      r.paymentStatus.includes("à¸„à¹‰à¸²à¸‡")
                         ? "text-red-600"
-                        : r.paymentStatus.includes("ชำระเงินแล้ว")
+                        : r.paymentStatus.includes("à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™à¹à¸¥à¹‰à¸§")
                           ? "text-emerald-600"
                           : "text-slate-600"
                     }`}
@@ -112,3 +114,4 @@ export default function InvalidPage() {
     </div>
   );
 }
+
