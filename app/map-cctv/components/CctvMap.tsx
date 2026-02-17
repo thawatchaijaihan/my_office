@@ -2,7 +2,7 @@
 
 import { GoogleMap, MarkerF, OverlayViewF, useJsApiLoader } from "@react-google-maps/api";
 import { get, onValue, push, ref, remove, set, update } from "firebase/database";
-import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes, uploadString } from "firebase/storage";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
@@ -122,14 +122,21 @@ type CameraWithCheck = Camera & {
   lastCheckedImagePath?: string;
 };
 
-export default function CctvMap() {
+type CctvMapProps = {
+  isAdminMode?: boolean;
+};
+
+export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const mapRef = useRef<google.maps.Map | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTypes, setActiveTypes] = useState<CameraType[]>([defaultType]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
+  const [isPdfOutdated, setIsPdfOutdated] = useState(false);
+  const pdfGenerationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
-  const [showMarkers, setShowMarkers] = useState(true);
+  const [markerMode, setMarkerMode] = useState<'all' | 'ok' | 'pending' | 'none'>('all');
   const [cameraItems, setCameraItems] = useState<CameraWithCheck[]>([]);
   const [openImages, setOpenImages] = useState<Record<string, boolean>>({});
   const [editingCamera, setEditingCamera] = useState<CameraWithCheck | null>(null);
@@ -181,6 +188,15 @@ export default function CctvMap() {
     get(camerasRef).then((snapshot) => {
       if (!snapshot.exists()) {
         set(camerasRef, initialCamerasData as Record<string, Omit<Camera, "id">>);
+      }
+    });
+
+    // โหลด cached PDF URL
+    const reportRef = ref(database, "cctvReport");
+    get(reportRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setCachedPdfUrl(data.url);
       }
     });
 
@@ -263,10 +279,10 @@ export default function CctvMap() {
   }, [cameraItems, selectedCameraId]);
 
   useEffect(() => {
-    if (!showMarkers && selectedCameraId) {
+    if (markerMode === 'none' && selectedCameraId) {
       setSelectedCameraId(null);
     }
-  }, [showMarkers, selectedCameraId]);
+  }, [markerMode, selectedCameraId]);
 
   useEffect(() => {
     if (!selectedCameraId) return;
@@ -319,6 +335,11 @@ export default function CctvMap() {
   }, []);
 
   const isCheckedInCurrentHalf = (camera: CameraWithCheck) => {
+    // โหมดพิเศษ: ถ้ามีภาพอยู่แล้ว ถือว่าใช้งานได้ (ไม่สนว่าอัปโหลดเมื่อไหร่)
+    // ตั้งค่า NEXT_PUBLIC_CCTV_LEGACY_MODE=true เพื่อใช้โหมดนี้
+    const legacyMode = process.env.NEXT_PUBLIC_CCTV_LEGACY_MODE === "true";
+    if (legacyMode && camera.lastCheckedImage) return true;
+    
     if (!camera.lastCheckedAt) return false;
     const checkedAt = new Date(camera.lastCheckedAt);
     if (Number.isNaN(checkedAt.getTime())) return false;
@@ -327,6 +348,13 @@ export default function CctvMap() {
     }
     return checkedAt >= checkWindow.mid && checkedAt < checkWindow.end;
   };
+
+  const displayedCameras = useMemo(() => {
+    if (markerMode === 'none') return [];
+    if (markerMode === 'ok') return filteredCameras.filter(c => isCheckedInCurrentHalf(c));
+    if (markerMode === 'pending') return filteredCameras.filter(c => !isCheckedInCurrentHalf(c));
+    return filteredCameras;
+  }, [markerMode, filteredCameras]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -386,6 +414,34 @@ export default function CctvMap() {
       }
       mapRef.current.setZoom(21);
     }
+  };
+
+  const regeneratePdf = async () => {
+    try {
+      const pdfBlob = await generateCctvReport(cameraItems);
+      const pdfPath = `cctv-reports/latest-${Date.now()}.pdf`;
+      const pdfRef = storageRef(storage, pdfPath);
+      await uploadBytes(pdfRef, pdfBlob);
+      const pdfUrl = await getDownloadURL(pdfRef);
+      await set(ref(database, "cctvReport"), {
+        url: pdfUrl,
+        generatedAt: new Date().toISOString(),
+      });
+      setCachedPdfUrl(pdfUrl);
+      setIsPdfOutdated(false);
+    } catch (e) {
+      console.error('PDF generation failed:', e);
+    }
+  };
+
+  const schedulePdfRegeneration = () => {
+    setIsPdfOutdated(true);
+    if (pdfGenerationTimeoutRef.current) {
+      clearTimeout(pdfGenerationTimeoutRef.current);
+    }
+    pdfGenerationTimeoutRef.current = setTimeout(() => {
+      regeneratePdf();
+    }, 3000);
   };
 
   const updateCamera = (id: string, updates: Partial<CameraWithCheck>) => {
@@ -605,7 +661,8 @@ export default function CctvMap() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                {isAdminMode && (
+                  <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={(event) => {
@@ -679,6 +736,7 @@ export default function CctvMap() {
                     </svg>
                   </button>
                 </div>
+                )}
               </div>
               <p className="mt-1 text-xs text-zinc-600">
                 {camera.description}
@@ -687,7 +745,7 @@ export default function CctvMap() {
                 {typeLabels[camera.type]}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <label className="inline-flex min-w-[96px] items-center justify-center border border-green-600 px-2 py-1 text-[11px] font-medium text-green-700 transition hover:bg-green-50">
+                <label className="inline-flex min-w-[96px] items-center justify-center border border-green-600 px-2 py-1 text-[11px] font-medium text-green-700 transition hover:bg-green-50 cursor-pointer">
                   ภาพจากกล้อง
                   <input
                     type="file"
@@ -719,6 +777,8 @@ export default function CctvMap() {
                             lastCheckedImage: url,
                             lastCheckedImagePath: imagePath,
                             lastCheckedAt: new Date().toISOString(),
+                          }).then(() => {
+                            schedulePdfRegeneration();
                           });
                           setOpenImages((prev) => ({
                             ...prev,
@@ -736,7 +796,7 @@ export default function CctvMap() {
               </div>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
                 <span>
-                  ตรวจสอบล่าสุด:{" "}
+                  ตรวจสอบช่วงนี้:{" "}
                   {camera.lastCheckedAt
                     ? new Date(camera.lastCheckedAt).toLocaleString("th-TH")
                     : "ยังไม่ตรวจสอบ"}
@@ -841,38 +901,51 @@ export default function CctvMap() {
           <div className="absolute bottom-3 left-3 z-10 hidden w-40 flex-col gap-2 lg:flex">
             <button
               type="button"
-              onClick={() =>
-                setShowMarkers((prev) => {
-                  if (prev) setSelectedCameraId(null);
-                  return !prev;
-                })
-              }
-              aria-pressed={showMarkers}
-              className={`inline-flex w-full justify-center border px-3 py-2 text-sm font-medium shadow-sm transition ${
-                showMarkers
-                  ? "border-green-700 bg-green-700 text-white"
-                  : "border-green-700 bg-white text-green-700 hover:bg-green-50"
-              }`}
+              onClick={() => {
+                const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
+                const currentIndex = modes.indexOf(markerMode);
+                const nextMode = modes[(currentIndex + 1) % modes.length];
+                setMarkerMode(nextMode);
+                if (nextMode === 'none') setSelectedCameraId(null);
+              }}
+              className="inline-flex w-full justify-center border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-800"
             >
-              {showMarkers ? "ซ่อนหมุด" : "แสดงหมุด"}
+              {markerMode === 'all' && '🔵 ทั้งหมด'}
+              {markerMode === 'ok' && '✅ ใช้งานได้'}
+              {markerMode === 'pending' && '⚠️ รอตรวจ'}
+              {markerMode === 'none' && '🚫 ซ่อนหมุด'}
             </button>
             <button
               type="button"
               disabled={isGeneratingPdf}
               onClick={async () => {
-                setIsGeneratingPdf(true);
-                try {
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                  await generateCctvReport(cameraItems);
-                } finally {
-                  setIsGeneratingPdf(false);
+                console.log('[PDF Button] cachedPdfUrl:', cachedPdfUrl);
+                console.log('[PDF Button] isPdfOutdated:', isPdfOutdated);
+                
+                if (cachedPdfUrl && !isPdfOutdated) {
+                  console.log('[PDF Button] ใช้ cache - เปิดทันที');
+                  window.open(cachedPdfUrl, '_blank');
+                } else {
+                  console.log('[PDF Button] สร้างใหม่');
+                  setIsGeneratingPdf(true);
+                  try {
+                    await regeneratePdf();
+                    window.open(cachedPdfUrl, '_blank');
+                  } catch (error) {
+                    console.error('PDF generation failed:', error);
+                    alert('สร้าง PDF ไม่สำเร็จ');
+                  } finally {
+                    setIsGeneratingPdf(false);
+                  }
                 }
               }}
               className="inline-flex w-full justify-center border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isGeneratingPdf ? "กำลังประมวลผล..." : "สร้างรายงาน PDF"}
+              {isGeneratingPdf ? "กำลังสร้าง..." : (cachedPdfUrl && !isPdfOutdated) ? "📄 ดาวน์โหลด PDF" : "🔄 สร้างรายงาน PDF"}
             </button>
-            {!isAddingCamera && !movingCameraId ? (
+            {isAdminMode && (
+              <>
+                {!isAddingCamera && !movingCameraId ? (
               <button
                 type="button"
                 onClick={() => requirePassword(() => setIsAddingCamera(true))}
@@ -915,6 +988,8 @@ export default function CctvMap() {
                 </button>
               </>
             )}
+              </>
+            )}
           </div>
           <div className="absolute inset-0 h-full w-full lg:relative lg:block">
             <GoogleMap
@@ -942,8 +1017,8 @@ export default function CctvMap() {
             mapTypeId: "satellite",
           }}
         >
-          {showMarkers &&
-            filteredCameras.map((camera) => {
+          {markerMode !== 'none' &&
+            displayedCameras.map((camera) => {
               const needsCheck = !isCheckedInCurrentHalf(camera);
               const icon =
                 typeof google !== "undefined"
@@ -967,7 +1042,7 @@ export default function CctvMap() {
               );
             })}
 
-          {showMarkers && selectedCamera && (
+          {markerMode !== 'none' && selectedCamera && (
             <OverlayViewF
               position={{
                 lat: selectedCamera.lat,
@@ -1010,23 +1085,41 @@ export default function CctvMap() {
                       {typeLabels[selectedCamera.type]}
                     </div>
                     {isCheckedInCurrentHalf(selectedCamera) ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (selectedCamera.lastCheckedImage) {
-                            window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
-                          }
-                        }}
-                        className={`font-bold text-green-700 ${
-                          selectedCamera.lastCheckedImage
-                            ? "cursor-pointer underline decoration-green-700/50 hover:decoration-green-700"
-                            : ""
-                        }`}
-                        title={selectedCamera.lastCheckedImage ? "คลิกเพื่อดูภาพจากกล้อง" : undefined}
-                      >
-                        ใช้งานได้
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedCamera.lastCheckedImage) {
+                              window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                          className={`font-bold text-green-700 ${
+                            selectedCamera.lastCheckedImage
+                              ? "cursor-pointer underline decoration-green-700/50 hover:decoration-green-700"
+                              : ""
+                          }`}
+                          title={selectedCamera.lastCheckedImage ? "คลิกเพื่อดูภาพจากกล้อง" : undefined}
+                        >
+                          ใช้งานได้
+                        </button>
+                        {selectedCamera.lastCheckedImage && (
+                          <>
+                            <span className="text-zinc-400">•</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                overlayUploadCameraRef.current = selectedCamera;
+                                overlayImageInputRef.current?.click();
+                              }}
+                              className="text-blue-600 underline decoration-blue-600/50 hover:decoration-blue-600"
+                            >
+                              แก้ไขภาพ
+                            </button>
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <input
@@ -1059,6 +1152,8 @@ export default function CctvMap() {
                                   lastCheckedImage: url,
                                   lastCheckedImagePath: imagePath,
                                   lastCheckedAt: new Date().toISOString(),
+                                }).then(() => {
+                                  schedulePdfRegeneration();
                                 });
                               })
                               .catch((err) => {
@@ -1130,38 +1225,46 @@ export default function CctvMap() {
           ))}
           <button
             type="button"
-            onClick={() =>
-              setShowMarkers((prev) => {
-                if (prev) setSelectedCameraId(null);
-                return !prev;
-              })
-            }
-            aria-pressed={showMarkers}
-            className={`w-full border px-3 py-2 text-sm font-medium transition ${
-              showMarkers
-                ? "border-green-700 bg-green-700 text-white"
-                : "border-green-700 bg-white text-green-700"
-            }`}
+            onClick={() => {
+              const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
+              const currentIndex = modes.indexOf(markerMode);
+              const nextMode = modes[(currentIndex + 1) % modes.length];
+              setMarkerMode(nextMode);
+              if (nextMode === 'none') setSelectedCameraId(null);
+            }}
+            className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-800"
           >
-            {showMarkers ? "ซ่อนหมุด" : "แสดงหมุด"}
+            {markerMode === 'all' && '🔵 ทั้งหมด'}
+            {markerMode === 'ok' && '✅ ใช้งานได้'}
+            {markerMode === 'pending' && '⚠️ รอตรวจ'}
+            {markerMode === 'none' && '🚫 ซ่อนหมุด'}
           </button>
           <button
             type="button"
             disabled={isGeneratingPdf}
             onClick={async () => {
-              setIsGeneratingPdf(true);
-              try {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                await generateCctvReport(cameraItems);
-              } finally {
-                setIsGeneratingPdf(false);
+              if (cachedPdfUrl && !isPdfOutdated) {
+                window.open(cachedPdfUrl, '_blank');
+              } else {
+                setIsGeneratingPdf(true);
+                try {
+                  await regeneratePdf();
+                  window.open(cachedPdfUrl, '_blank');
+                } catch (error) {
+                  console.error('PDF generation failed:', error);
+                  alert('สร้าง PDF ไม่สำเร็จ');
+                } finally {
+                  setIsGeneratingPdf(false);
+                }
               }
             }}
             className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGeneratingPdf ? "..." : "รายงาน PDF"}
+            {isGeneratingPdf ? "..." : (cachedPdfUrl && !isPdfOutdated) ? "📄 PDF" : "🔄 PDF"}
           </button>
-          {!isAddingCamera && !movingCameraId ? (
+          {isAdminMode && (
+            <>
+              {!isAddingCamera && !movingCameraId ? (
             <button
               type="button"
               onClick={() => requirePassword(() => setIsAddingCamera(true))}
@@ -1204,10 +1307,12 @@ export default function CctvMap() {
               </button>
             </>
           )}
+            </>
+          )}
         </div>
       </section>
       </div>
-    {showPasswordModal && (
+    {isAdminMode && showPasswordModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="w-full max-w-sm border border-zinc-200 bg-white p-4 shadow-lg">
           <h2 className="text-base font-semibold text-green-900">
@@ -1254,7 +1359,7 @@ export default function CctvMap() {
         </div>
       </div>
     )}
-    {editDraft && (
+    {isAdminMode && editDraft && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="w-full max-w-lg border border-zinc-200 bg-white p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
@@ -1380,7 +1485,7 @@ export default function CctvMap() {
         </div>
       </div>
     )}
-      {addDraft && (
+      {isAdminMode && addDraft && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="w-full max-w-lg border border-zinc-200 bg-white p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
@@ -1528,8 +1633,8 @@ export default function CctvMap() {
               </div>
             </div>
             <div className="text-center font-sans">
-              <h3 className="text-lg font-bold text-zinc-900">กำลังบันทึกเป็น PDF</h3>
-              <p className="text-sm text-zinc-500">โปรดรอสักครู่ ระบบกำลังจัดทำรูปเล่มรายงาน...</p>
+              <h3 className="text-lg font-bold text-zinc-900">กำลังสร้าง PDF</h3>
+              <p className="text-sm text-zinc-500">กรุณารอสักครู่...</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import CctvMap from "./components/CctvMap";
 
-export default function Home() {
+export default function PublicCctvMapPage() {
   return (
     <div className="min-h-screen overflow-y-auto bg-white font-sans text-zinc-900 lg:h-screen lg:overflow-hidden">
       <main className="flex min-h-0 flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 lg:h-full lg:overflow-hidden">
@@ -15,7 +15,7 @@ export default function Home() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
-          <CctvMap />
+          <CctvMap isAdminMode={false} />
         </div>
       </main>
     </div>

@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Camera check images
+    match /camera-checks/{cameraId}/{filename} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // CCTV PDF reports
+    match /cctv-reports/{filename} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Default: deny all
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

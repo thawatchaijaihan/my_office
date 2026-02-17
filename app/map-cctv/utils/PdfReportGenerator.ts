@@ -126,13 +126,15 @@ export const generateCctvReport = async (cameras: CameraWithCheck[]) => {
         
         const label = document.createElement("div");
         label.style.position = "absolute";
-        label.style.bottom = "0";
+        label.style.bottom = "12px";
         label.style.left = "0";
         label.style.right = "0";
-        label.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
-        label.style.fontSize = "9pt";
+        label.style.fontSize = "12pt";
+        label.style.fontWeight = "bold";
         label.style.textAlign = "center";
-        label.style.padding = "1mm";
+        label.style.color = "white";
+        label.style.textShadow = "0 0 3px rgba(0,0,0,0.8), 0 0 5px rgba(0,0,0,0.6)";
+        label.style.lineHeight = "1";
         const nameThai = toThaiNumerals(camera.name);
         const descThai = camera.description ? toThaiNumerals(camera.description) : "";
         label.innerText = `${nameThai}${descThai ? ` : ${descThai}` : ""}`;
