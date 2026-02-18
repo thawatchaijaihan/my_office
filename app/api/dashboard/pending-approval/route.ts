@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
   try {
     const indexRows = await getCachedIndexRows();
     const filtered = indexRows
-      .filter((r) => (r.approvalStatus || "").trim() === N_LABEL)
+      .filter((r) => {
+        const status = (r.approvalStatus || "").trim();
+        return status === N_LABEL || status === "รับบัตรเรียบร้อย";
+      })
       .slice(0, 500)
       .map((r) => ({
         rowNumber: r.rowNumber,
@@ -36,6 +39,7 @@ export async function GET(req: NextRequest) {
         vehicleOwner: r.vehicleOwner || "",
         registeredAt: r.registeredAt || "-",
         paymentStatus: r.paymentStatus || "(ว่าง)",
+        approvalStatus: r.approvalStatus || "-",
       }));
 
     return NextResponse.json({ rows: filtered });
