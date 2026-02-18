@@ -132,7 +132,7 @@ export default function PersonnelPage() {
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
-              <tr className="bg-slate-700 text-white">
+              <tr className="bg-emerald-700 text-white">
                 <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap w-16 border-b border-slate-600">ลำดับ</th>
                 <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">ยศ ชื่อ สกุล</th>
                 <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">เบอร์โทร</th>

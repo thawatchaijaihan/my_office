@@ -312,7 +312,7 @@ export default function DashboardPage() {
         </div>
         <div
           className={
-            activePanel === "overview"
+            activePanel === "overview" || activePanel === "review"
               ? "flex-1 min-h-0 overflow-auto"
               : "flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm"
           }

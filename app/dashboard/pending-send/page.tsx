@@ -59,7 +59,7 @@ export default function PendingSendPage() {
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="bg-slate-700 text-white">
+              <tr className="bg-emerald-700 text-white">
                 <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
                 <th className="text-left px-4 py-3 font-medium">ชื่อ-สกุล</th>
                 <th className="text-left px-4 py-3 font-medium">ทะเบียน</th>

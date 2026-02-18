@@ -13,6 +13,7 @@ type InvalidRow = {
   registeredAt: string;
   paymentStatus: string;
   approvalStatus: string;
+  columnP: string;
 };
 
 export default function InvalidPage() {
@@ -20,6 +21,9 @@ export default function InvalidPage() {
   const [rows, setRows] = useState<InvalidRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     dashboardFetch("/api/dashboard/invalid")
@@ -31,6 +35,38 @@ export default function InvalidPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [dashboardFetch]);
+
+  const handleEditClick = (rowNumber: number, currentValue: string) => {
+    setEditingRow(rowNumber);
+    setEditValue(currentValue);
+  };
+
+  const handleSave = async (rowNumber: number) => {
+    setSaving(true);
+    try {
+      const res = await dashboardFetch("/api/dashboard/invalid/update-note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rowNumber, columnP: editValue }),
+      });
+      if (!res.ok) throw new Error("อัปเดตไม่สำเร็จ");
+      
+      // Update local state
+      setRows((prev) =>
+        prev.map((r) => (r.rowNumber === rowNumber ? { ...r, columnP: editValue } : r))
+      );
+      setEditingRow(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingRow(null);
+    setEditValue("");
+  };
 
   if (loading) {
     return (
@@ -58,17 +94,16 @@ export default function InvalidPage() {
         </div>
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead>
-              <tr className="bg-amber-600 text-white">
-                <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
-                <th className="text-left px-4 py-3 font-medium">ชื่อ-สกุล</th>
-                <th className="text-left px-4 py-3 font-medium">ทะเบียน</th>
-                <th className="text-left px-4 py-3 font-medium">ขอบัตรให้</th>
-                <th className="text-left px-4 py-3 font-medium">เจ้าของรถ</th>
-                <th className="text-left px-4 py-3 font-medium">สถานะชำระ</th>
-                <th className="text-left px-4 py-3 font-medium">ผลการตรวจสอบ</th>
-                <th className="text-left px-4 py-3 font-medium">วันที่ลงทะเบียน</th>
+              <tr className="bg-emerald-700 text-white">
+                <th className="text-left px-4 py-3 font-medium">ลำดับ</th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap">ชื่อ-สกุล</th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap">ทะเบียน</th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap">สถานะชำระ</th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap">ผลการตรวจสอบ</th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap">วันที่ลงทะเบียน</th>
+                <th className="text-left px-4 py-3 font-medium">หมายเหตุ</th>
               </tr>
             </thead>
             <tbody>
@@ -77,9 +112,9 @@ export default function InvalidPage() {
                   key={r.rowNumber}
                   className="border-t border-slate-200 hover:bg-slate-50"
                 >
-                  <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{r.name}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{idx + 1}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{r.name}</td>
+                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                     {r.note ? (
                       <a
                         href={r.note}
@@ -93,10 +128,8 @@ export default function InvalidPage() {
                       r.plate
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{r.requestFor}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.vehicleOwner || r.name}</td>
                   <td
-                    className={`px-4 py-3 font-medium ${
+                    className={`px-4 py-3 font-medium whitespace-nowrap ${
                       r.paymentStatus.includes("ค้าง")
                         ? "text-red-600"
                         : r.paymentStatus.includes("ชำระเงินแล้ว")
@@ -106,8 +139,43 @@ export default function InvalidPage() {
                   >
                     {r.paymentStatus}
                   </td>
-                  <td className="px-4 py-3 font-medium text-amber-700">{r.approvalStatus}</td>
-                  <td className="px-4 py-3 text-slate-500">{r.registeredAt}</td>
+                  <td className="px-4 py-3 font-medium text-amber-700 whitespace-nowrap">{r.approvalStatus}</td>
+                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.registeredAt}</td>
+                  <td className="px-4 py-3">
+                    {editingRow === r.rowNumber ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={saving}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSave(r.rowNumber)}
+                          disabled={saving}
+                          className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {saving ? "..." : "บันทึก"}
+                        </button>
+                        <button
+                          onClick={handleCancel}
+                          disabled={saving}
+                          className="px-2 py-1 text-xs font-medium text-slate-700 bg-slate-200 rounded hover:bg-slate-300 disabled:opacity-50"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => handleEditClick(r.rowNumber, r.columnP)}
+                        className="cursor-pointer text-slate-600 hover:text-blue-600 hover:underline"
+                      >
+                        {r.columnP || <span className="text-slate-400 text-xs">แก้ไข</span>}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

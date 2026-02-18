@@ -29,7 +29,6 @@ type ColumnKey = keyof IndexTableRow | "name";
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "rowNumber", label: "ลำดับ" },
   { key: "checkedAt", label: "อัพเดทล่าสุด" },
-  { key: "columnP", label: "เลขบัตร" },
   { key: "name", label: "ยศ. ชื่อ-สกุล" },
   { key: "requestFor", label: "ขอบัตรให้" },
   { key: "vehicleOwner", label: "เจ้าของรถ" },
@@ -39,6 +38,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "plate", label: "ทะเบียน" },
   { key: "paymentStatus", label: "การชำระเงิน" },
   { key: "approvalStatus", label: "ผลการตรวจ" },
+  { key: "columnP", label: "หมายเหตุ" },
 ];
 
 const NARROW_COLUMN_KEYS: ColumnKey[] = ["requestFor", "vehicleType", "vehicleModel", "vehicleColor"];
@@ -78,12 +78,18 @@ export default function ReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(() => COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
     const initial: Record<ColumnKey, boolean> = {} as Record<ColumnKey, boolean>;
     for (const col of COLUMNS) {
       initial[col.key] = true;
     }
+    // ค่าเริ่มต้น: ซ่อนคอลัมน์ "ขอบัตรให้" และ "เจ้าของรถ"
+    initial.requestFor = false;
+    initial.vehicleOwner = false;
     return initial;
   });
   const [selectedMStatuses, setSelectedMStatuses] = useState<Record<string, boolean>>({});
@@ -274,6 +280,9 @@ export default function ReviewPage() {
       const mRaw = (r.paymentStatus ?? "").trim();
       const nRaw = (r.approvalStatus ?? "").trim();
 
+      // ซ่อนแถวที่คอลัมน์ N เท่ากับ "รอลบข้อมูล"
+      if (nRaw === "รอลบข้อมูล") return false;
+
       // ถ้ามีการตั้งค่า status ใด ๆ แล้ว: แสดงเฉพาะรายการที่สถานะถูกติ๊กไว้
       if (Object.keys(selectedMStatuses).length > 0 && selectedMStatuses[mRaw] === false) {
         return false;
@@ -338,22 +347,34 @@ export default function ReviewPage() {
   const formatStatusLabel = (value: string, fallback: string) =>
     value && value.trim() ? value.trim() : fallback;
 
-  const handleCardNumberChange = (rowNumber: number, value: string) => {
-    setRows((prev) =>
-      prev.map((r) => (r.rowNumber === rowNumber ? { ...r, columnP: value } : r))
-    );
+  const handleEditClick = (rowNumber: number, currentValue: string) => {
+    setEditingRow(rowNumber);
+    setEditValue(currentValue);
   };
 
-  const handleCardNumberBlur = async (rowNumber: number, value: string) => {
+  const handleNoteSave = async (rowNumber: number) => {
+    setSaving(true);
     try {
-      await dashboardFetch("/api/dashboard/review/card-number", {
+      const res = await dashboardFetch("/api/dashboard/review/card-number", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rowNumber, columnP: value }),
+        body: JSON.stringify({ rowNumber, columnP: editValue }),
       });
-    } catch {
-      // best-effort only; UI ใช้ค่าที่กรอกไว้ก่อน
+      if (!res.ok) throw new Error("อัปเดตไม่สำเร็จ");
+      setRows((prev) =>
+        prev.map((r) => (r.rowNumber === rowNumber ? { ...r, columnP: editValue } : r))
+      );
+      setEditingRow(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleNoteCancel = () => {
+    setEditingRow(null);
+    setEditValue("");
   };
 
   const handleColumnDragStart = (key: ColumnKey) => (e: React.DragEvent<HTMLLabelElement>) => {
@@ -401,9 +422,9 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-        <p className="text-slate-600 text-sm">
+    <div className="flex flex-col h-full px-6 md:px-8 pt-4" style={{ backgroundColor: "#f1f5f9" }}>
+      <div className="pb-4 shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-slate-600 text-sm whitespace-nowrap">
           รายการขอบัตรผ่านทั้งหมด {rows.length} รายการ
           {search.trim() && (
             <span className="ml-2 text-xs text-slate-500">
@@ -411,24 +432,25 @@ export default function ReviewPage() {
             </span>
           )}
         </p>
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+        <div className="flex items-center gap-2">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหา (ชื่อ, ทะเบียน, ขอบัตรให้, เจ้าของรถ, สถานะ...)"
+            placeholder="ค้นหา"
             className="w-full md:w-80 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowOptionsMenu((v) => !v)}
-              className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              title={`ตัวเลือกตาราง คอลัมน์ ${visibleCols.length}/${COLUMNS.length} · M ${activeMCount}/${paymentStatusOptions.length} · N ${activeNCount}/${approvalStatusOptions.length}`}
             >
-              ตัวเลือกตาราง
-              <span className="ml-1 text-xs text-slate-500">
-                คอลัมน์ {visibleCols.length}/{COLUMNS.length} · M {activeMCount}/{paymentStatusOptions.length} · N {activeNCount}/{approvalStatusOptions.length}
-              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
             </button>
             {showOptionsMenu && (
               <div className="absolute right-0 z-20 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-lg p-3 max-h-96 overflow-y-auto text-sm text-slate-700">
@@ -440,6 +462,8 @@ export default function ReviewPage() {
                       const defaultOrder = COLUMNS.map((c) => c.key);
                       const defaultVisible: Record<ColumnKey, boolean> = {} as Record<ColumnKey, boolean>;
                       for (const col of COLUMNS) defaultVisible[col.key] = true;
+                      defaultVisible.requestFor = false;
+                      defaultVisible.vehicleOwner = false;
                       setColumnOrder(defaultOrder);
                       setVisibleColumns(defaultVisible);
                       setSelectedMStatuses({});
@@ -551,22 +575,19 @@ export default function ReviewPage() {
           ไม่มีข้อมูล
         </div>
       ) : (
-        <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto max-h-[calc(100vh-12rem)]">
+        <div className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto">
           <table className="w-full text-sm border-collapse min-w-[1200px]">
             <colgroup>
               {visibleCols.map((col) => (
-                <col
-                  key={col.key}
-                  style={col.key === "columnP" ? { width: "6rem", minWidth: "6rem", maxWidth: "6rem" } : undefined}
-                />
+                <col key={col.key} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 bg-slate-700 text-white z-10">
+            <thead className="sticky top-0 bg-emerald-700 text-white z-10">
               <tr>
                 {visibleCols.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : col.key === "columnP" ? "w-24 min-w-24 max-w-24" : ""}`}
+                    className={`px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600 text-center ${NARROW_COLUMN_KEYS.includes(col.key) ? "w-[7rem] min-w-[7rem] max-w-[7rem]" : ""}`}
                   >
                     {col.label}
                   </th>
@@ -588,18 +609,48 @@ export default function ReviewPage() {
                     return (
                       <td
                         key={`${r.rowNumber}-${col.key}`}
-                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : isCardNumber ? "w-24 min-w-24 max-w-24" : "max-w-[200px] truncate"}`}
-                        title={value}
+                        className={`px-3 py-2 text-slate-700 whitespace-nowrap ${col.key === "rowNumber" ? "text-center" : isCheckedAt ? "text-right" : ""} ${isNarrow ? "w-[7rem] min-w-[7rem] max-w-[7rem] truncate" : isCardNumber ? "" : "max-w-[200px] truncate"}`}
+                        title={isCardNumber ? undefined : value}
                       >
                         {isCardNumber ? (
-                          <input
-                            type="text"
-                            maxLength={20}
-                            className="w-full max-w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            value={r.columnP ?? ""}
-                            onChange={(e) => handleCardNumberChange(r.rowNumber, e.target.value)}
-                            onBlur={(e) => handleCardNumberBlur(r.rowNumber, e.target.value)}
-                          />
+                          editingRow === r.rowNumber ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="flex-1 min-w-0 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                disabled={saving}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleNoteSave(r.rowNumber);
+                                  if (e.key === "Escape") handleNoteCancel();
+                                }}
+                              />
+                              <button
+                                onClick={() => handleNoteSave(r.rowNumber)}
+                                disabled={saving}
+                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {saving ? "..." : "บันทึก"}
+                              </button>
+                              <button
+                                onClick={handleNoteCancel}
+                                disabled={saving}
+                                className="px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300 disabled:opacity-50"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => handleEditClick(r.rowNumber, r.columnP ?? "")}
+                              className="cursor-pointer text-slate-600 hover:text-blue-600 hover:underline min-h-[1.5rem]"
+                              title="คลิกเพื่อแก้ไข"
+                            >
+                              {r.columnP || <span className="text-slate-400 text-xs">แก้ไข</span>}
+                            </div>
+                          )
                         ) : hasLink ? (
                           <a href={note} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
                             {value}

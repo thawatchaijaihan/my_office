@@ -16,6 +16,7 @@ export type InvalidRow = {
   registeredAt: string;
   paymentStatus: string;
   approvalStatus: string;
+  columnP: string;
 };
 
 export async function GET(req: NextRequest) {
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
         registeredAt: r.registeredAt || "-",
         paymentStatus: r.paymentStatus === "ลบข้อมูล" ? "ค้างชำระเงิน" : (r.paymentStatus || "(ว่าง)"),
         approvalStatus: r.approvalStatus || "-",
+        columnP: r.columnP || "",
       }));
 
     return NextResponse.json({ rows: invalid });
