@@ -14,9 +14,24 @@ async function buildDashboardData() {
   const indexRows = await getCachedIndexRows();
   LOG("readIndexRows() rows:", indexRows.length);
 
-  const total = indexRows.length;
+  /*
+   * ----------------------------------------------------------------------
+   * Business Logic Update (Requested):
+   * "รายการทั้งหมด" (Total) ให้กรองลบจาก Column N (approvalStatus) ค่า "รอลบข้อมูล"
+   * แทนที่จะเช็ค Column M (paymentStatus) ค่า "ลบข้อมูล"
+   * ----------------------------------------------------------------------
+   */
+  const validRows = indexRows.filter(
+    (r) => (r.approvalStatus || "").trim() !== "รอลบข้อมูล"
+  );
+  const total = validRows.length;
+
+  // ยังคงคำนวณ stats อื่นๆ จาก validRows หรือ indexRows ตามความเหมาะสม?
+  // User โจทย์คือ: summary card "รายการทั้งหมด" ... ใช้เงื่อนไขเดียวกับตาราง (กรองแค่ "รอลบข้อมูล" จากคอลัมน์ N)
+  // ดังนั้น total ควรมาจาก validRows.length
+
   const paid = indexRows.filter((r) => r.paymentStatus === "ชำระเงินแล้ว").length;
-  const deleted = indexRows.filter((r) => r.paymentStatus === "ลบข้อมูล").length;
+  // const deleted = indexRows.filter((r) => r.paymentStatus === "ลบข้อมูล").length; // ไม่ใช้แล้วสำหรับการหักลบ total
   const outstanding = indexRows.filter(
     (r) =>
       !r.paymentStatus ||
@@ -70,7 +85,7 @@ async function buildDashboardData() {
 
   return {
     summary: {
-      total: total - deleted,
+      total,
       paid,
       outstanding,
       dataIncorrect,

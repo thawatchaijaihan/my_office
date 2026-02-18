@@ -421,11 +421,17 @@ export default function ReviewPage() {
     );
   }
 
+  // จำนวนรายการ "จริง" (ไม่นับที่รอลบข้อมูล) เพื่อให้ตรงกับ Summary Card
+  const validTotal = useMemo(
+    () => rows.filter((r) => (r.approvalStatus ?? "").trim() !== "รอลบข้อมูล").length,
+    [rows]
+  );
+
   return (
     <div className="flex flex-col h-full px-6 md:px-8 pt-4" style={{ backgroundColor: "#f1f5f9" }}>
       <div className="pb-4 shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-slate-600 text-sm whitespace-nowrap">
-          รายการขอบัตรผ่านทั้งหมด {rows.length} รายการ
+          รายการขอบัตรผ่านทั้งหมด {validTotal} รายการ
           {search.trim() && (
             <span className="ml-2 text-xs text-slate-500">
               (แสดงผลหลังค้นหา {filteredRows.length} รายการ)
@@ -662,7 +668,14 @@ export default function ReviewPage() {
                                 ? "text-red-600 font-medium"
                                 : isPayment && value.includes("ชำระเงินแล้ว")
                                   ? "text-emerald-600 font-medium"
-                                  : ""
+                                  : col.key === "approvalStatus" && value.includes("ข้อมูลไม่ถูกต้อง")
+                                    ? "text-red-600 font-medium"
+                                    : col.key === "approvalStatus" &&
+                                      (value.includes("รับบัตรเรียบร้อย") ||
+                                        value.includes("รออนุมัติจาก ฝขว.พล.ป.") ||
+                                        value.includes("รอส่ง ฝขว.พล.ป."))
+                                      ? "text-emerald-600 font-medium"
+                                      : ""
                             }
                           >
                             {value}
