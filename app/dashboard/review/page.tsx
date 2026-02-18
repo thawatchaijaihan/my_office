@@ -273,6 +273,12 @@ export default function ReviewPage() {
     [approvalStatusOptions, selectedNStatuses]
   );
 
+  // จำนวนรายการ "จริง" (ไม่นับที่รอลบข้อมูล) เพื่อให้ตรงกับ Summary Card
+  const validTotal = useMemo(
+    () => rows.filter((r) => (r.approvalStatus ?? "").trim() !== "รอลบข้อมูล").length,
+    [rows]
+  );
+
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -420,12 +426,6 @@ export default function ReviewPage() {
       </div>
     );
   }
-
-  // จำนวนรายการ "จริง" (ไม่นับที่รอลบข้อมูล) เพื่อให้ตรงกับ Summary Card
-  const validTotal = useMemo(
-    () => rows.filter((r) => (r.approvalStatus ?? "").trim() !== "รอลบข้อมูล").length,
-    [rows]
-  );
 
   return (
     <div className="flex flex-col h-full px-6 md:px-8 pt-4" style={{ backgroundColor: "#f1f5f9" }}>
