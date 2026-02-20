@@ -25,6 +25,23 @@ import {
 import { formatDateTime } from "@/lib/formatDateTime";
 import { logger } from "@/lib/logger";
 
+// --- In-memory store สำหรับ Telegram file_id ---
+// Telegram จำกัด callback_data สูงสุด 64 bytes
+// file_id มักยาว 80-100+ ตัวอักษร จึงต้องแมปผ่าน short key แทน
+const fileIdStore = new Map<string, string>();
+
+function storeFileId(fileId: string): string {
+  const key = Math.random().toString(36).slice(2, 8); // 6-char key
+  fileIdStore.set(key, fileId);
+  // ล้างค่าเก่าอัตโนมัติหลัง 10 นาที
+  setTimeout(() => fileIdStore.delete(key), 10 * 60 * 1000);
+  return key;
+}
+
+function lookupFileId(key: string): string | undefined {
+  return fileIdStore.get(key);
+}
+
 type TelegramUpdate = {
   update_id: number;
   message?: {
@@ -338,9 +355,12 @@ async function handleTelegramPhoto(params: {
 }) {
   const largest = getLargestPhoto(params.photos);
   if (!largest) return;
+  // เก็บ file_id ใน in-memory store แล้วใช้ short key ใน callback_data
+  // เพื่อไม่ให้เกินขีดจำกัด 64 bytes ของ Telegram
+  const fileKey = storeFileId(largest.file_id);
   const keyboard = buildTelegramInlineKeyboard([
     [
-      { text: "รูปสลิปโอนเงิน", data: `intent:slip:${largest.file_id}` },
+      { text: "รูปสลิปโอนเงิน", data: `intent:slip:${fileKey}` },
       { text: "อื่นๆ (ยังไม่ทำ)", data: "intent:other" },
     ],
   ]);
@@ -524,7 +544,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
     }
 
     if (data.startsWith("intent:slip:")) {
-      const fileId = data.replace("intent:slip:", "");
+      const key = data.replace("intent:slip:", "");
+      const fileId = lookupFileId(key);
+      if (!fileId) {
+        await sendTelegramMessage({
+          chatId,
+          text: "ลิงก์รูปหมดอายุแล้วครับ (เกิน 10 นาที) กรุณาส่งรูปใหม่อีกครั้ง",
+        });
+        return;
+      }
       await handleTelegramSlipIntent({ chatId, fileId });
       return;
     }
