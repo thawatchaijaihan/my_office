@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
 import { writeIndexUpdatesMR } from "@/lib/passSheets";
 import { formatDateTime } from "@/lib/formatDateTime";
-import { clearIndexRowsCache } from "@/lib/indexRowsCache";
+import { getCachedIndexRows, clearIndexRowsCache } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
 
@@ -19,17 +19,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing rowNumber" }, { status: 400 });
     }
 
+    const indexRows = await getCachedIndexRows();
+    const target = indexRows.find((r) => r.rowNumber === rowNumber);
+    if (!target) {
+      return NextResponse.json({ error: "Row not found" }, { status: 404 });
+    }
+
     const now = new Date();
     const timestamp = formatDateTime(now);
     
     // Update Index Sheet: 
-    // M = "ลบข้อมูล"
+    // Preserve M (paymentStatus)
     // N = "รอลบข้อมูล"
     // O = timestamp
     await writeIndexUpdatesMR([
       {
         rowNumber,
-        paymentStatus: "ลบข้อมูล",
+        paymentStatus: target.paymentStatus,
         approvalStatus: "รอลบข้อมูล",
         checkedAt: timestamp,
       },

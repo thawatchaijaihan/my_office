@@ -476,7 +476,7 @@ export default function InvalidPage() {
             <p className="text-slate-600 text-sm mb-4 text-center">
               รายการนี้จะถูกเปลี่ยนสถานะเป็น <br />
               <span className="font-medium text-slate-800">
-                M=&quot;ลบข้อมูล&quot;, N=&quot;รอลบข้อมูล&quot;
+                N=&quot;รอลบข้อมูล&quot;
               </span>
             </p>
 

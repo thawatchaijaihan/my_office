@@ -70,14 +70,16 @@ function loadServiceAccountKey(): ServiceAccountKey {
   return parsed as ServiceAccountKey;
 }
 
-// Module-level cache for the auth client
-let cachedAuthClient: ReturnType<typeof google.sheets> | null = null;
+// Module-level cache for the auth clients
+let cachedReadOnlyClient: ReturnType<typeof google.sheets> | null = null;
+let cachedReadWriteClient: ReturnType<typeof google.sheets> | null = null;
 
 function getSheetsClient(params?: { readOnly?: boolean }) {
+  const isReadOnly = params?.readOnly !== false;
+
   // Return cached client if available
-  if (cachedAuthClient) {
-    return cachedAuthClient;
-  }
+  if (isReadOnly && cachedReadOnlyClient) return cachedReadOnlyClient;
+  if (!isReadOnly && cachedReadWriteClient) return cachedReadWriteClient;
 
   const key = loadServiceAccountKey();
   if (!key.client_email || !key.private_key) {
@@ -88,14 +90,19 @@ function getSheetsClient(params?: { readOnly?: boolean }) {
     email: key.client_email,
     key: key.private_key,
     scopes: [
-      params?.readOnly === false
-        ? "https://www.googleapis.com/auth/spreadsheets"
-        : "https://www.googleapis.com/auth/spreadsheets.readonly",
+      isReadOnly
+        ? "https://www.googleapis.com/auth/spreadsheets.readonly"
+        : "https://www.googleapis.com/auth/spreadsheets",
     ],
   });
 
-  cachedAuthClient = google.sheets({ version: "v4", auth });
-  return cachedAuthClient;
+  const client = google.sheets({ version: "v4", auth });
+  if (isReadOnly) {
+    cachedReadOnlyClient = client;
+  } else {
+    cachedReadWriteClient = client;
+  }
+  return client;
 }
 
 export type GoogleSheetTab = {
