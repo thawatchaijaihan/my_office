@@ -199,26 +199,50 @@ export function allocateSlipToIndex(params: {
 
     // Find matching person keys
     const candidates: { key: string; rows: IndexRow[] }[] = [];
-    for (const [key, rows] of byPersonKey.entries()) {
-      const [first, last] = key.split("|");
-      if (!first || !last) continue;
-      const indexFull = first + last;
-      const slipFull = slipFirstName + slipSurname;
-      const lastMatch =
-        last === slipSurname ||
-        last.includes(slipSurname) ||
-        slipSurname.includes(last) ||
-        isCloseMatch(last, slipSurname);
-      const firstMatch =
-        first.includes(slipFirstName) ||
-        slipFirstName.includes(first) ||
-        isCloseMatch(first, slipFirstName);
-      const fullMatch =
-        indexFull.includes(slipFull) ||
-        slipFull.includes(indexFull) ||
-        isCloseMatch(indexFull, slipFull);
-      if (!(lastMatch && (firstMatch || fullMatch))) continue;
-      candidates.push({ key, rows });
+
+    // [OPTIMIZATION] Step 1: Try Exact Match first (O(1) lookup)
+    // We already have byPersonKey keyed by "Normalize(First)|Normalize(Last)"
+    // slipFirstName and slipSurname are already normalized.
+    const directKey = slipFirstName + "|" + slipSurname;
+    if (byPersonKey.has(directKey)) {
+        candidates.push({ key: directKey, rows: byPersonKey.get(directKey)! });
+    } else {
+        // [OPTIMIZATION] Step 2: Fallback to partial/fuzzy match (O(N) search)
+        // only if exact match failed.
+        for (const [key, rows] of byPersonKey.entries()) {
+            // key is "First|Last"
+            const [first, last] = key.split("|");
+            if (!first || !last) continue;
+            
+            // Reconstruct full normalized strings for comparison
+            const indexFull = first + last;
+            const slipFull = slipFirstName + slipSurname;
+            
+            // Check Last Name match (strict or partial)
+            const lastMatch =
+                last === slipSurname ||
+                last.includes(slipSurname) ||
+                slipSurname.includes(last) ||
+                isCloseMatch(last, slipSurname);
+                
+            if (!lastMatch) continue; // Skip quickly if surname doesn't match
+
+            // Check First Name match
+            const firstMatch =
+                first.includes(slipFirstName) ||
+                slipFirstName.includes(first) ||
+                isCloseMatch(first, slipFirstName);
+            
+            // Check Full string match
+            const fullMatch =
+                indexFull.includes(slipFull) ||
+                slipFull.includes(indexFull) ||
+                isCloseMatch(indexFull, slipFull);
+
+            if (firstMatch || fullMatch) {
+                candidates.push({ key, rows });
+            }
+        }
     }
 
     if (candidates.length === 0) {

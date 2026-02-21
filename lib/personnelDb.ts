@@ -103,6 +103,9 @@ function scorePersonnelDoc(query: string, doc: PersonnelDoc): number {
  * - ถ้ามีคำถาม: เลือกรายการที่คำในคำถามตรงกับ ยศ/ชื่อ/สกุล (สูงสุด maxDocs รายการ)
  * - ถ้าไม่มีคำถาม: ส่งคืนรายการแรกสุดไม่เกิน maxDocs
  */
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let personnelCache: { docs: PersonnelDoc[]; at: number } | null = null;
+
 export async function getPersonnelRagContext(
   query: string,
   options: { maxDocs?: number } = {}
@@ -111,22 +114,34 @@ export async function getPersonnelRagContext(
   if (!db) return "";
 
   const maxDocs = options.maxDocs ?? 50;
-  const snapshot = await db.collection(PERSONNEL_COLLECTION).limit(300).get();
-  const docs: PersonnelDoc[] = [];
-  snapshot.forEach((doc) => {
-    const d = doc.data() as PersonnelDoc;
-    if (d?.rank != null || d?.firstName != null || d?.lastName != null) {
-      docs.push({
-        rank: String(d.rank ?? ""),
-        firstName: String(d.firstName ?? ""),
-        lastName: String(d.lastName ?? ""),
-        phone: String(d.phone ?? ""),
-        bank: String(d.bank ?? ""),
-        accountNumber: String(d.accountNumber ?? ""),
-        updatedAt: String(d.updatedAt ?? ""),
-      });
-    }
-  });
+  const now = Date.now();
+
+  let docs: PersonnelDoc[] = [];
+
+  // Check cache first
+  if (personnelCache && now - personnelCache.at < CACHE_TTL_MS) {
+    docs = personnelCache.docs;
+  } else {
+    // Cache miss, fetch from Firestore
+    console.log("[personnelDb] Cache miss, fetching from Firestore...");
+    const snapshot = await db.collection(PERSONNEL_COLLECTION).limit(300).get();
+    snapshot.forEach((doc) => {
+      const d = doc.data() as PersonnelDoc;
+      if (d?.rank != null || d?.firstName != null || d?.lastName != null) {
+        docs.push({
+          rank: String(d.rank ?? ""),
+          firstName: String(d.firstName ?? ""),
+          lastName: String(d.lastName ?? ""),
+          phone: String(d.phone ?? ""),
+          bank: String(d.bank ?? ""),
+          accountNumber: String(d.accountNumber ?? ""),
+          updatedAt: String(d.updatedAt ?? ""),
+        });
+      }
+    });
+    // Update cache
+    personnelCache = { docs, at: now };
+  }
 
   let selected: PersonnelDoc[];
   const q = (query ?? "").trim();

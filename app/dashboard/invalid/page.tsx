@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
 import html2canvas from "html2canvas";
 
@@ -26,12 +26,29 @@ export default function InvalidPage() {
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [search, setSearch] = useState("");
   const printableAreaRef = useRef<HTMLDivElement>(null);
+
+  const filteredRows = useMemo(() => {
+    const kw = search.trim().toLowerCase();
+    if (!kw) return rows;
+    return rows.filter(
+      (r) =>
+        (r.name ?? "").toLowerCase().includes(kw) ||
+        (r.plate ?? "").toLowerCase().includes(kw) ||
+        (r.paymentStatus ?? "").toLowerCase().includes(kw) ||
+        (r.approvalStatus ?? "").toLowerCase().includes(kw) ||
+        (r.columnP ?? "").toLowerCase().includes(kw),
+    );
+  }, [rows, search]);
 
   useEffect(() => {
     dashboardFetch("/api/dashboard/invalid")
       .then((res) => {
-        if (!res.ok) throw new Error(res.status === 401 ? "กรุณาใส่ key ใน URL" : "โหลดไม่สำเร็จ");
+        if (!res.ok)
+          throw new Error(
+            res.status === 401 ? "กรุณาใส่ key ใน URL" : "โหลดไม่สำเร็จ",
+          );
         return res.json();
       })
       .then((data) => setRows(data.rows ?? []))
@@ -39,7 +56,9 @@ export default function InvalidPage() {
       .finally(() => setLoading(false));
   }, [dashboardFetch]);
 
-  const [selectedDeleteRow, setSelectedDeleteRow] = useState<InvalidRow | null>(null);
+  const [selectedDeleteRow, setSelectedDeleteRow] = useState<InvalidRow | null>(
+    null,
+  );
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteClick = (row: InvalidRow) => {
@@ -56,9 +75,11 @@ export default function InvalidPage() {
         body: JSON.stringify({ rowNumber: selectedDeleteRow.rowNumber }),
       });
       if (!res.ok) throw new Error("ลบข้อมูลไม่สำเร็จ");
-      
+
       // Update local state (remove row)
-      setRows((prev) => prev.filter((r) => r.rowNumber !== selectedDeleteRow.rowNumber));
+      setRows((prev) =>
+        prev.filter((r) => r.rowNumber !== selectedDeleteRow.rowNumber),
+      );
       setSelectedDeleteRow(null);
     } catch (e) {
       alert(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
@@ -81,10 +102,12 @@ export default function InvalidPage() {
         body: JSON.stringify({ rowNumber, columnP: editValue }),
       });
       if (!res.ok) throw new Error("อัปเดตไม่สำเร็จ");
-      
+
       // Update local state
       setRows((prev) =>
-        prev.map((r) => (r.rowNumber === rowNumber ? { ...r, columnP: editValue } : r))
+        prev.map((r) =>
+          r.rowNumber === rowNumber ? { ...r, columnP: editValue } : r,
+        ),
       );
       setEditingRow(null);
     } catch (e) {
@@ -103,7 +126,7 @@ export default function InvalidPage() {
     if (rows.length === 0) return;
 
     setIsExporting(true);
-    
+
     const tempContainer = document.createElement("div");
 
     try {
@@ -115,7 +138,7 @@ export default function InvalidPage() {
         paymentStatus: "สถานะชำระ",
         approvalStatus: "ผลการตรวจสอบ",
         registeredAt: "วันที่ลงทะเบียน",
-        columnP: "หมายเหตุ"
+        columnP: "หมายเหตุ",
       };
 
       const data = rows.map((r, idx) => ({
@@ -131,7 +154,7 @@ export default function InvalidPage() {
       const table = document.createElement("table");
       const thead = table.createTHead();
       const tbody = table.createTBody();
-      
+
       const headerRow = thead.insertRow();
       for (const key in headers) {
         const th = document.createElement("th");
@@ -146,7 +169,7 @@ export default function InvalidPage() {
         headerRow.appendChild(th);
       }
 
-      data.forEach(rowData => {
+      data.forEach((rowData) => {
         const row = tbody.insertRow();
         for (const key in headers) {
           const td = row.insertCell();
@@ -186,12 +209,11 @@ export default function InvalidPage() {
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = dataUrl;
-      const date = new Date().toISOString().split('T')[0];
+      const date = new Date().toISOString().split("T")[0];
       link.download = `invalid-report-table-${date}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
     } catch (error) {
       console.error("Could not export image:", error);
       alert("เกิดข้อผิดพลาดระหว่างการสร้างรูปภาพ");
@@ -205,7 +227,10 @@ export default function InvalidPage() {
 
   if (loading) {
     return (
-      <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
+      <div
+        className="p-6 md:p-8"
+        style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}
+      >
         <p className="text-slate-600">กำลังโหลด...</p>
       </div>
     );
@@ -213,73 +238,158 @@ export default function InvalidPage() {
 
   if (error) {
     return (
-      <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800">{error}</div>
+      <div
+        className="p-6 md:p-8"
+        style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}
+      >
+        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800">
+          {error}
+        </div>
       </div>
     );
   }
 
-
-
   return (
-    <div className="flex flex-col h-full px-6 md:px-8 pt-4" style={{ backgroundColor: "#f1f5f9" }}>
-      <div className="flex justify-between items-center pb-4 shrink-0">
-        <p className="text-slate-600 text-sm">ข้อมูลไม่ถูกต้องทั้งหมด {rows.length} รายการ</p>
-        <button
-          onClick={handleExportImage}
-          disabled={isExporting || rows.length === 0}
-          className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={isExporting ? "กำลังส่งออก..." : "ส่งออกเป็นรูปภาพ"}
-        >
-          {isExporting ? (
-            <svg className="animate-spin h-5 w-5 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
+    <div
+      className="flex flex-col h-full px-6 md:px-8 pt-4"
+      style={{ backgroundColor: "#f1f5f9" }}
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 shrink-0">
+        <p className="text-slate-600 text-sm whitespace-nowrap">
+          ข้อมูลไม่ถูกต้องทั้งหมด {rows.length} รายการ
+          {search.trim() && (
+            <span className="ml-2 text-xs text-slate-500">
+              (แสดงผลหลังค้นหา {filteredRows.length} รายการ)
+            </span>
           )}
-        </button>
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหา"
+            className="w-full md:w-72 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <button
+            onClick={handleExportImage}
+            disabled={isExporting || rows.length === 0}
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isExporting ? "กำลังส่งออก..." : "ส่งออกเป็นรูปภาพ"}
+          >
+            {isExporting ? (
+              <svg
+                className="animate-spin h-5 w-5 text-slate-500"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
-      {rows.length === 0 ? (
+      {filteredRows.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
-          ไม่มีรายการ (N = ข้อมูลไม่ถูกต้อง)
+          {rows.length === 0
+            ? "ไม่มีรายการ (N = ข้อมูลไม่ถูกต้อง)"
+            : "ไม่พบรายการที่ตรงกับคำค้นหา"}
         </div>
       ) : (
-        <div ref={printableAreaRef} className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto">
+        <div
+          ref={printableAreaRef}
+          className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto"
+        >
           <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead className="sticky top-0 z-10">
               <tr className="bg-emerald-700 text-white">
-                <th className="text-left px-4 py-3 font-medium border-b border-slate-600">ลำดับ</th>
-                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">ชื่อ-สกุล</th>
-                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">ทะเบียน</th>
-                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">สถานะชำระ</th>
-                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">ผลการตรวจสอบ</th>
-                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">วันที่ลงทะเบียน</th>
-                <th className="text-left px-4 py-3 font-medium border-b border-slate-600">หมายเหตุ</th>
+                <th className="text-left px-4 py-3 font-medium border-b border-slate-600">
+                  ลำดับ
+                </th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">
+                  ชื่อ-สกุล
+                </th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">
+                  ทะเบียน
+                </th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">
+                  สถานะชำระ
+                </th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">
+                  ผลการตรวจสอบ
+                </th>
+                <th className="text-left px-4 py-3 font-medium whitespace-nowrap border-b border-slate-600">
+                  วันที่ลงทะเบียน
+                </th>
+                <th className="text-left px-4 py-3 font-medium border-b border-slate-600">
+                  หมายเหตุ
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, idx) => (
-                <tr key={r.rowNumber} className="border-t border-slate-200 hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{idx + 1}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{r.name}</td>
+              {filteredRows.map((r, idx) => (
+                <tr
+                  key={r.rowNumber}
+                  className="border-t border-slate-200 hover:bg-slate-50"
+                >
+                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                    {idx + 1}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
+                    {r.name}
+                  </td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                     {r.note ? (
-                      <a href={r.note} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                      <a
+                        href={r.note}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
                         {r.plate}
                       </a>
                     ) : (
                       r.plate
                     )}
                   </td>
-                  <td className={`px-4 py-3 font-medium whitespace-nowrap ${
-                    r.paymentStatus.includes("ค้าง") ? "text-red-600" :
-                    r.paymentStatus.includes("ชำระเงินแล้ว") ? "text-emerald-600" : "text-slate-600"
-                  }`}>
+                  <td
+                    className={`px-4 py-3 font-medium whitespace-nowrap ${
+                      r.paymentStatus.includes("ค้าง")
+                        ? "text-red-600"
+                        : r.paymentStatus.includes("ชำระเงินแล้ว")
+                          ? "text-emerald-600"
+                          : "text-slate-600"
+                    }`}
+                  >
                     {r.paymentStatus}
                   </td>
                   <td className="px-4 py-3 font-medium text-amber-700 whitespace-nowrap">
@@ -291,7 +401,9 @@ export default function InvalidPage() {
                       {r.approvalStatus}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.registeredAt}</td>
+                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                    {r.registeredAt}
+                  </td>
                   <td className="px-4 py-3">
                     {editingRow === r.rowNumber ? (
                       <div className="flex items-center gap-2">
@@ -323,7 +435,9 @@ export default function InvalidPage() {
                         onClick={() => handleEditClick(r.rowNumber, r.columnP)}
                         className="cursor-pointer text-slate-600 hover:text-blue-600 hover:underline min-h-[20px]"
                       >
-                        {r.columnP || <span className="text-slate-400 text-xs">แก้ไข</span>}
+                        {r.columnP || (
+                          <span className="text-slate-400 text-xs">แก้ไข</span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -339,24 +453,48 @@ export default function InvalidPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex flex-col items-center mb-4">
               <div className="rounded-full bg-red-100 p-3 mb-2">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                <svg
+                  className="w-8 h-8 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  ></path>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">ยืนยันการลบข้อมูล</h3>
+              <h3 className="text-lg font-semibold text-slate-900">
+                ยืนยันการลบข้อมูล
+              </h3>
             </div>
-            
+
             <p className="text-slate-600 text-sm mb-4 text-center">
-              รายการนี้จะถูกเปลี่ยนสถานะเป็น <br/>
-              <span className="font-medium text-slate-800">M=&quot;ลบข้อมูล&quot;, N=&quot;รอลบข้อมูล&quot;</span>
+              รายการนี้จะถูกเปลี่ยนสถานะเป็น <br />
+              <span className="font-medium text-slate-800">
+                M=&quot;ลบข้อมูล&quot;, N=&quot;รอลบข้อมูล&quot;
+              </span>
             </p>
-            
+
             <div className="mb-6 rounded-lg bg-slate-50 p-3 text-sm">
-              <p className="text-slate-700"><span className="font-medium">ทะเบียน:</span> {selectedDeleteRow.plate}</p>
-              <p className="text-slate-700"><span className="font-medium">ชื่อ:</span> {selectedDeleteRow.name}</p>
-              <p className="text-slate-700"><span className="font-medium">สาเหตุ:</span> {selectedDeleteRow.approvalStatus}</p>
+              <p className="text-slate-700">
+                <span className="font-medium">ทะเบียน:</span>{" "}
+                {selectedDeleteRow.plate}
+              </p>
+              <p className="text-slate-700">
+                <span className="font-medium">ชื่อ:</span>{" "}
+                {selectedDeleteRow.name}
+              </p>
+              <p className="text-slate-700">
+                <span className="font-medium">สาเหตุ:</span>{" "}
+                {selectedDeleteRow.approvalStatus}
+              </p>
             </div>
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setSelectedDeleteRow(null)}
@@ -378,7 +516,4 @@ export default function InvalidPage() {
       )}
     </div>
   );
-
-  }
-
-  
+}

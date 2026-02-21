@@ -5,7 +5,7 @@ import Script from "next/script";
 
 const poppins = Poppins({
   subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "600", "700"],
   variable: "--font-poppins",
   display: "swap",
 });

@@ -6,11 +6,11 @@ import { writeIndexUpdatesMR } from "@/lib/passSheets";
 
 export const runtime = "nodejs";
 
-const REVIEW_RESULT_MAP: Record<string, { approvalStatus: string; paymentStatus?: string }> = {
+const REVIEW_RESULT_MAP: Record<string, { approvalStatus: string }> = {
   waiting_approval: { approvalStatus: "รออนุมัติจาก ฝขว.พล.ป." },
-  waiting_send: { approvalStatus: "รอส่ง ฝขว.พล.ป.", paymentStatus: "ค้างชำระเงิน" },
-  waiting_delete: { approvalStatus: "รอลบข้อมูล", paymentStatus: "ลบข้อมูล" },
-  incorrect: { approvalStatus: "ข้อมูลไม่ถูกต้อง", paymentStatus: "ลบข้อมูล" },
+  waiting_send: { approvalStatus: "รอส่ง ฝขว.พล.ป." },
+  waiting_delete: { approvalStatus: "รอลบข้อมูล" },
+  incorrect: { approvalStatus: "ข้อมูลไม่ถูกต้อง" },
 };
 
 export async function POST(req: NextRequest) {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     await writeIndexUpdatesMR([
       {
         rowNumber,
-        paymentStatus: mapping.paymentStatus ?? target.paymentStatus,
+        paymentStatus: target.paymentStatus,
         approvalStatus: mapping.approvalStatus,
         checkedAt,
       },
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         rowNumber,
-        paymentStatus: mapping.paymentStatus ?? target.paymentStatus,
+        paymentStatus: target.paymentStatus,
         approvalStatus: mapping.approvalStatus,
         checkedAt,
       },

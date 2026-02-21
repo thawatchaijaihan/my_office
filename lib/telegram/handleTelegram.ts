@@ -377,11 +377,11 @@ async function handleTelegramReview(params: {
   row: number;
   result: string;
 }) {
-  const APPROVAL_MAP: Record<string, { n: string; m?: string }> = {
+  const APPROVAL_MAP: Record<string, { n: string }> = {
     waiting_approval: { n: "รออนุมัติจาก ฝขว.พล.ป." },
-    waiting_send: { n: "รอส่ง ฝขว.พล.ป.", m: "ค้างชำระเงิน" },
-    waiting_delete: { n: "รอลบข้อมูล", m: "ลบข้อมูล" },
-    incorrect: { n: "ข้อมูลไม่ถูกต้อง", m: "ลบข้อมูล" },
+    waiting_send: { n: "รอส่ง ฝขว.พล.ป." },
+    waiting_delete: { n: "รอลบข้อมูล" },
+    incorrect: { n: "ข้อมูลไม่ถูกต้อง" },
   };
 
   const indexRows = await getCachedIndexRows();
@@ -405,7 +405,7 @@ async function handleTelegramReview(params: {
   await writeIndexUpdatesMR([
     {
       rowNumber: params.row,
-      paymentStatus: mapping.m ?? target.paymentStatus,
+      paymentStatus: target.paymentStatus,
       approvalStatus: mapping.n,
       checkedAt: now,
     },
@@ -413,9 +413,7 @@ async function handleTelegramReview(params: {
   clearIndexRowsCache();
   await sendTelegramMessage({
     chatId: params.chatId,
-    text: `บันทึกแล้ว: แถว ${params.row}\nN = ${mapping.n}${
-      mapping.m ? `\nM = ${mapping.m}` : ""
-    }`,
+    text: `บันทึกแล้ว: แถว ${params.row}\nN = ${mapping.n}`,
   });
 }
 

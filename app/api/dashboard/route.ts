@@ -5,9 +5,6 @@ import { getCachedIndexRows } from "@/lib/indexRowsCache";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CACHE_TTL_MS = 60 * 1000;
-let cache: { data: Awaited<ReturnType<typeof buildDashboardData>>; at: number } | null = null;
-
 const LOG = (msg: string, ...args: unknown[]) => console.log("[Dashboard API]", msg, ...args);
 
 async function buildDashboardData() {
@@ -115,16 +112,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const now = Date.now();
-    if (cache && now - cache.at < CACHE_TTL_MS) {
-      LOG("cache hit", logMs());
-      return NextResponse.json(cache.data);
-    }
-
     const sheetsStart = Date.now();
     const data = await buildDashboardData();
     const sheetsMs = Date.now() - sheetsStart;
-    cache = { data, at: now };
 
     LOG("sheets loaded", `${sheetsMs}ms`, logMs());
     return NextResponse.json(data);

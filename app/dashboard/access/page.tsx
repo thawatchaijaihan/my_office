@@ -18,6 +18,7 @@ export default function AccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -25,7 +26,12 @@ export default function AccessPage() {
     dashboardFetch("/api/dashboard/access")
       .then((res) => {
         if (!res.ok) {
-          const msg = res.status === 401 ? "à¸à¸£à¸¸à¸“à¸²à¹€à¸‚à¹‰à¸²à¸ªà¸¹à¹ˆà¸£à¸°à¸šà¸š" : res.status === 403 ? "à¹€à¸‰à¸žà¸²à¸°à¸œà¸¹à¹‰à¸¡à¸µà¸ªà¸´à¸—à¸˜à¸´à¹Œà¸­à¸™à¸¸à¸¡à¸±à¸•à¸´à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™" : "à¹‚à¸«à¸¥à¸”à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ";
+          const msg =
+            res.status === 401
+              ? "กรุณาเข้าสู่ระบบ"
+              : res.status === 403
+                ? "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น"
+                : "โหลดไม่สำเร็จ";
           throw new Error(msg);
         }
         return res.json();
@@ -53,10 +59,10 @@ export default function AccessPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid }),
           });
-      if (!res.ok) throw new Error("à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ");
+      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”");
+      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
     } finally {
       setActing(null);
     }
@@ -69,10 +75,10 @@ export default function AccessPage() {
         ? `/api/dashboard/access?email=${encodeURIComponent(email)}`
         : `/api/dashboard/access?uid=${encodeURIComponent(uid)}`;
       const res = await dashboardFetch(url, { method: "DELETE" });
-      if (!res.ok) throw new Error("à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ");
+      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”");
+      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
     } finally {
       setActing(null);
     }
@@ -90,45 +96,84 @@ export default function AccessPage() {
     });
   }
 
+  const filteredUsers = search.trim()
+    ? users.filter((u) => {
+        const kw = search.trim().toLowerCase();
+        return (
+          (u.displayName ?? "").toLowerCase().includes(kw) ||
+          (u.email ?? "").toLowerCase().includes(kw)
+        );
+      })
+    : users;
+
   if (loading && users.length === 0) {
     return (
-      <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-        <p className="text-slate-600">à¸à¸³à¸¥à¸±à¸‡à¹‚à¸«à¸¥à¸”...</p>
+      <div
+        className="flex flex-col h-full px-6 md:px-8 pt-4"
+        style={{ backgroundColor: "#f1f5f9" }}
+      >
+        <p className="text-slate-600">กำลังโหลด...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
-      <p className="text-slate-600 text-sm mb-6">
-        à¸£à¸²à¸¢à¸Šà¸·à¹ˆà¸­à¸œà¸¹à¹‰à¸—à¸µà¹ˆà¹€à¸„à¸¢à¸¥à¹‡à¸­à¸à¸­à¸´à¸™ â€” à¸à¸” à¸­à¸™à¸¸à¸à¸²à¸• / à¸–à¸­à¸™à¸ªà¸´à¸—à¸˜à¸´à¹Œ à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰à¸«à¸£à¸·à¸­à¸¢à¸à¹€à¸¥à¸´à¸à¸à¸²à¸£à¹€à¸‚à¹‰à¸²à¹à¸”à¸Šà¸šà¸­à¸£à¹Œà¸”
-      </p>
+    <div
+      className="flex flex-col h-full px-6 md:px-8 pt-4"
+      style={{ backgroundColor: "#f1f5f9" }}
+    >
+      <div className="pb-4 shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-slate-600 text-sm whitespace-nowrap">
+          รายชื่อผู้ที่เคยล็อกอิน {users.length} รายการ
+          {search.trim() && (
+            <span className="ml-2 text-xs text-slate-500">
+              (แสดงผลหลังค้นหา {filteredUsers.length} รายการ)
+            </span>
+          )}
+        </p>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ค้นหาชื่อ / อีเมล"
+          className="w-full md:w-80 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 mb-6">{error}</div>
+        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 mb-6">
+          {error}
+        </div>
       )}
 
-      {users.length === 0 ? (
+      {filteredUsers.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
-          à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸œà¸¹à¹‰à¹ƒà¸Šà¹‰à¸—à¸µà¹ˆà¹€à¸„à¸¢à¸¥à¹‡à¸­à¸à¸­à¸´à¸™
+          {users.length === 0
+            ? "ยังไม่มีผู้ใช้ที่เคยล็อกอิน"
+            : "ไม่พบรายการที่ตรงกับคำค้นหา"}
         </div>
       ) : (
-        <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
+        <div className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto">
           <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="bg-emerald-700 text-white">
+            <thead className="sticky top-0 z-10 bg-emerald-700 text-white">
+              <tr>
                 <th className="text-left px-4 py-3 font-medium w-16">ลำดับ</th>
                 <th className="text-left px-4 py-3 font-medium w-12" />
-                <th className="text-left px-4 py-3 font-medium">à¸Šà¸·à¹ˆà¸­</th>
-                <th className="text-left px-4 py-3 font-medium">à¸­à¸µà¹€à¸¡à¸¥</th>
-                <th className="text-left px-4 py-3 font-medium">à¸¥à¹‡à¸­à¸à¸­à¸´à¸™à¸¥à¹ˆà¸²à¸ªà¸¸à¸”</th>
-                <th className="text-left px-4 py-3 font-medium w-24">à¸ªà¸´à¸—à¸˜à¸´à¹Œ</th>
-                <th className="text-left px-4 py-3 font-medium">à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£</th>
+                <th className="text-left px-4 py-3 font-medium">ชื่อ</th>
+                <th className="text-left px-4 py-3 font-medium">อีเมล</th>
+                <th className="text-left px-4 py-3 font-medium">
+                  ล็อกอินล่าสุด
+                </th>
+                <th className="text-left px-4 py-3 font-medium w-24">สิทธิ์</th>
+                <th className="text-left px-4 py-3 font-medium">ดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u, idx) => (
-                <tr key={u.uid} className="border-t border-slate-200 hover:bg-slate-50">
+              {filteredUsers.map((u, idx) => (
+                <tr
+                  key={u.uid}
+                  className="border-t border-slate-200 hover:bg-slate-50"
+                >
                   <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
                   <td className="px-4 py-3">
                     {u.photoURL ? (
@@ -146,17 +191,21 @@ export default function AccessPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{u.displayName || "-"}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {u.displayName || "-"}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{u.email || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(u.lastLoginAt)}</td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {formatDate(u.lastLoginAt)}
+                  </td>
                   <td className="px-4 py-3">
                     {u.hasAccess ? (
                       <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                        à¸­à¸™à¸¸à¸à¸²à¸•
+                        อนุญาต
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                        à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸ªà¸´à¸—à¸˜à¸´à¹Œ
+                        ยังไม่มีสิทธิ์
                       </span>
                     )}
                   </td>
@@ -168,7 +217,7 @@ export default function AccessPage() {
                         onClick={() => revoke(u.uid, u.email)}
                         className="rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200 disabled:opacity-50"
                       >
-                        {acting === u.uid ? "..." : "à¸–à¸­à¸™à¸ªà¸´à¸—à¸˜à¸´à¹Œ"}
+                        {acting === u.uid ? "..." : "ถอนสิทธิ์"}
                       </button>
                     ) : (
                       <button
@@ -177,7 +226,7 @@ export default function AccessPage() {
                         onClick={() => approve(u.uid, u.email)}
                         className="rounded-lg bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-200 disabled:opacity-50"
                       >
-                        {acting === u.uid ? "..." : "à¸­à¸™à¸¸à¸à¸²à¸•"}
+                        {acting === u.uid ? "..." : "อนุญาต"}
                       </button>
                     )}
                   </td>
@@ -190,5 +239,3 @@ export default function AccessPage() {
     </div>
   );
 }
-
-

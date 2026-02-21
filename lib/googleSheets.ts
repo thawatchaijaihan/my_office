@@ -70,7 +70,15 @@ function loadServiceAccountKey(): ServiceAccountKey {
   return parsed as ServiceAccountKey;
 }
 
+// Module-level cache for the auth client
+let cachedAuthClient: ReturnType<typeof google.sheets> | null = null;
+
 function getSheetsClient(params?: { readOnly?: boolean }) {
+  // Return cached client if available
+  if (cachedAuthClient) {
+    return cachedAuthClient;
+  }
+
   const key = loadServiceAccountKey();
   if (!key.client_email || !key.private_key) {
     throw new Error("Service account key is missing client_email/private_key");
@@ -86,7 +94,8 @@ function getSheetsClient(params?: { readOnly?: boolean }) {
     ],
   });
 
-  return google.sheets({ version: "v4", auth });
+  cachedAuthClient = google.sheets({ version: "v4", auth });
+  return cachedAuthClient;
 }
 
 export type GoogleSheetTab = {
