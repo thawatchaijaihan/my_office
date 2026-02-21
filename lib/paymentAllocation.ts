@@ -165,8 +165,9 @@ export function allocateSlipToIndex(params: {
 
   for (const slip of params.slipRows) {
     if (!slip.amount || slip.amount <= 0) continue;
-    // Only process pass fee
-    if (slip.type && normalizeThai(slip.type) !== normalizeThai("ค่าบัตรผ่านฯ")) {
+    // Only process pass fee and manual identified payments
+    const allowedTypes = ["ค่าบัตรผ่านฯ", "ชำระแบบระบุรายการ"];
+    if (slip.type && !allowedTypes.map(normalizeThai).includes(normalizeThai(slip.type))) {
       continue;
     }
     const amount = slip.amount;
