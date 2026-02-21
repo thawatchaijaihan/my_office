@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
       WHERE
         DATE(usage_start_time) >= '${formatDate(currentMonthStart)}'
         AND DATE(usage_start_time) <= '${formatDate(now)}'
-        AND project.id = '${process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713"}'
       GROUP BY
         service_name
       ORDER BY
@@ -61,7 +60,6 @@ export async function GET(request: NextRequest) {
       WHERE
         DATE(usage_start_time) >= '${formatDate(previousMonthStart)}'
         AND DATE(usage_start_time) <= '${formatDate(previousMonthEnd)}'
-        AND project.id = '${process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713"}'
     `;
 
     // Execute queries
