@@ -1,6 +1,9 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { getCachedIndexRows } from "@/lib/indexRowsCache";
+import { getCachedIndexRows, clearIndexRowsCache } from "@/lib/indexRowsCache";
+import { readSlipRows, writeIndexUpdatesMR } from "@/lib/passSheets";
+import { allocateSlipToIndex } from "@/lib/paymentAllocation";
+import { formatDateTime } from "@/lib/formatDateTime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -113,6 +116,28 @@ export async function GET(req: NextRequest) {
     }
 
     const sheetsStart = Date.now();
+    
+    // Auto-Sync Phase
+    const [indexRows, slipRows] = await Promise.all([
+      getCachedIndexRows(),
+      readSlipRows(),
+    ]);
+
+    const syncResult = allocateSlipToIndex({
+      indexRows,
+      slipRows,
+      checkedAtValue: (slip) =>
+        slip.transferDate || slip.timestamp || formatDateTime(new Date()),
+    });
+
+    if (syncResult.updates.length > 0) {
+      LOG("Auto-sync: applying", syncResult.updates.length, "updates");
+      await writeIndexUpdatesMR(syncResult.updates);
+      clearIndexRowsCache();
+    } else {
+      LOG("Auto-sync: no new updates");
+    }
+
     const data = await buildDashboardData();
     const sheetsMs = Date.now() - sheetsStart;
 
