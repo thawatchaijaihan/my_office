@@ -15,6 +15,8 @@ export type PendingRow = {
   vehicleOwner: string;
   registeredAt: string;
   paymentStatus: string;
+  approvalStatus: string;
+  columnP: string;
 };
 
 export async function GET(req: NextRequest) {
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
         registeredAt: r.registeredAt || "-",
         paymentStatus: r.paymentStatus || "(ว่าง)",
         approvalStatus: r.approvalStatus || "-",
+        columnP: r.columnP || "",
       }));
 
     return NextResponse.json({ rows: filtered });

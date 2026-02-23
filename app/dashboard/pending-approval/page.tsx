@@ -13,6 +13,7 @@ type Row = {
   registeredAt: string;
   paymentStatus: string;
   approvalStatus: string;
+  columnP: string;
 };
 
 export default function PendingApprovalPage() {
@@ -32,7 +33,8 @@ export default function PendingApprovalPage() {
         (r.requestFor ?? "").toLowerCase().includes(kw) ||
         (r.vehicleOwner ?? "").toLowerCase().includes(kw) ||
         (r.paymentStatus ?? "").toLowerCase().includes(kw) ||
-        (r.approvalStatus ?? "").toLowerCase().includes(kw),
+        (r.approvalStatus ?? "").toLowerCase().includes(kw) ||
+        (r.columnP ?? "").toLowerCase().includes(kw),
     );
   }, [rows, search]);
 
@@ -157,6 +159,9 @@ export default function PendingApprovalPage() {
                   ผลการตรวจสอบ
                 </th>
                 <th className="text-left px-4 py-3 font-medium">
+                  เลขบัตร
+                </th>
+                <th className="text-left px-4 py-3 font-medium">
                   วันที่ลงทะเบียน
                 </th>
               </tr>
@@ -214,6 +219,9 @@ export default function PendingApprovalPage() {
                     ) : (
                       r.approvalStatus
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {r.columnP || "-"}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{r.registeredAt}</td>
                 </tr>
