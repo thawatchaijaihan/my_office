@@ -83,7 +83,7 @@ async function handleTelegramText(params: {
       "- dashboard (แดชบอร์ด)",
       "- myid (ดู Telegram userId ของตัวเอง)",
       "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
-      "- outstanding / ค้างชำระ (รายการค้างชำระ)",
+      "- outstanding (รายการค้างชำระ)",
       "- review (รายการรอตรวจ M)",
       "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
       "- summary (สรุปภาพรวม)",
@@ -300,7 +300,7 @@ async function handleTelegramText(params: {
     return;
   }
 
-  if (t === "outstanding" || t === "ค้างชำระ") {
+  if (t === "outstanding") {
     const indexRows = await getCachedIndexRows();
     const outstanding = indexRows.filter(
       (r) =>
