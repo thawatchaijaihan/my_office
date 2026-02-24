@@ -7,12 +7,7 @@ import {
 } from "@/lib/gemini";
 import { getPersonnelRagContext } from "@/lib/personnelDb";
 import { getRagContext } from "@/lib/rag";
-import { allocateSlipToIndex } from "@/lib/paymentAllocation";
-import {
-  appendSlipRow,
-  readSlipRows,
-  writeIndexUpdatesMR,
-} from "@/lib/passSheets";
+import { writeIndexUpdatesMR } from "@/lib/passSheets";
 import { getCachedIndexRows, clearIndexRowsCache } from "@/lib/indexRowsCache";
 import {
   answerTelegramCallback,
@@ -82,7 +77,7 @@ async function handleTelegramText(params: {
       "- เมนู / help",
       "- dashboard (แดชบอร์ด)",
       "- myid (ดู Telegram userId ของตัวเอง)",
-      "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
+      "- dashboard (แดชบอร์ด)",
       "- outstanding (รายการค้างชำระ)",
       "- review (รายการรอตรวจ M)",
       "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
@@ -122,32 +117,6 @@ async function handleTelegramText(params: {
     await sendTelegramMessage({
       chatId: params.chatId,
       text: `Telegram userId ของคุณคือ\n${params.userId ?? "-"}`,
-      replyToMessageId: params.messageId,
-    });
-    return;
-  }
-
-  if (t === "sync") {
-    const [indexRows, slipRows] = await Promise.all([
-      getCachedIndexRows(),
-      readSlipRows(),
-    ]);
-    const result = allocateSlipToIndex({
-      indexRows,
-      slipRows,
-      checkedAtValue: (slip) =>
-        slip.transferDate || slip.timestamp || formatDateTime(new Date()),
-    });
-    await writeIndexUpdatesMR(result.updates);
-    clearIndexRowsCache();
-    await sendTelegramMessage({
-      chatId: params.chatId,
-      text: [
-        "ซิงก์เสร็จแล้ว",
-        `- slip ที่ประมวลผล: ${result.summary.processedSlips}`,
-        `- ปิดรายการชำระ: ${result.summary.allocatedRequests}`,
-        `- รายการที่ต้องตรวจมือ: ${result.summary.needsReview}`,
-      ].join("\n"),
       replyToMessageId: params.messageId,
     });
     return;
@@ -481,48 +450,6 @@ async function handleTelegramReview(params: {
   });
 }
 
-async function handlePaidStatus(params: {
-  chatId: number;
-  row: number;
-  firstName: string;
-  lastName: string;
-}) {
-  const AMOUNT = 30;
-  const now = new Date();
-  const timestamp = formatDateTime(now);
-
-  // Add slip row
-  await appendSlipRow({
-    timestamp,
-    rankName: params.firstName || "-",
-    surname: params.lastName || "-",
-    amount: AMOUNT,
-    transferDate: timestamp,
-  });
-
-  // Update index row to mark as paid
-  await writeIndexUpdatesMR([
-    {
-      rowNumber: params.row,
-      paymentStatus: "ชำระเงินแล้ว",
-      approvalStatus: "",
-      checkedAt: timestamp,
-    },
-  ]);
-
-  clearIndexRowsCache();
-
-  await sendTelegramMessage({
-    chatId: params.chatId,
-    text: [
-      `✅ บันทึกการชำระเงินเรียบร้อย`,
-      `- แถว: ${params.row}`,
-      `- ยอด: ${AMOUNT} บาท`,
-      `- สถานะ: ชำระเงินแล้ว`,
-    ].join("\n"),
-  });
-}
-
 async function handleMarkPaid(params: {
   chatId: number;
   row: number;
@@ -548,72 +475,6 @@ async function handleMarkPaid(params: {
       `✅ บันทึกสำเร็จ`,
       `- แถว: ${params.row}`,
       `- สถานะ M: ชำระเงินแล้ว`,
-    ].join("\n"),
-  });
-}
-
-async function handleTelegramSlipIntent(params: { chatId: number; fileId: string }) {
-  const { buffer, contentType } = await getTelegramFileBuffer({ fileId: params.fileId });
-  const mimeType = contentType.startsWith("image/") ? contentType : "image/jpeg";
-  const { data: extracted } = await extractSlipFromImage({
-    imageBytes: buffer,
-    mimeType,
-  });
-  if (!extracted || !extracted.amount) {
-    await sendTelegramMessage({
-      chatId: params.chatId,
-      text: "อ่านสลิปไม่สำเร็จ (ไม่พบยอดเงิน) ลองส่งรูปที่ชัดขึ้นอีกครั้งนะครับ",
-    });
-    return;
-  }
-  const amount = extracted.amount;
-  const k = amount % 30 === 0 ? amount / 30 : null;
-  if (k === null) {
-    await sendTelegramMessage({
-      chatId: params.chatId,
-      text: [
-        "อ่านสลิปได้ แต่ยอดไม่ลงตัวกับ 30 บาท/รายการ",
-        `- ชื่อ: ${extracted.payer_first_name ?? "-"} ${extracted.payer_last_name ?? "-"}`,
-        `- ยอด: ${amount} บาท`,
-        `- วันเวลาโอน: ${extracted.transfer_datetime ?? "-"}`,
-        "",
-        "กรุณาตรวจมือ แล้วค่อยบันทึก/แก้ไขในแท็บ slip",
-      ].join("\n"),
-    });
-    return;
-  }
-
-  const now = new Date();
-  const timestamp = formatDateTime(now);
-  const transferDate = extracted.transfer_datetime ?? timestamp;
-  await appendSlipRow({
-    timestamp,
-    rankName: extracted.payer_first_name ?? "-",
-    surname: extracted.payer_last_name ?? "-",
-    amount,
-    transferDate,
-  });
-  const [indexRows, slipRows] = await Promise.all([
-    getCachedIndexRows(),
-    readSlipRows(),
-  ]);
-  const result = allocateSlipToIndex({
-    indexRows,
-    slipRows,
-    checkedAtValue: (slip) =>
-      slip.transferDate || slip.timestamp || formatDateTime(new Date()),
-  });
-  await writeIndexUpdatesMR(result.updates);
-  clearIndexRowsCache();
-
-  await sendTelegramMessage({
-    chatId: params.chatId,
-    text: [
-      "บันทึกสลิปและอัปเดตสถานะเรียบร้อย",
-      `- ผู้โอน: ${extracted.payer_first_name ?? "-"} ${extracted.payer_last_name ?? "-"}`,
-      `- ยอด: ${amount} บาท (${k} รายการ)`,
-      `- ปิดรายการได้: ${result.summary.allocatedRequests} รายการ`,
-      `- รายการต้องตรวจมือ: ${result.summary.needsReview}`,
     ].join("\n"),
   });
 }
@@ -683,24 +544,6 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       if (!Number.isFinite(row)) return;
 
       await handleMarkPaid({ chatId, row });
-      return;
-    }
-
-    if (data.startsWith("intent:slip:")) {
-      const key = data.replace("intent:slip:", "");
-      const fileId = lookupFileId(key);
-      if (!fileId) {
-        await sendTelegramMessage({
-          chatId,
-          text: "ลิงก์รูปหมดอายุแล้วครับ (เกิน 10 นาที) กรุณาส่งรูปใหม่อีกครั้ง",
-        });
-        return;
-      }
-      await handleTelegramSlipIntent({ chatId, fileId });
-      return;
-    }
-    if (data === "intent:other") {
-      await sendTelegramMessage({ chatId, text: "รับทราบ ไม่ได้บันทึกเป็นสลิปครับ" });
       return;
     }
   }
