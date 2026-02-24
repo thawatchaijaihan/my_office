@@ -167,6 +167,7 @@ export async function setTelegramCommands(): Promise<void> {
       { command: "myid", description: "ดู Telegram userId" },
       { command: "dashboard", description: "แดชบอร์ด" },
       { command: "sync", description: "ซิงก์ slip → index" },
+      { command: "outstanding", description: "รายการค้างชำระ" },
       { command: "review", description: "รายการรอตรวจ" },
       { command: "invalid", description: "รายการข้อมูลไม่ถูกต้อง" },
       { command: "summary", description: "สรุปภาพรวม" },
