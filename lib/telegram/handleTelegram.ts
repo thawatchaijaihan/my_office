@@ -83,6 +83,7 @@ async function handleTelegramText(params: {
       "- dashboard (แดชบอร์ด)",
       "- myid (ดู Telegram userId ของตัวเอง)",
       "- sync (ซิงก์และคำนวณสถานะชำระเงินจากแท็บ slip → index)",
+      "- outstanding / ค้างชำระ (รายการค้างชำระ)",
       "- review (รายการรอตรวจ M)",
       "- invalid (รายการ N = ข้อมูลไม่ถูกต้อง)",
       "- summary (สรุปภาพรวม)",
@@ -296,6 +297,55 @@ async function handleTelegramText(params: {
         parseMode: "HTML",
       });
     }
+    return;
+  }
+
+  if (t === "outstanding" || t === "ค้างชำระ") {
+    const indexRows = await getCachedIndexRows();
+    const outstanding = indexRows.filter(
+      (r) =>
+        !r.paymentStatus ||
+        r.paymentStatus === "ค้างชำระเงิน" ||
+        r.paymentStatus.includes("ค้าง")
+    );
+    if (outstanding.length === 0) {
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text: "ไม่มีรายการค้างชำระครับ",
+        replyToMessageId: params.messageId,
+      });
+      return;
+    }
+
+    const totalAmount = outstanding.length * 30;
+    const lines: string[] = [
+      `<b>รายการค้างชำระ</b>`,
+      `- จำนวน: ${outstanding.length} รายการ`,
+      `- ยอดรวม: ${totalAmount} บาท (${outstanding.length} × 30)`,
+      "",
+      "รายละเอียด:",
+    ];
+
+    for (const r of outstanding.slice(0, 20)) {
+      const plateText = r.note
+        ? `<a href="${r.note}">${r.plate || "-"}</a>`
+        : r.plate || "-";
+      lines.push(
+        `- ${r.rank}${r.firstName} ${r.lastName}`,
+        `  ทะเบียน: ${plateText} | ขอบัตรให้: ${r.requestFor || "-"}`
+      );
+    }
+
+    if (outstanding.length > 20) {
+      lines.push(`\n... และอีก ${outstanding.length - 20} รายการ`);
+    }
+
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: lines.join("\n"),
+      parseMode: "HTML",
+      replyToMessageId: params.messageId,
+    });
     return;
   }
 
@@ -513,11 +563,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       return;
     }
     if (message.photo) {
-      await handleTelegramPhoto({
+      await sendTelegramMessage({
         chatId,
-        messageId: message.message_id,
-        photos: message.photo,
+        text: "ขออภัย ระบบอ่านสลิปจากรูปภาพถูกปิดชั่วคราว กรุณาบันทึกสลิปด้วยตนเองในแท็บ slip ของ Google Sheets นะครับ",
+        replyToMessageId: message.message_id,
       });
+      return;
     }
     return;
   }

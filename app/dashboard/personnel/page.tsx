@@ -29,37 +29,46 @@ function matchSearch(row: PersonnelRow, q: string): boolean {
   return text.includes(lower);
 }
 
-function CopyableCell({
+function Toast({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
+      <div className="bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-pulse">
+        คัดลอกแล้ว
+      </div>
+    </div>
+  );
+}
+
+function CopyableCard({
   value,
-  className = "",
+  label,
+  onCopy,
 }: {
   value: string;
-  className?: string;
+  label?: string;
+  onCopy?: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const display = (value ?? "").trim() || "-";
+  const isEmpty = display === "-";
 
   const handleCopy = useCallback(() => {
     const text = (value ?? "").trim() || "";
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      onCopy?.();
     });
-  }, [value]);
+  }, [value, onCopy]);
 
-  const display = (value ?? "").trim() || "-";
   return (
-    <td
-      role="gridcell"
-      className={`px-3 py-2 border-b border-slate-200 text-slate-800 whitespace-nowrap ${className} ${display !== "-" ? "cursor-pointer hover:bg-slate-100 select-all" : ""}`}
-      onClick={display !== "-" ? handleCopy : undefined}
-      title={display !== "-" ? "คลิกเพื่อคัดลอก" : undefined}
+    <div
+      className={`flex flex-col ${!isEmpty ? "cursor-pointer hover:bg-slate-50 rounded-lg p-2 -m-2 transition-colors" : ""}`}
+      onClick={!isEmpty ? handleCopy : undefined}
+      title={!isEmpty ? "คลิกเพื่อคัดลอก" : undefined}
     >
-      {display}
-      {copied && (
-        <span className="ml-1 text-xs text-emerald-600 font-medium">คัดลอกแล้ว</span>
-      )}
-    </td>
+      {label && <span className="text-xs text-slate-500 mb-0.5">{label}</span>}
+      <span className="text-sm text-slate-800 font-medium select-all">{display}</span>
+    </div>
   );
 }
 
@@ -69,6 +78,7 @@ export default function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     dashboardFetch("/api/dashboard/personnel")
@@ -80,6 +90,11 @@ export default function PersonnelPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [dashboardFetch]);
+
+  const handleCopy = useCallback(() => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  }, []);
 
   const filtered = search.trim()
     ? rows.filter((r) => matchSearch(r, search))
@@ -103,6 +118,7 @@ export default function PersonnelPage() {
 
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
+      <Toast show={showToast} />
       <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center">
         <label htmlFor="personnel-search" className="text-slate-600 text-sm font-medium shrink-0">
           ค้นหาข้อมูล
@@ -121,7 +137,7 @@ export default function PersonnelPage() {
       </div>
 
       <p className="text-slate-600 text-sm mb-4">
-        คลิกที่ช่องข้อมูลเพื่อคัดลอกลงคลิปบอร์ด
+        คลิกที่ข้อมูลเพื่อคัดลอกลงคลิปบอร์ด
       </p>
 
       {filtered.length === 0 ? (
@@ -129,32 +145,23 @@ export default function PersonnelPage() {
           {rows.length === 0 ? "ยังไม่มีข้อมูลกำลังพล (ซิงก์จาก Sheets → Firestore ก่อน)" : "ไม่พบรายการที่ตรงกับคำค้น"}
         </div>
       ) : (
-        <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm border-collapse">
-            <thead>
-              <tr className="bg-emerald-700 text-white">
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap w-16 border-b border-slate-600">ลำดับ</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">ยศ ชื่อ สกุล</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">เบอร์โทร</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">ธนาคาร</th>
-                <th className="text-center px-3 py-2.5 font-medium whitespace-nowrap border-b border-slate-600">เลขบัญชี</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50/50">
-                  <CopyableCell value={String(i + 1)} className="text-slate-600 text-center w-16" />
-                  <CopyableCell
-                    value={[row.rank, row.firstName, row.lastName].filter(Boolean).join(" ").trim()}
-                    className="font-medium"
-                  />
-                  <CopyableCell value={row.phone} />
-                  <CopyableCell value={row.bank} />
-                  <CopyableCell value={row.accountNumber} />
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map((row, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow"
+            >
+              <CopyableCard
+                value={[row.rank, row.firstName, row.lastName].filter(Boolean).join(" ")}
+                onCopy={handleCopy}
+              />
+              <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                <CopyableCard value={row.phone} label="เบอร์โทร" onCopy={handleCopy} />
+                <CopyableCard value={row.bank} label="ธนาคาร" onCopy={handleCopy} />
+                <CopyableCard value={row.accountNumber} label="เลขบัญชี" onCopy={handleCopy} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
