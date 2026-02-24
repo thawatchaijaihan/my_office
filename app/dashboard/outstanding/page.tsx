@@ -53,7 +53,7 @@ export default function OutstandingPage() {
       .then((data) => {
         const all = (data.rows ?? []) as any[];
         const outstanding = all
-          .filter((r) => (r.paymentStatus || "").includes("ค้าง"))
+          .filter((r) => r.paymentStatus === "ค้างชำระเงิน")
           .map(
             (r) =>
               ({
@@ -82,12 +82,7 @@ export default function OutstandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rowNumber: selectedRow.rowNumber,
-          rank: selectedRow.rank,
-          firstName: selectedRow.firstName,
-          lastName: selectedRow.lastName,
-          amount: 30, // Fee is fixed
-          plate: selectedRow.plate,
-          approvalStatus: "", // We don't have approvalStatus in Row type yet! Need to add it.
+          approvalStatus: selectedRow.approvalStatus,
         }),
       });
       if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
