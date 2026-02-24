@@ -302,11 +302,9 @@ async function handleTelegramText(params: {
 
   if (t === "outstanding") {
     const indexRows = await getCachedIndexRows();
+    // Filter only M = "ค้างชำระเงิน"
     const outstanding = indexRows.filter(
-      (r) =>
-        !r.paymentStatus ||
-        r.paymentStatus === "ค้างชำระเงิน" ||
-        r.paymentStatus.includes("ค้าง")
+      (r) => r.paymentStatus === "ค้างชำระเงิน"
     );
     if (outstanding.length === 0) {
       await sendTelegramMessage({
@@ -322,7 +320,7 @@ async function handleTelegramText(params: {
     await sendTelegramMessage({
       chatId: params.chatId,
       text: [
-        `<b>รายการค้างชำระ</b>`,
+        `<b>รายการค้างชำระเงิน (M=ค้างชำระเงิน)</b>`,
         `- จำนวน: ${outstanding.length} รายการ`,
         `- ยอดรวม: ${totalAmount} บาท (${outstanding.length} × 30)`,
       ].join("\n"),
@@ -339,7 +337,7 @@ async function handleTelegramText(params: {
 
       const keyboard = buildTelegramInlineKeyboard([
         [
-          { text: "✅ ชำระเงินเรียบร้อย", data: `paid:${r.rowNumber}:${r.firstName}:${r.lastName}` },
+          { text: "✅ ชำระเงินแล้ว", data: `markpaid:${r.rowNumber}` },
         ],
       ]);
 
@@ -525,6 +523,35 @@ async function handlePaidStatus(params: {
   });
 }
 
+async function handleMarkPaid(params: {
+  chatId: number;
+  row: number;
+}) {
+  const now = new Date();
+  const timestamp = formatDateTime(now);
+
+  // Update index row M to "ชำระเงินแล้ว" only
+  await writeIndexUpdatesMR([
+    {
+      rowNumber: params.row,
+      paymentStatus: "ชำระเงินแล้ว",
+      approvalStatus: "",
+      checkedAt: timestamp,
+    },
+  ]);
+
+  clearIndexRowsCache();
+
+  await sendTelegramMessage({
+    chatId: params.chatId,
+    text: [
+      `✅ บันทึกสำเร็จ`,
+      `- แถว: ${params.row}`,
+      `- สถานะ M: ชำระเงินแล้ว`,
+    ].join("\n"),
+  });
+}
+
 async function handleTelegramSlipIntent(params: { chatId: number; fileId: string }) {
   const { buffer, contentType } = await getTelegramFileBuffer({ fileId: params.fileId });
   const mimeType = contentType.startsWith("image/") ? contentType : "image/jpeg";
@@ -650,15 +677,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       return;
     }
 
-    if (data.startsWith("paid:")) {
-      const parts = data.split(":");
-      const rowStr = parts[1];
-      const firstName = parts[2] || "";
-      const lastName = parts[3] || "";
+    if (data.startsWith("markpaid:")) {
+      const rowStr = data.replace("markpaid:", "");
       const row = Number(rowStr || "");
       if (!Number.isFinite(row)) return;
 
-      await handlePaidStatus({ chatId, row, firstName, lastName });
+      await handleMarkPaid({ chatId, row });
       return;
     }
 
