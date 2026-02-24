@@ -317,35 +317,51 @@ async function handleTelegramText(params: {
       return;
     }
 
+    // Send summary first
     const totalAmount = outstanding.length * 30;
-    const lines: string[] = [
-      `<b>รายการค้างชำระ</b>`,
-      `- จำนวน: ${outstanding.length} รายการ`,
-      `- ยอดรวม: ${totalAmount} บาท (${outstanding.length} × 30)`,
-      "",
-      "รายละเอียด:",
-    ];
+    await sendTelegramMessage({
+      chatId: params.chatId,
+      text: [
+        `<b>รายการค้างชำระ</b>`,
+        `- จำนวน: ${outstanding.length} รายการ`,
+        `- ยอดรวม: ${totalAmount} บาท (${outstanding.length} × 30)`,
+      ].join("\n"),
+      parseMode: "HTML",
+      replyToMessageId: params.messageId,
+    });
 
+    // Send each item separately with button
     for (const r of outstanding.slice(0, 20)) {
       const plateText = r.note
         ? `<a href="${r.note}">${r.plate || "-"}</a>`
         : r.plate || "-";
-      lines.push(
-        `- ${r.rank}${r.firstName} ${r.lastName}`,
-        `  ทะเบียน: ${plateText} | ขอบัตรให้: ${r.requestFor || "-"}`
-      );
+      const name = `${r.rank}${r.firstName} ${r.lastName}`.trim();
+
+      const keyboard = buildTelegramInlineKeyboard([
+        [
+          { text: "✅ ชำระเงินเรียบร้อย", data: `paid:${r.rowNumber}:${r.firstName}:${r.lastName}` },
+        ],
+      ]);
+
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text: [
+          `<b>${name}</b>`,
+          `ทะเบียน: ${plateText}`,
+          `ขอบัตรให้: ${r.requestFor || "-"}`,
+          `เจ้าของรถ: ${r.vehicleOwner || "-"}`,
+        ].join("\n"),
+        parseMode: "HTML",
+        inlineKeyboard: keyboard,
+      });
     }
 
     if (outstanding.length > 20) {
-      lines.push(`\n... และอีก ${outstanding.length - 20} รายการ`);
+      await sendTelegramMessage({
+        chatId: params.chatId,
+        text: `... และอีก ${outstanding.length - 20} รายการ`,
+      });
     }
-
-    await sendTelegramMessage({
-      chatId: params.chatId,
-      text: lines.join("\n"),
-      parseMode: "HTML",
-      replyToMessageId: params.messageId,
-    });
     return;
   }
 
@@ -464,6 +480,48 @@ async function handleTelegramReview(params: {
   await sendTelegramMessage({
     chatId: params.chatId,
     text: `บันทึกแล้ว: แถว ${params.row}\nN = ${mapping.n}`,
+  });
+}
+
+async function handlePaidStatus(params: {
+  chatId: number;
+  row: number;
+  firstName: string;
+  lastName: string;
+}) {
+  const AMOUNT = 30;
+  const now = new Date();
+  const timestamp = formatDateTime(now);
+
+  // Add slip row
+  await appendSlipRow({
+    timestamp,
+    rankName: params.firstName || "-",
+    surname: params.lastName || "-",
+    amount: AMOUNT,
+    transferDate: timestamp,
+  });
+
+  // Update index row to mark as paid
+  await writeIndexUpdatesMR([
+    {
+      rowNumber: params.row,
+      paymentStatus: "ชำระเงินแล้ว",
+      approvalStatus: "",
+      checkedAt: timestamp,
+    },
+  ]);
+
+  clearIndexRowsCache();
+
+  await sendTelegramMessage({
+    chatId: params.chatId,
+    text: [
+      `✅ บันทึกการชำระเงินเรียบร้อย`,
+      `- แถว: ${params.row}`,
+      `- ยอด: ${AMOUNT} บาท`,
+      `- สถานะ: ชำระเงินแล้ว`,
+    ].join("\n"),
   });
 }
 
@@ -589,6 +647,18 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       const row = Number(rowStr || "");
       if (!Number.isFinite(row) || !result) return;
       await handleTelegramReview({ chatId, row, result });
+      return;
+    }
+
+    if (data.startsWith("paid:")) {
+      const parts = data.split(":");
+      const rowStr = parts[1];
+      const firstName = parts[2] || "";
+      const lastName = parts[3] || "";
+      const row = Number(rowStr || "");
+      if (!Number.isFinite(row)) return;
+
+      await handlePaidStatus({ chatId, row, firstName, lastName });
       return;
     }
 
