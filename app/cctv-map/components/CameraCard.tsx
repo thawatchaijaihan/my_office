@@ -101,7 +101,7 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
-export default function CameraCard({
+function CameraCard({
   camera,
   isSelected,
   isChecked,
