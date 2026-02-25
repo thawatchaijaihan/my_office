@@ -399,17 +399,30 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
 
   const regeneratePdf = async (): Promise<string | null> => {
     try {
+      console.log('[CctvMap] เริ่มสร้าง PDF...');
       const pdfBlob = await generateCctvReport(cameraItems);
-      if (!pdfBlob) return null;
+      if (!pdfBlob) {
+        console.error('[CctvMap] PDF blob is null');
+        return null;
+      }
+      console.log('[CctvMap] PDF blob size:', pdfBlob.size);
+      
       const pdfPath = `cctv-reports/latest-${Date.now()}.pdf`;
+      console.log('[CctvMap] Uploading to:', pdfPath);
       const pdfRef = storageRef(storage, pdfPath);
+      
       await uploadBytes(pdfRef, pdfBlob);
+      console.log('[CctvMap] Upload complete, getting URL...');
+      
       const pdfUrl = await getDownloadURL(pdfRef);
+      console.log('[CctvMap] PDF URL:', pdfUrl);
+      
       try {
         await set(ref(database, "cctvReport"), {
           url: pdfUrl,
           generatedAt: new Date().toISOString(),
         });
+        console.log('[CctvMap] Saved to database');
       } catch (dbError) {
         console.warn("Unable to write cctvReport to database:", dbError);
       }
@@ -417,7 +430,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       setIsPdfOutdated(false);
       return pdfUrl;
     } catch (e) {
-      console.error('PDF generation failed:', e);
+      console.error('[CctvMap] PDF generation failed:', e);
       return null;
     }
   };
