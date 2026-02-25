@@ -109,6 +109,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
   const [isPdfOutdated, setIsPdfOutdated] = useState(false);
   const [newPdfUrl, setNewPdfUrl] = useState<string | null>(null);
+  const [pdfReady, setPdfReady] = useState(false);
   const pdfGenerationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [markerMode, setMarkerMode] = useState<'all' | 'ok' | 'pending' | 'none'>('all');
@@ -429,7 +430,8 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       }
       setCachedPdfUrl(pdfUrl);
       setIsPdfOutdated(false);
-      setNewPdfUrl(pdfUrl); // เก็บ URL ใหม่เพื่อแสดงปุ่มดาวน์โหลด
+      setNewPdfUrl(pdfUrl);
+      setPdfReady(true); // บอกว่า PDF พร้อมแล้ว
       return pdfUrl;
     } catch (e) {
       console.error('[CctvMap] PDF generation failed:', e);
@@ -467,11 +469,12 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     if (cachedPdfUrl && !isPdfOutdated) {
       openPdfUrl(cachedPdfUrl);
     } else {
-      setNewPdfUrl(null); // ล้าง URL เดิมก่อนสร้างใหม่
+      setPdfReady(false); // ล้างสถานะก่อนสร้างใหม่
+      setNewPdfUrl(null);
       setIsGeneratingPdf(true);
       regeneratePdf()
         .then((newPdfUrl) => {
-          // ไม่เปิดอัตโนมัติ ให้ผู้ใช้กดปุ่มดาวน์โหลดเอง
+          // ไม่เปิดอัตโนมัติ ให้ผู้กดปุใช้่มดาวน์โหลดเอง
         })
         .catch((error) => {
           console.error('PDF generation failed:', error);
@@ -989,7 +992,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 </svg>
               </div>
             </div>
-            {newPdfUrl ? (
+            {pdfReady && newPdfUrl ? (
               <>
                 <div className="text-center font-sans">
                   <h3 className="text-lg font-bold text-zinc-900">สร้าง PDF เสร็จแล้ว</h3>
@@ -1000,6 +1003,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                   download={`cctv-report-${new Date().toISOString().split('T')[0]}.pdf`}
                   onClick={() => {
                     setNewPdfUrl(null);
+                    setPdfReady(false);
                     setIsGeneratingPdf(false);
                   }}
                   className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition hover:bg-green-700"
@@ -1012,6 +1016,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 <button
                   onClick={() => {
                     setNewPdfUrl(null);
+                    setPdfReady(false);
                     setIsGeneratingPdf(false);
                   }}
                   className="text-sm text-zinc-500 hover:text-zinc-700"
