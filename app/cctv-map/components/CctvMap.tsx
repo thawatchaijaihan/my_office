@@ -2,7 +2,7 @@
 
 import { GoogleMap, MarkerF, OverlayViewF, useJsApiLoader } from "@react-google-maps/api";
 import { get, onValue, push, ref, remove, set, update } from "firebase/database";
-import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes, uploadString } from "firebase/storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
