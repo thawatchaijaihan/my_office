@@ -7,6 +7,11 @@ type CameraWithCheck = Camera & {
   lastCheckedImage?: string;
 };
 
+// Simple type for image cache - only needs image URL
+type ImageCacheKey = {
+  lastCheckedImage?: string;
+};
+
 const toThaiNumerals = (text: string) => {
   const thaiNumerals = ["๐", "๑", "๒", "๓", "๔", "๕", "๖", "๗", "๘", "๙"];
   return text.replace(/[0-9]/g, (digit) => thaiNumerals[parseInt(digit)]);
@@ -114,7 +119,7 @@ const checkImagesUnchanged = (cameras: CameraWithCheck[]): boolean => {
 };
 
 // Get cached image base64 - no expiry, only invalidates when image URL changes
-const getCachedImage = (camera: CameraWithCheck): string | null => {
+const getCachedImage = (camera: ImageCacheKey): string | null => {
   try {
     const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
     const cached = localStorage.getItem(cacheKey);
@@ -128,7 +133,7 @@ const getCachedImage = (camera: CameraWithCheck): string | null => {
 };
 
 // Save image to cache
-const saveImageToCache = (camera: CameraWithCheck, base64: string) => {
+const saveImageToCache = (camera: ImageCacheKey, base64: string) => {
   try {
     const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
     const cacheData: ImageCacheItem = {
@@ -302,7 +307,7 @@ export const generateCctvReport = async (
         
         try {
           // First check if we have a cached base64 for this exact image signature
-          const cachedBase64 = getCachedImage({ id: cameraId!, lastCheckedImage: originalSrc, lastCheckedAt: '' });
+          const cachedBase64 = getCachedImage({ lastCheckedImage: originalSrc });
           
           if (cachedBase64) {
             console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): ใช้ cache`);
@@ -328,7 +333,7 @@ export const generateCctvReport = async (
           htmlImg.src = base64;
           
           // Save to cache
-          saveImageToCache({ id: cameraId!, lastCheckedImage: originalSrc, lastCheckedAt: '' }, base64);
+          saveImageToCache({ lastCheckedImage: originalSrc }, base64);
           console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): แปลง base64 สำเร็จ + cache`);
         } catch (error) {
           console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): ERROR`, error);
