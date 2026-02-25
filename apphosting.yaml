@@ -67,12 +67,13 @@ env:
     value: "1143152346"
     availability:
       - RUNTIME
-  - variable: SLIP_SHEET_GID
-    value: "2094374026"
+  # SLIP sheet removed - no longer exists
+  - variable: PHONE_SHEET_GID
+    value: "908533993"
     availability:
       - RUNTIME
-  - variable: PHONE_SHEET_GID
-    value: "1143152346"
+  - variable: PERSONNEL_SHEET_GID
+    value: "908533993"
     availability:
       - RUNTIME
   - variable: ADMIN_TELEGRAM_USER_IDS

@@ -163,19 +163,13 @@ export async function loadAndMergePersonnel(): Promise<PersonnelDoc[]> {
   if (!spreadsheetId) throw new Error("GOOGLE_SHEETS_ID or GOOGLE_SHEETS_ID_PERSONNEL is not set");
 
   const tabs = await listSpreadsheetTabs({ spreadsheetId });
-  const hasPersonnel = tabs.some((t) => t.title.trim() === PERSONNEL_TAB);
   
-  // Check for phone sheet - could be named "เบอร์โทร" or we have a GID
-  const hasPhone = tabs.some((t) => t.title.trim() === PHONE_TAB);
+  // Use configured GIDs or fall back to sheet names
+  const personnelGid = config.google.personnelSheetGid;
   const phoneGid = config.google.phoneSheetGid;
   
-  if (!hasPersonnel && !phoneGid) {
-    throw new Error(`ไม่พบแท็บ "${PERSONNEL_TAB}" และไม่มี PHONE_SHEET_GID`);
-  }
-
-  // For now, assume personnel data comes from the same spreadsheet
-  // and phone from either same sheet or GID
-  const personnelGid = config.google.indexSheetGid; // reuse index gid for personnel if set
+  // Read personnel data from gid=908533993 (ข้อมูลบัตรผ่าน พล.ป.)
+  // Read phone from gid=1143152346 (บัตรผ่านยานพาหนะ / index)
 
   const [list, phoneMap] = await Promise.all([
     readPersonnelList(spreadsheetId, personnelGid),

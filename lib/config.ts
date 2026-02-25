@@ -51,6 +51,10 @@ export const config = {
     phoneSheetGid: process.env.PHONE_SHEET_GID
       ? Number(process.env.PHONE_SHEET_GID.trim())
       : undefined,
+    /** GID สำหรับแท็บข้อมูลกำลังพล */
+    personnelSheetGid: process.env.PERSONNEL_SHEET_GID
+      ? Number(process.env.PERSONNEL_SHEET_GID.trim())
+      : undefined,
   },
   gemini: {
     apiKey: getEnv("GEMINI_API_KEY"),
