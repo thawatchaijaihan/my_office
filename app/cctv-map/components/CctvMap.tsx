@@ -998,6 +998,10 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 <a
                   href={newPdfUrl}
                   download={`cctv-report-${new Date().toISOString().split('T')[0]}.pdf`}
+                  onClick={() => {
+                    setNewPdfUrl(null);
+                    setIsGeneratingPdf(false);
+                  }}
                   className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition hover:bg-green-700"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
