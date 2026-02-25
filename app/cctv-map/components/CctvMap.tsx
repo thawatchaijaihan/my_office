@@ -2,14 +2,18 @@
 
 import { GoogleMap, MarkerF, OverlayViewF, useJsApiLoader } from "@react-google-maps/api";
 import { get, onValue, push, ref, remove, set, update } from "firebase/database";
-import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes, uploadString } from "firebase/storage";
-import NextImage from "next/image";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
 import { Camera, CameraType } from "../data/types";
 import { database, storage } from "../lib/firebase";
 import { generateCctvReport } from "../utils/PdfReportGenerator";
+
+import CameraList from "./CameraList";
+import MapControls from "./MapControls";
+import FilterPanel, { typeOptions } from "./FilterPanel";
+import EditCameraModal from "./EditCameraModal";
 
 const mapCenter = {
   lat: 14.867212037496559,
@@ -21,29 +25,7 @@ const containerStyle = {
   height: "100%",
 };
 
-const typeOptions: CameraType[] = [
-  "ป.71 พัน.713",
-  "ป.71 พัน.713 ร้อย.1",
-  "ป.71 พัน.713 ร้อย.2",
-  "ป.71 พัน.713 ร้อย.3",
-  "ร้อย.บก.ป.71 พัน.713",
-  "ร้อย.บร.ป.71 พัน.713",
-];
 const defaultType = typeOptions[0];
-
-const statusBadge = {
-  ok: "bg-green-100 text-green-800",
-  missing: "bg-red-100 text-red-800",
-} as const;
-
-const typeLabels: Record<CameraType, string> = {
-  "ป.71 พัน.713": "ป.71 พัน.713",
-  "ป.71 พัน.713 ร้อย.1": "ร้อย.ป.ที่ 1",
-  "ป.71 พัน.713 ร้อย.2": "ร้อย.ป.ที่ 2",
-  "ป.71 พัน.713 ร้อย.3": "ร้อย.ป.ที่ 3",
-  "ร้อย.บก.ป.71 พัน.713": "ร้อย.บก.",
-  "ร้อย.บร.ป.71 พัน.713": "ร้อย.บร.",
-};
 
 const MAX_IMAGE_BYTES = 512_000;
 const MAX_IMAGE_DIMENSION = 1600;
@@ -114,7 +96,6 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
-
 type CameraWithCheck = Camera & {
   lastCheckedAt?: string;
   lastCheckedImage?: string;
@@ -141,9 +122,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const cameraListRef = useRef<HTMLDivElement | null>(null);
   const cameraRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [editingCamera, setEditingCamera] = useState<CameraWithCheck | null>(null);
-  const [editDraft, setEditDraft] = useState<CameraWithCheck | null>(null);
   const [isAddingCamera, setIsAddingCamera] = useState(false);
-  const [addDraft, setAddDraft] = useState<CameraWithCheck | null>(null);
   const [movingCameraId, setMovingCameraId] = useState<string | null>(null);
   const hasCleanedBase64 = useRef(false);
   const overlayContainerRef = useRef<HTMLDivElement | null>(null);
@@ -196,7 +175,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       })
       .catch((error) => logDbWarning("load cameras", error));
 
-    // โหลด cached PDF URL
     const reportRef = ref(database, "cctvReport");
     get(reportRef)
       .then((snapshot) => {
@@ -275,13 +253,13 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     });
   }, [searchTerm, activeTypes, cameraItems]);
 
-  /** แถบรายการ: เมื่อมีกล้องที่เลือกบนแผนที่ แสดงแค่กล้องนั้น */
   const listCameras = useMemo(() => filteredCameras, [filteredCameras]);
 
   const selectedCamera = useMemo(() => {
     if (!selectedCameraId) return null;
     return cameraItems.find((camera) => camera.id === selectedCameraId) ?? null;
   }, [cameraItems, selectedCameraId]);
+
   useEffect(() => {
     if (!selectedCameraId) return;
     const targetRow = cameraRowRefs.current[selectedCameraId];
@@ -346,8 +324,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   }, []);
 
   const isCheckedInCurrentHalf = useCallback((camera: CameraWithCheck) => {
-    // โหมดพิเศษ: ถ้ามีภาพอยู่แล้ว ถือว่าใช้งานได้ (ไม่สนว่าอัปโหลดเมื่อไหร่)
-    // ตั้งค่า NEXT_PUBLIC_CCTV_LEGACY_MODE=true เพื่อใช้โหมดนี้
     const legacyMode = process.env.NEXT_PUBLIC_CCTV_LEGACY_MODE === "true";
     if (legacyMode && camera.lastCheckedImage) return true;
     
@@ -475,6 +451,29 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     document.body.removeChild(link);
   };
 
+  const handleOpenPdf = () => {
+    if (cachedPdfUrl && !isPdfOutdated) {
+      openPdfUrl(cachedPdfUrl);
+    } else {
+      setIsGeneratingPdf(true);
+      regeneratePdf()
+        .then((newPdfUrl) => {
+          if (newPdfUrl) {
+            openPdfUrl(newPdfUrl);
+          } else {
+            alert("Unable to open PDF");
+          }
+        })
+        .catch((error) => {
+          console.error('PDF generation failed:', error);
+          alert('สร้าง PDF ไม่สำเร็จ');
+        })
+        .finally(() => {
+          setIsGeneratingPdf(false);
+        });
+    }
+  };
+
   const schedulePdfRegeneration = () => {
     setIsPdfOutdated(true);
     if (pdfGenerationTimeoutRef.current) {
@@ -489,11 +488,17 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     return update(ref(database, `cameras/${id}`), updates);
   };
 
+  const handleStartAddCamera = () => {
+    setIsAddingCamera(true);
+    setEditingCamera(null);
+    setMovingCameraId(null);
+  };
+
   const handleAddCameraAtCenter = () => {
     if (!mapRef.current) return;
     const center = mapRef.current.getCenter();
     if (!center) return;
-    setAddDraft({
+    setEditingCamera({
       id: "",
       name: "",
       description: "",
@@ -504,53 +509,61 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     });
   };
 
-  const closeAddForm = () => {
-    setAddDraft(null);
+  const closeEditForm = () => {
+    setEditingCamera(null);
+  };
+
+  const handleEditCamera = (camera: CameraWithCheck) => {
+    setEditingCamera(camera);
     setIsAddingCamera(false);
+    setMovingCameraId(null);
   };
 
-  const submitAddForm = async () => {
-    if (!addDraft) return;
-    if (!addDraft.name.trim()) {
-      window.alert("กรุณากรอกชื่อกล้อง");
-      return;
-    }
+  const handleSubmitEdit = (camera: CameraWithCheck) => {
+    if (editingCamera && camera.id) {
+      // Edit mode
+      updateCamera(camera.id, {
+        name: camera.name.trim(),
+        description: camera.description.trim(),
+        type: camera.type,
+        lat: Number.isFinite(camera.lat) ? camera.lat : editingCamera.lat,
+        lng: Number.isFinite(camera.lng) ? camera.lng : editingCamera.lng,
+      });
+      closeEditForm();
+    } else {
+      // Add mode
+      const newCamera: Omit<Camera, "id"> = {
+        name: camera.name.trim(),
+        description: camera.description.trim(),
+        type: camera.type,
+        status: camera.status,
+        lat: Number.isFinite(camera.lat) ? camera.lat : mapCenter.lat,
+        lng: Number.isFinite(camera.lng) ? camera.lng : mapCenter.lng,
+      };
 
-    const camera: Omit<Camera, "id"> = {
-      name: addDraft.name.trim(),
-      description: addDraft.description.trim(),
-      type: addDraft.type,
-      status: addDraft.status,
-      lat: Number.isFinite(addDraft.lat) ? addDraft.lat : mapCenter.lat,
-      lng: Number.isFinite(addDraft.lng) ? addDraft.lng : mapCenter.lng,
-    };
-
-    const newRef = push(ref(database, "cameras"));
-    try {
-      await set(newRef, camera);
-      setActiveTypes([camera.type]);
-      if (newRef.key) {
-        setSelectedCameraId(newRef.key);
-        if (mapRef.current) {
-          mapRef.current.panTo({ lat: camera.lat, lng: camera.lng });
-          mapRef.current.setZoom(21);
-        }
-      }
-      closeAddForm();
-    } catch (error) {
-      console.error("Add camera failed", error);
-      window.alert("บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
+      push(ref(database, "cameras"), newCamera)
+        .then((newRef) => {
+          setActiveTypes([newCamera.type]);
+          if (newRef.key) {
+            setSelectedCameraId(newRef.key);
+            if (mapRef.current) {
+              mapRef.current.panTo({ lat: newCamera.lat, lng: newCamera.lng });
+              mapRef.current.setZoom(21);
+            }
+          }
+          setIsAddingCamera(false);
+        })
+        .catch((error) => {
+          console.error("Add camera failed", error);
+          window.alert("บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
+        });
     }
   };
 
-  const startMoveCamera = (cameraId: string) => {
+  const handleMoveCamera = (cameraId: string) => {
     setMovingCameraId(cameraId);
     setIsAddingCamera(false);
-    setAddDraft(null);
-  };
-
-  const cancelMoveCamera = () => {
-    setMovingCameraId(null);
+    setEditingCamera(null);
   };
 
   const confirmMoveCamera = () => {
@@ -565,35 +578,79 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     setMovingCameraId(null);
   };
 
-  const openEditForm = (camera: CameraWithCheck) => {
-    setEditingCamera(camera);
-    setEditDraft({ ...camera });
+  const cancelMoveCamera = () => {
+    setMovingCameraId(null);
   };
 
-  const closeEditForm = () => {
-    setEditingCamera(null);
-    setEditDraft(null);
+  const handleDeleteCamera = (camera: CameraWithCheck) => {
+    const confirmDelete = window.confirm(
+      `ลบกล้อง "${camera.name}" หรือไม่?`,
+    );
+    if (!confirmDelete) return;
+    remove(ref(database, `cameras/${camera.id}`)).catch(
+      (error) => {
+        logDbWarning("delete camera", error);
+        window.alert("ลบกล้องไม่สำเร็จ (Permission denied หรือเครือข่ายผิดพลาด)");
+      },
+    );
+    if (selectedCameraId === camera.id) {
+      setSelectedCameraId(null);
+    }
   };
 
-  const submitEditForm = () => {
-    if (!editingCamera || !editDraft) return;
-    if (!editDraft.name.trim()) return;
+  const handleUploadImage = async (camera: CameraWithCheck, file: File) => {
+    try {
+      const result = await compressImage(file);
+      const imagePath = `camera-checks/${camera.id}/latest.jpg`;
+      try {
+        if (camera.lastCheckedImagePath) {
+          await deleteObject(
+            storageRef(storage, camera.lastCheckedImagePath),
+          );
+        }
+      } catch {
+        // Ignore delete failures
+      }
 
-    updateCamera(editingCamera.id, {
-      name: editDraft.name.trim(),
-      description: editDraft.description.trim(),
-      type: editDraft.type,
-      lat: Number.isFinite(editDraft.lat) ? editDraft.lat : editingCamera.lat,
-      lng: Number.isFinite(editDraft.lng) ? editDraft.lng : editingCamera.lng,
-    });
-    closeEditForm();
+      const imageRef = storageRef(storage, imagePath);
+      await uploadString(imageRef, result, "data_url");
+      const url = await getDownloadURL(imageRef);
+
+      await updateCamera(camera.id, {
+        lastCheckedImage: url,
+        lastCheckedImagePath: imagePath,
+        lastCheckedAt: new Date().toISOString(),
+      });
+      schedulePdfRegeneration();
+      setOpenImages((prev) => ({
+        ...prev,
+        [camera.id]: false,
+      }));
+    } catch (error) {
+      console.error("Image upload failed", error);
+      window.alert("บันทึกรูปไม่สำเร็จ กรุณาลองใหม่");
+    }
+  };
+
+  const handleToggleImage = (id: string) => {
+    setOpenImages((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const handleMarkerModeChange = () => {
+    const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
+    const currentIndex = modes.indexOf(markerMode);
+    const nextMode = modes[(currentIndex + 1) % modes.length];
+    setMarkerMode(nextMode);
+    if (nextMode === 'none') setSelectedCameraId(null);
   };
 
   if (!apiKey) {
     return (
       <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-600">
-        ตั้งค่า `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` ใน `.env.local` เพื่อโหลด
-        Google Maps
+        ตั้งค่า `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` ใน `.env.local` เพื่อโหลด Google Maps
       </div>
     );
   }
@@ -609,1017 +666,302 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   return (
     <>
       <div className="grid min-h-0 grid-cols-1 grid-rows-[auto_auto] gap-4 lg:h-full lg:grid-rows-none lg:grid-cols-[360px_1fr] lg:items-start xl:grid-cols-[380px_1fr] 2xl:grid-cols-[420px_1fr]">
+        {/* Left Panel - Camera List */}
         <section className="order-2 flex flex-col gap-4 bg-white p-5 shadow-sm ring-1 ring-green-100 lg:order-1 lg:h-full lg:min-h-0 lg:overflow-y-auto">
-        <div className="space-y-4">
-          <label className="text-sm font-medium text-green-900">
-            <input
-              className="w-full border border-zinc-200 px-3 py-2 text-sm outline-none ring-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
-              placeholder="ค้นหาตามชื่อหรือคำอธิบาย"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-green-900">
+              <input
+                className="w-full border border-zinc-200 px-3 py-2 text-sm outline-none ring-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                placeholder="ค้นหาตามชื่อหรือคำอธิบาย"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+            <span>จำนวน {listCameras.length} กล้อง</span>
+            <span>ใช้งานได้ {listCameras.filter((c) => isCheckedInCurrentHalf(c)).length} กล้อง</span>
+            <span>รอตรวจสอบ {listCameras.filter((c) => !isCheckedInCurrentHalf(c)).length} กล้อง</span>
+          </div>
+
+          <CameraList
+            cameras={listCameras}
+            selectedCameraId={selectedCameraId}
+            isAdminMode={isAdminMode}
+            isCheckedInCurrentHalf={isCheckedInCurrentHalf}
+            openImages={openImages}
+            onSelect={handleSelect}
+            onEdit={handleEditCamera}
+            onMove={handleMoveCamera}
+            onDelete={handleDeleteCamera}
+            onUploadImage={handleUploadImage}
+            onToggleImage={handleToggleImage}
+          />
+        </section>
+
+        {/* Right Panel - Map */}
+        <section className="order-1 flex min-h-[50vh] flex-col self-start overflow-hidden border border-zinc-100 bg-white shadow-sm ring-1 ring-green-100 lg:order-2 lg:min-h-0 lg:h-full">
+          <div
+            className="relative h-[50vh] w-full shrink-0 grow lg:min-h-0 lg:h-full lg:flex-1"
+            style={{ minHeight: "50vh" }}
+          >
+            {(isAddingCamera || movingCameraId) && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                <div className="h-4 w-4 rounded-full border-2 border-white bg-green-600 shadow-md" />
+              </div>
+            )}
+
+            <FilterPanel
+              activeTypes={activeTypes}
+              typeCheckStatus={typeCheckStatus}
+              onToggleType={toggleType}
+              onFilterPointerDown={handleFilterPointerDown}
+              onFilterClick={handleFilterClick}
+              clearLongPressTimer={clearLongPressTimer}
             />
-          </label>
 
-        </div>
+            <MapControls
+              markerMode={markerMode}
+              isAdminMode={isAdminMode}
+              isAddingCamera={isAddingCamera}
+              movingCameraId={movingCameraId}
+              isGeneratingPdf={isGeneratingPdf}
+              cachedPdfUrl={cachedPdfUrl}
+              isPdfOutdated={isPdfOutdated}
+              onMarkerModeChange={handleMarkerModeChange}
+              onOpenPdf={handleOpenPdf}
+              onStartAddCamera={handleStartAddCamera}
+              onHandleAddCameraAtCenter={handleAddCameraAtCenter}
+              onCloseAddForm={() => setIsAddingCamera(false)}
+              onConfirmMoveCamera={confirmMoveCamera}
+              onCancelMoveCamera={cancelMoveCamera}
+            />
 
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
-          <span>จำนวน {listCameras.length} กล้อง</span>
-          <span>ใช้งานได้ {listCameras.filter((c) => isCheckedInCurrentHalf(c)).length} กล้อง</span>
-          <span>รอตรวจสอบ {listCameras.filter((c) => !isCheckedInCurrentHalf(c)).length} กล้อง</span>
-        </div>
-
-        <div ref={cameraListRef} className="soft-scrollbar space-y-3 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-scroll">
-          {listCameras.map((camera) => (
-            <div
-              key={camera.id}
-              ref={(el) => { cameraRowRefs.current[camera.id] = el; }}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleSelect(camera.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleSelect(camera.id);
-                }
-              }}
-              className={`w-full rounded-md border p-3 text-left transition hover:border-green-200 hover:bg-green-50 ${
-                selectedCameraId === camera.id
-                  ? "border-transparent bg-green-50 ring-2 ring-green-400"
-                  : "border-zinc-100 bg-white"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-green-900">
-                    {camera.name}
-                  </p>
-                  {isCheckedInCurrentHalf(camera) ? (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadge.ok}`}
-                    >
-                      ใช้งานได้
-                    </span>
-                  ) : (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadge.missing}`}
-                    >
-                      กรุณาตรวจสอบ
-                    </span>
-                  )}
-                </div>
-                {isAdminMode && (
-                  <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openEditForm(camera);
-                    }}
-                    aria-label="แก้ไขข้อมูลกล้อง"
-                    className="text-green-700 hover:text-green-900"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l9.06-9.06.92.92L5.92 20.08zM20.7 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      startMoveCamera(camera.id);
-                    }}
-                    aria-label="ย้ายกล้อง"
-                    className="text-amber-600 hover:text-amber-700"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M12 2 9.5 4.5h2V8h1V4.5h2L12 2zm0 20 2.5-2.5h-2V16h-1v3.5h-2L12 22zM2 12l2.5-2.5v2H8v1H4.5v2L2 12zm20 0-2.5 2.5v-2H16v-1h3.5v-2L22 12z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      const confirmDelete = window.confirm(
-                        `ลบกล้อง "${camera.name}" หรือไม่?`,
-                      );
-                      if (!confirmDelete) return;
-                      remove(ref(database, `cameras/${camera.id}`)).catch(
-                        (error) => {
-                          logDbWarning("delete camera", error);
-                          window.alert(
-                            "ลบกล้องไม่สำเร็จ (Permission denied หรือเครือข่ายผิดพลาด)",
-                          );
-                        },
-                      );
-                      if (selectedCameraId === camera.id) {
-                        setSelectedCameraId(null);
-                      }
-                    }}
-                    aria-label="ลบกล้อง"
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-zinc-600">
-                {camera.description} / {typeLabels[camera.type]}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <label className="inline-flex min-w-[96px] items-center justify-center cursor-pointer rounded-md bg-green-600 px-2 py-1 text-[11px] font-bold text-white transition hover:bg-green-700">
-                  อัพโหลดภาพจากกล้อง
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onClick={(event) => event.stopPropagation()}
-                    onChange={(event) => {
-                      event.stopPropagation();
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      compressImage(file)
-                        .then(async (result) => {
-                          const imagePath = `camera-checks/${camera.id}/latest.jpg`;
-                          try {
-                            if (camera.lastCheckedImagePath) {
-                              await deleteObject(
-                                storageRef(storage, camera.lastCheckedImagePath),
-                              );
-                            }
-                          } catch {
-                            // Ignore delete failures to avoid blocking upload.
-                          }
-
-                          const imageRef = storageRef(storage, imagePath);
-                          await uploadString(imageRef, result, "data_url");
-                          const url = await getDownloadURL(imageRef);
-
-                          await updateCamera(camera.id, {
-                            lastCheckedImage: url,
-                            lastCheckedImagePath: imagePath,
-                            lastCheckedAt: new Date().toISOString(),
-                          });
-                          schedulePdfRegeneration();
-                          setOpenImages((prev) => ({
-                            ...prev,
-                            [camera.id]: false,
-                          }));
-                        })
-                        .catch((error) => {
-                          console.error("Image upload failed", error);
-                          window.alert("บันทึกรูปไม่สำเร็จ กรุณาลองใหม่");
-                        });
-                      event.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
-              <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
-                <span>
-                  ตรวจสอบเมื่อ:{" "}
-                  {camera.lastCheckedAt
-                    ? new Date(camera.lastCheckedAt).toLocaleString("th-TH")
-                    : "ยังไม่ตรวจสอบ"}
-                </span>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!camera.lastCheckedImage) return;
-                    setOpenImages((prev) => ({
-                      ...prev,
-                      [camera.id]: !prev[camera.id],
-                    }));
-                  }}
-                  aria-label={
-                    openImages[camera.id] ? "ซ่อนภาพ" : "แสดงภาพ"
-                  }
-                  className={`text-[11px] font-medium transition ${
-                    camera.lastCheckedImage
-                      ? "text-zinc-700 hover:text-zinc-900"
-                      : "cursor-not-allowed text-zinc-300"
-                  }`}
-                  disabled={!camera.lastCheckedImage}
-                >
-                  {openImages[camera.id] ? (
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M3.3 2.3 2 3.6l3.2 3.2C3.2 8.2 2 10 2 12c0 0 3 7 10 7 2.1 0 3.9-.6 5.4-1.5l3.1 3.1 1.3-1.3L3.3 2.3zm8.7 14.7c-3.3 0-5.7-2.3-6.9-4 0-.1.8-1.3 2.4-2.4l2 2a4 4 0 0 0 5.3 5.3l1.6 1.6c-1 .3-2 .5-3.4.5zm9-5c0 0-1.2 2.7-4 4.4l-2.1-2.1a4 4 0 0 0-5.3-5.3L7.7 6c1.3-.7 2.8-1 4.3-1 7 0 10 7 10 7z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {camera.lastCheckedImage && openImages[camera.id] && (
-                <NextImage
-                  src={camera.lastCheckedImage}
-                  alt={`ภาพตรวจสอบล่าสุดของ ${camera.name}`}
-                  width={300}
-                  height={160}
-                  className="mt-2 h-40 w-full border border-zinc-100 object-cover"
-                />
-              )}
-            </div>
-          ))}
-          {listCameras.length === 0 && (
-            <div className="border border-dashed border-zinc-200 p-4 text-center text-xs text-zinc-500">
-              ไม่พบกล้องที่ตรงกับการค้นหา
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="order-1 flex min-h-[50vh] flex-col self-start overflow-hidden border border-zinc-100 bg-white shadow-sm ring-1 ring-green-100 lg:order-2 lg:min-h-0 lg:h-full">
-        <div
-          className="relative h-[50vh] w-full shrink-0 grow lg:min-h-0 lg:h-full lg:flex-1"
-          style={{ minHeight: "50vh" }}
-        >
-          {(isAddingCamera || movingCameraId) && (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-              <div className="h-4 w-4 rounded-full border-2 border-white bg-green-600 shadow-md" />
-            </div>
-          )}
-          <div className="absolute left-3 top-3 z-10 hidden space-y-2 lg:block">
-            <p className="text-[10px] text-zinc-500">กด Ctrl ค้างเพื่อเลือกหลายตัว</p>
-            <div className="flex w-40 flex-col gap-1">
-              {typeOptions.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={(e) => toggleType(type, e)}
-                  className={`inline-flex w-full justify-center border px-3 py-2 text-sm font-medium transition-transform ${
-                    activeTypes.includes(type) ? "translate-x-[25%]" : ""
-                  } ${
-                    typeCheckStatus[type] === false
-                      ? "border-red-600 bg-red-600 text-white"
-                      : activeTypes.includes(type)
-                        ? "border-green-700 bg-green-700 text-white"
-                        : "border-green-700 bg-green-600 text-white hover:bg-green-700"
-                  }`}
-                >
-                  {typeLabels[type]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="absolute bottom-3 left-3 z-10 hidden w-40 flex-col gap-2 lg:flex">
-            <button
-              type="button"
-              onClick={() => {
-                const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
-                const currentIndex = modes.indexOf(markerMode);
-                const nextMode = modes[(currentIndex + 1) % modes.length];
-                setMarkerMode(nextMode);
-                if (nextMode === 'none') setSelectedCameraId(null);
-              }}
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-green-700 bg-green-700 text-white shadow-lg transition hover:bg-green-800"
-              title={markerMode === 'all' ? 'ทั้งหมด' : markerMode === 'ok' ? 'ใช้งานได้' : markerMode === 'pending' ? 'รอตรวจ' : 'ซ่อนหมุด'}
-            >
-              {markerMode === 'all' && (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              )}
-              {markerMode === 'ok' && (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-              {markerMode === 'pending' && (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              )}
-              {markerMode === 'none' && (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              )}
-            </button>
-            <button
-              type="button"
-              disabled={isGeneratingPdf}
-              onClick={async () => {
-                console.log('[PDF Button] cachedPdfUrl:', cachedPdfUrl);
-                console.log('[PDF Button] isPdfOutdated:', isPdfOutdated);
-                
-                if (cachedPdfUrl && !isPdfOutdated) {
-                  console.log('[PDF Button] ใช้ cache - เปิดทันที');
-                  openPdfUrl(cachedPdfUrl);
-                } else {
-                  console.log('[PDF Button] สร้างใหม่');
-                  setIsGeneratingPdf(true);
-                  try {
-                    const newPdfUrl = await regeneratePdf();
-                    if (newPdfUrl) {
-                      openPdfUrl(newPdfUrl);
-                    } else {
-                      alert("Unable to open PDF");
+            <div className="absolute inset-0 h-full w-full lg:relative lg:block">
+              <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={mapCenter}
+                zoom={15}
+                onLoad={(map) => {
+                  mapRef.current = map;
+                  window.setTimeout(() => {
+                    if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
+                      mapRef.current.resize();
                     }
-                  } catch (error) {
-                    console.error('PDF generation failed:', error);
-                    alert('สร้าง PDF ไม่สำเร็จ');
-                  } finally {
-                    setIsGeneratingPdf(false);
-                  }
-                }
-              }}
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-green-700 bg-green-700 text-white shadow-lg transition hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={(cachedPdfUrl && !isPdfOutdated) ? 'ดาวน์โหลด PDF' : 'สร้างรายงาน PDF'}
-            >
-              {isGeneratingPdf ? (
-                <svg className="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (cachedPdfUrl && !isPdfOutdated) ? (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              ) : (
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              )}
-            </button>
-            {isAdminMode && (
-              <>
-                {!isAddingCamera && !movingCameraId ? (
-              <button
-                type="button"
-                onClick={() => setIsAddingCamera(true)}
-                className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-green-700 bg-green-700 text-white shadow-lg transition hover:bg-green-800"
-                title="เพิ่มกล้อง"
-              >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            ) : isAddingCamera ? (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleAddCameraAtCenter}
-                  className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white shadow-sm"
-                >
-                  เพิ่มกล้อง
-                </button>
-                <button
-                  type="button"
-                  onClick={() => closeAddForm()}
-                  className="w-full border border-red-600 bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={confirmMoveCamera}
-                  className="w-full border border-amber-600 bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow-sm"
-                >
-                  ย้ายกล้อง
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelMoveCamera}
-                  className="w-full border border-red-600 bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm"
-                >
-                  ยกเลิก
-                </button>
-              </>
-            )}
-              </>
-            )}
-          </div>
-          <div className="absolute inset-0 h-full w-full lg:relative lg:block">
-            <GoogleMap
-              mapContainerStyle={containerStyle}
-              center={mapCenter}
-              zoom={15}
-              onLoad={(map) => {
-                mapRef.current = map;
-                window.setTimeout(() => {
-                  if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
-                    mapRef.current.resize();
-                  }
-                }, 0);
-                window.setTimeout(() => {
-                  if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
-                    mapRef.current.resize();
-                  }
-                }, 200);
-              }}
-          onClick={() => setSelectedCameraId(null)}
-          options={{
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            mapTypeId: "satellite",
-          }}
-        >
-          {markerMode !== 'none' &&
-            displayedCameras.map((camera) => {
-              const needsCheck = !isCheckedInCurrentHalf(camera);
-              const icon =
-                typeof google !== "undefined"
-                  ? {
-                      path: google.maps.SymbolPath.CIRCLE,
-                      fillColor: needsCheck ? "#dc2626" : "#2563eb",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 4,
-                      scale: 10,
+                  }, 0);
+                  window.setTimeout(() => {
+                    if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
+                      mapRef.current.resize();
                     }
-                  : undefined;
-
-              return (
-                <MarkerF
-                  key={camera.id}
-                  position={{ lat: camera.lat, lng: camera.lng }}
-                  onClick={() => handleSelect(camera.id)}
-                  icon={icon}
-                />
-              );
-            })}
-
-          {markerMode !== 'none' && selectedCamera && (
-            <OverlayViewF
-              position={{
-                lat: selectedCamera.lat,
-                lng: selectedCamera.lng,
-              }}
-              mapPaneName="floatPane"
-              getPixelPositionOffset={(width, height) => ({
-                x: Math.round(-width / 2),
-                y: Math.round(-height - 10),
-              })}
-            >
-              <div
-                ref={(el) => {
-                  overlayContainerRef.current = el;
-                  if (el && typeof google !== "undefined" && google.maps?.OverlayView?.preventMapHitsAndGesturesFrom) {
-                    google.maps.OverlayView.preventMapHitsAndGesturesFrom(el);
-                  }
+                  }, 200);
                 }}
-                className="relative"
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setSelectedCameraId(null)}
+                options={{
+                  mapTypeControl: false,
+                  streetViewControl: false,
+                  fullscreenControl: false,
+                  mapTypeId: "satellite",
+                }}
               >
-                <div className="w-fit max-w-[240px] border border-zinc-200 bg-white p-3 text-sm shadow-md">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCameraId(null)}
-                    aria-label="ปิด"
-                    className="absolute right-2 top-2 text-zinc-400 hover:text-zinc-700"
+                {markerMode !== 'none' &&
+                  displayedCameras.map((camera) => {
+                    const needsCheck = !isCheckedInCurrentHalf(camera);
+                    const icon =
+                      typeof google !== "undefined"
+                        ? {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            fillColor: needsCheck ? "#dc2626" : "#2563eb",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 4,
+                            scale: 10,
+                          }
+                        : undefined;
+
+                    return (
+                      <MarkerF
+                        key={camera.id}
+                        position={{ lat: camera.lat, lng: camera.lng }}
+                        onClick={() => handleSelect(camera.id)}
+                        icon={icon}
+                      />
+                    );
+                  })}
+
+                {markerMode !== 'none' && selectedCamera && (
+                  <OverlayViewF
+                    position={{
+                      lat: selectedCamera.lat,
+                      lng: selectedCamera.lng,
+                    }}
+                    mapPaneName="floatPane"
+                    getPixelPositionOffset={(width, height) => ({
+                      x: Math.round(-width / 2),
+                      y: Math.round(-height - 10),
+                    })}
                   >
-                    ×
-                  </button>
-                  <div className="text-sm font-semibold text-zinc-900">
-                    {selectedCamera.name}
-                  </div>
-                  <div className="text-xs text-zinc-600">
-                    บริเวณ : {selectedCamera.description}
-                  </div>
-                  <div className="mt-2 text-xs text-zinc-500">
-                    <div className="font-semibold text-zinc-900">
-                      {typeLabels[selectedCamera.type]}
-                    </div>
-                    {isCheckedInCurrentHalf(selectedCamera) ? (
-                      <div className="flex items-center gap-2">
+                    <div
+                      ref={(el) => {
+                        overlayContainerRef.current = el;
+                        if (el && typeof google !== "undefined" && google.maps?.OverlayView?.preventMapHitsAndGesturesFrom) {
+                          google.maps.OverlayView.preventMapHitsAndGesturesFrom(el);
+                        }
+                      }}
+                      className="relative"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <div className="w-fit max-w-[240px] border border-zinc-200 bg-white p-3 text-sm shadow-md">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedCamera.lastCheckedImage) {
-                              window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
-                            }
-                          }}
-                          className={`font-bold text-green-700 ${
-                            selectedCamera.lastCheckedImage
-                              ? "cursor-pointer underline decoration-green-700/50 hover:decoration-green-700"
-                              : ""
-                          }`}
-                          title={selectedCamera.lastCheckedImage ? "คลิกเพื่อดูภาพจากกล้อง" : undefined}
+                          onClick={() => setSelectedCameraId(null)}
+                          aria-label="ปิด"
+                          className="absolute right-2 top-2 text-zinc-400 hover:text-zinc-700"
                         >
-                          ใช้งานได้
+                          ×
                         </button>
-                        {selectedCamera.lastCheckedImage && (
-                          <>
-                            <span className="text-zinc-400">•</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                overlayUploadCameraRef.current = selectedCamera;
-                                overlayImageInputRef.current?.click();
-                              }}
-                              className="text-blue-600 underline decoration-blue-600/50 hover:decoration-blue-600"
-                            >
-                              แก้ไขภาพ
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          ref={overlayImageInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            const camera = overlayUploadCameraRef.current;
-                            event.target.value = "";
-                            if (!file || !camera) return;
-                            overlayUploadCameraRef.current = null;
-                            compressImage(file)
-                              .then(async (result) => {
-                                const imagePath = `camera-checks/${camera.id}/latest.jpg`;
-                                try {
-                                  if (camera.lastCheckedImagePath) {
-                                    await deleteObject(
-                                      storageRef(storage, camera.lastCheckedImagePath),
-                                    );
+                        <div className="text-sm font-semibold text-zinc-900">
+                          {selectedCamera.name}
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          บริเวณ : {selectedCamera.description}
+                        </div>
+                        <div className="mt-2 text-xs text-zinc-500">
+                          <div className="font-semibold text-zinc-900">
+                            {selectedCamera.type}
+                          </div>
+                          {isCheckedInCurrentHalf(selectedCamera) ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedCamera.lastCheckedImage) {
+                                    window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
                                   }
-                                } catch {
-                                  /* ignore */
+                                }}
+                                className={`font-bold text-green-700 ${
+                                  selectedCamera.lastCheckedImage
+                                    ? "cursor-pointer underline decoration-green-700/50 hover:decoration-green-700"
+                                    : ""
+                                }`}
+                                title={selectedCamera.lastCheckedImage ? "คลิกเพื่อดูภาพจากกล้อง" : undefined}
+                              >
+                                ใช้งานได้
+                              </button>
+                              {selectedCamera.lastCheckedImage && (
+                                <>
+                                  <span className="text-zinc-400">•</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      overlayUploadCameraRef.current = selectedCamera;
+                                      overlayImageInputRef.current?.click();
+                                    }}
+                                    className="text-blue-600 underline decoration-blue-600/50 hover:decoration-blue-600"
+                                  >
+                                    แก้ไขภาพ
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                ref={overlayImageInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  const camera = overlayUploadCameraRef.current;
+                                  event.target.value = "";
+                                  if (!file || !camera) return;
+                                  overlayUploadCameraRef.current = null;
+                                  compressImage(file)
+                                    .then(async (result) => {
+                                      const imagePath = `camera-checks/${camera.id}/latest.jpg`;
+                                      try {
+                                        if (camera.lastCheckedImagePath) {
+                                          await deleteObject(
+                                            storageRef(storage, camera.lastCheckedImagePath),
+                                          );
+                                        }
+                                      } catch {
+                                        /* ignore */
+                                      }
+                                      const imageRef = storageRef(storage, imagePath);
+                                      await uploadString(imageRef, result, "data_url");
+                                      const url = await getDownloadURL(imageRef);
+                                      await updateCamera(camera.id, {
+                                        lastCheckedImage: url,
+                                        lastCheckedImagePath: imagePath,
+                                        lastCheckedAt: new Date().toISOString(),
+                                      });
+                                      schedulePdfRegeneration();
+                                    })
+                                    .catch((err) => {
+                                      console.error("Image upload failed", err);
+                                      window.alert("บันทึกรูปไม่สำเร็จ กรุณาลองใหม่");
+                                    });
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedCamera.lastCheckedImage) {
+                                    window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
+                                  } else {
+                                    overlayUploadCameraRef.current = selectedCamera;
+                                    overlayImageInputRef.current?.click();
+                                  }
+                                }}
+                                className={`font-bold text-red-600 ${
+                                  selectedCamera.lastCheckedImage
+                                    ? "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
+                                    : "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
+                                }`}
+                                title={
+                                  selectedCamera.lastCheckedImage
+                                    ? "คลิกเพื่อดูภาพจากกล้อง"
+                                    : "คลิกเพื่ออัปโหลดรูปตรวจสอบกล้อง"
                                 }
-                                const imageRef = storageRef(storage, imagePath);
-                                await uploadString(imageRef, result, "data_url");
-                                const url = await getDownloadURL(imageRef);
-                                await updateCamera(camera.id, {
-                                  lastCheckedImage: url,
-                                  lastCheckedImagePath: imagePath,
-                                  lastCheckedAt: new Date().toISOString(),
-                                });
-                                schedulePdfRegeneration();
-                              })
-                              .catch((err) => {
-                                console.error("Image upload failed", err);
-                                window.alert("บันทึกรูปไม่สำเร็จ กรุณาลองใหม่");
-                              });
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedCamera.lastCheckedImage) {
-                              window.open(selectedCamera.lastCheckedImage, "_blank", "noopener,noreferrer");
-                            } else {
-                              overlayUploadCameraRef.current = selectedCamera;
-                              overlayImageInputRef.current?.click();
-                            }
-                          }}
-                          className={`font-bold text-red-600 ${
-                            selectedCamera.lastCheckedImage
-                              ? "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
-                              : "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
-                          }`}
-                          title={
-                            selectedCamera.lastCheckedImage
-                              ? "คลิกเพื่อดูภาพจากกล้อง"
-                              : "คลิกเพื่ออัปโหลดรูปตรวจสอบกล้อง"
-                          }
-                        >
-                          กรุณาตรวจสอบ
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-l border-b border-zinc-200 bg-white" />
-              </div>
-            </OverlayViewF>
-          )}
-            </GoogleMap>
+                              >
+                                กรุณาตรวจสอบ
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-l border-b border-zinc-200 bg-white" />
+                    </div>
+                  </OverlayViewF>
+                )}
+              </GoogleMap>
+            </div>
           </div>
-        </div>
-
-        {/* เมนูใต้แผนที่สำหรับหน้าจอเล็ก */}
-        <div className="grid grid-cols-3 gap-2 border-t border-zinc-100 bg-white p-3 lg:hidden">
-          <p className="col-span-3 text-[10px] text-zinc-500">แตะเลือก 1 ตัว / กดค้างเพื่อเลือกหลายตัว</p>
-          {typeOptions.map((type) => (
-            <button
-              key={type}
-              type="button"
-              onPointerDown={(e) => handleFilterPointerDown(type, e)}
-              onPointerUp={clearLongPressTimer}
-              onPointerLeave={clearLongPressTimer}
-              onPointerCancel={clearLongPressTimer}
-              onClick={(e) => handleFilterClick(type, e)}
-              className={`w-full border px-3 py-2 text-sm font-medium transition ${
-                activeTypes.includes(type)
-                  ? typeCheckStatus[type] === false
-                    ? "border-red-600 bg-white text-red-600 ring-2 ring-red-600 ring-offset-1"
-                    : "border-green-700 bg-white text-green-700 ring-2 ring-green-700 ring-offset-1"
-                  : typeCheckStatus[type] === false
-                    ? "border-red-600 bg-red-600 text-white"
-                    : "border-green-700 bg-green-50 text-green-700"
-              }`}
-            >
-              {typeLabels[type]}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => {
-              const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
-              const currentIndex = modes.indexOf(markerMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setMarkerMode(nextMode);
-              if (nextMode === 'none') setSelectedCameraId(null);
-            }}
-            className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-800"
-          >
-            {markerMode === 'all' && '🔵 ทั้งหมด'}
-            {markerMode === 'ok' && '✅ ใช้งานได้'}
-            {markerMode === 'pending' && '⚠️ รอตรวจ'}
-            {markerMode === 'none' && '🚫 ซ่อนหมุด'}
-          </button>
-          <button
-            type="button"
-            disabled={isGeneratingPdf}
-            onClick={async () => {
-              if (cachedPdfUrl && !isPdfOutdated) {
-                openPdfUrl(cachedPdfUrl);
-              } else {
-                setIsGeneratingPdf(true);
-                try {
-                  const newPdfUrl = await regeneratePdf();
-                  if (newPdfUrl) {
-                    openPdfUrl(newPdfUrl);
-                  } else {
-                    alert("Unable to open PDF");
-                  }
-                } catch (error) {
-                  console.error('PDF generation failed:', error);
-                  alert('สร้าง PDF ไม่สำเร็จ');
-                } finally {
-                  setIsGeneratingPdf(false);
-                }
-              }
-            }}
-            className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={(cachedPdfUrl && !isPdfOutdated) ? 'PDF' : 'สร้าง PDF'}
-          >
-            {isGeneratingPdf ? '⏳' : (cachedPdfUrl && !isPdfOutdated) ? '📄' : '🔄'}
-          </button>
-          {isAdminMode && (
-            <>
-              {!isAddingCamera && !movingCameraId ? (
-            <button
-              type="button"
-              onClick={() => setIsAddingCamera(true)}
-              className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white"
-              title="เพิ่มกล้อง"
-            >
-              ➕
-            </button>
-          ) : isAddingCamera ? (
-            <>
-              <button
-                type="button"
-                onClick={handleAddCameraAtCenter}
-                className="w-full border border-green-700 bg-green-700 px-3 py-2 text-sm font-medium text-white"
-              >
-                เพิ่มกล้อง
-              </button>
-              <button
-                type="button"
-                onClick={() => closeAddForm()}
-                className="w-full border border-red-600 bg-red-600 px-3 py-2 text-sm font-medium text-white"
-              >
-                ยกเลิก
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={confirmMoveCamera}
-                className="w-full border border-amber-600 bg-amber-600 px-3 py-2 text-sm font-medium text-white"
-              >
-                ย้ายกล้อง
-              </button>
-              <button
-                type="button"
-                onClick={cancelMoveCamera}
-                className="w-full border border-red-600 bg-red-600 px-3 py-2 text-sm font-medium text-white"
-              >
-                ยกเลิก
-              </button>
-            </>
-          )}
-            </>
-          )}
-        </div>
-      </section>
+        </section>
       </div>
-    {isAdminMode && editDraft && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-lg border border-zinc-200 bg-white p-4 shadow-lg">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-green-900">
-              แก้ไขข้อมูลกล้อง
-            </h2>
-            <button
-              type="button"
-              onClick={closeEditForm}
-              aria-label="ปิด"
-              className="text-zinc-400 hover:text-zinc-700"
-            >
-              ×
-            </button>
-          </div>
 
-          <div className="mt-4 grid gap-3 text-sm">
-            <label className="grid gap-1">
-              ชื่อกล้อง
-              <input
-                className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                value={editDraft.name}
-                onChange={(event) =>
-                  setEditDraft((prev) =>
-                    prev ? { ...prev, name: event.target.value } : prev,
-                  )
-                }
-              />
-            </label>
+      {/* Edit/Add Camera Modal */}
+      <EditCameraModal
+        isOpen={isAddingCamera || !!editingCamera}
+        camera={editingCamera}
+        mode={editingCamera?.id ? 'edit' : 'add'}
+        defaultType={defaultType}
+        onClose={() => {
+          setEditingCamera(null);
+          setIsAddingCamera(false);
+        }}
+        onSubmit={handleSubmitEdit}
+      />
 
-            <label className="grid gap-1">
-              คำอธิบาย
-              <textarea
-                rows={3}
-                className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                value={editDraft.description}
-                onChange={(event) =>
-                  setEditDraft((prev) =>
-                    prev ? { ...prev, description: event.target.value } : prev,
-                  )
-                }
-              />
-            </label>
-
-            <div className="grid gap-3">
-              <label className="grid gap-1">
-                ประเภท
-                <select
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={editDraft.type}
-                  onChange={(event) =>
-                    setEditDraft((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            type: event.target.value as CameraType,
-                          }
-                        : prev,
-                    )
-                  }
-                >
-                  {typeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {typeLabels[type]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="grid gap-1">
-                ละติจูด
-                <input
-                  type="number"
-                  step="0.000001"
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={editDraft.lat}
-                  onChange={(event) =>
-                    setEditDraft((prev) =>
-                      prev
-                        ? { ...prev, lat: Number(event.target.value) }
-                        : prev,
-                    )
-                  }
-                />
-              </label>
-              <label className="grid gap-1">
-                ลองจิจูด
-                <input
-                  type="number"
-                  step="0.000001"
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={editDraft.lng}
-                  onChange={(event) =>
-                    setEditDraft((prev) =>
-                      prev
-                        ? { ...prev, lng: Number(event.target.value) }
-                        : prev,
-                    )
-                  }
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={closeEditForm}
-              className="border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="button"
-              onClick={submitEditForm}
-              className="border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-white"
-            >
-              บันทึก
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-      {isAdminMode && addDraft && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-lg border border-zinc-200 bg-white p-4 shadow-lg">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-green-900">
-              เพิ่มกล้อง
-            </h2>
-            <button
-              type="button"
-              onClick={closeAddForm}
-              aria-label="ปิด"
-              className="text-zinc-400 hover:text-zinc-700"
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-3 text-sm">
-            <label className="grid gap-1">
-              ชื่อกล้อง
-              <input
-                className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                value={addDraft.name}
-                onChange={(event) =>
-                  setAddDraft((prev) =>
-                    prev ? { ...prev, name: event.target.value } : prev,
-                  )
-                }
-              />
-            </label>
-
-            <label className="grid gap-1">
-              คำอธิบาย
-              <textarea
-                rows={3}
-                className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                value={addDraft.description}
-                onChange={(event) =>
-                  setAddDraft((prev) =>
-                    prev ? { ...prev, description: event.target.value } : prev,
-                  )
-                }
-              />
-            </label>
-
-            <div className="grid gap-3">
-              <label className="grid gap-1">
-                ประเภท
-                <select
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={addDraft.type}
-                  onChange={(event) =>
-                    setAddDraft((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            type: event.target.value as CameraType,
-                          }
-                        : prev,
-                    )
-                  }
-                >
-                  {typeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {typeLabels[type]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="grid gap-1">
-                ละติจูด
-                <input
-                  type="number"
-                  step="0.000001"
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={addDraft.lat}
-                  onChange={(event) =>
-                    setAddDraft((prev) =>
-                      prev
-                        ? { ...prev, lat: Number(event.target.value) }
-                        : prev,
-                    )
-                  }
-                />
-              </label>
-              <label className="grid gap-1">
-                ลองจิจูด
-                <input
-                  type="number"
-                  step="0.000001"
-                  className="border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                  value={addDraft.lng}
-                  onChange={(event) =>
-                    setAddDraft((prev) =>
-                      prev
-                        ? { ...prev, lng: Number(event.target.value) }
-                        : prev,
-                    )
-                  }
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={closeAddForm}
-              className="border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="button"
-              onClick={submitAddForm}
-              className="border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-white"
-            >
-              เพิ่มกล้อง
-            </button>
-          </div>
-        </div>
-      </div>
-      )}
       {/* PDF Generation Loader */}
       {isGeneratingPdf && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4 rounded-xl bg-white p-8 shadow-2xl">
             <div className="relative">
               <div className="h-16 w-16 animate-spin rounded-full border-4 border-green-100 border-t-green-600" />
@@ -1648,6 +990,3 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     </>
   );
 }
-
-
-

@@ -90,6 +90,70 @@ function CopyableCard({
   );
 }
 
+function DetailModal({
+  row,
+  onClose,
+  onCopy,
+}: {
+  row: PersonnelRow;
+  onClose: () => void;
+  onCopy: () => void;
+}) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-lg font-semibold text-slate-800">
+            {row.rank} {row.firstName} {row.lastName}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <CopyableCard value={row.phone} label="เบอร์โทร" onCopy={onCopy} />
+            <CopyableCard value={row.bank} label="ธนาคาร" onCopy={onCopy} />
+            <CopyableCard value={row.accountNumber} label="เลขบัญชี" onCopy={onCopy} />
+            <CopyableCard value={row.citizenId} label="เลขประชาชน" onCopy={onCopy} />
+            <CopyableCard value={row.militaryId} label="เลขทหาร" onCopy={onCopy} />
+            <CopyableCard value={row.duty} label="ปฏิบัติหน้าที่" onCopy={onCopy} />
+            <CopyableCard value={row.position} label="ตำแหน่ง" onCopy={onCopy} />
+            <CopyableCard value={row.unit} label="เหล่า" onCopy={onCopy} />
+          </div>
+          <div className="border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-medium text-slate-600 mb-3">ข้อมูลเพิ่มเติม</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <CopyableCard value={row.birthplace} label="กำเนิด" onCopy={onCopy} />
+              <CopyableCard value={row.birthDate} label="วันเกิด" onCopy={onCopy} />
+              <CopyableCard value={row.registeredDate} label="วันขึ้นทะเบียน" onCopy={onCopy} />
+              <CopyableCard value={row.enlistmentDate} label="วันบรรจุ" onCopy={onCopy} />
+              <CopyableCard value={row.rankDate} label="วันครองยศ" onCopy={onCopy} />
+              <CopyableCard value={row.salary} label="เงินเดือน" onCopy={onCopy} />
+              <CopyableCard value={row.age} label="อายุ" onCopy={onCopy} />
+              <CopyableCard value={row.retireYear} label="ปีเกษียณ" onCopy={onCopy} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PersonnelPage() {
   const dashboardFetch = useDashboardFetch();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
@@ -97,6 +161,7 @@ export default function PersonnelPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<PersonnelRow | null>(null);
 
   useEffect(() => {
     dashboardFetch("/api/dashboard/personnel")
@@ -137,6 +202,13 @@ export default function PersonnelPage() {
   return (
     <div className="p-6 md:p-8" style={{ backgroundColor: "#f1f5f9", minHeight: "100vh" }}>
       <Toast show={showToast} />
+      {selectedRow && (
+        <DetailModal
+          row={selectedRow}
+          onClose={() => setSelectedRow(null)}
+          onCopy={handleCopy}
+        />
+      )}
       <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center">
         <label htmlFor="personnel-search" className="text-slate-600 text-sm font-medium shrink-0">
           ค้นหาข้อมูล
@@ -177,20 +249,16 @@ export default function PersonnelPage() {
                 <CopyableCard value={row.phone} label="เบอร์โทร" onCopy={handleCopy} />
                 <CopyableCard value={row.bank} label="ธนาคาร" onCopy={handleCopy} />
                 <CopyableCard value={row.accountNumber} label="เลขบัญชี" onCopy={handleCopy} />
-                <CopyableCard value={row.citizenId} label="เลขประชาชน" onCopy={handleCopy} />
-                <CopyableCard value={row.militaryId} label="เลขทหาร" onCopy={handleCopy} />
-                <CopyableCard value={row.duty} label="ปฏิบัติหน้าที่" onCopy={handleCopy} />
-                <CopyableCard value={row.position} label="ตำแหน่ง" onCopy={handleCopy} />
-                <CopyableCard value={row.unit} label="เหล่า" onCopy={handleCopy} />
-                <CopyableCard value={row.birthplace} label="กำเนิด" onCopy={handleCopy} />
-                <CopyableCard value={row.birthDate} label="วันเกิด" onCopy={handleCopy} />
-                <CopyableCard value={row.registeredDate} label="วันขึ้นทะเบียน" onCopy={handleCopy} />
-                <CopyableCard value={row.enlistmentDate} label="วันบรรจุ" onCopy={handleCopy} />
-                <CopyableCard value={row.rankDate} label="วันครองยศ" onCopy={handleCopy} />
-                <CopyableCard value={row.salary} label="เงินเดือน" onCopy={handleCopy} />
-                <CopyableCard value={row.age} label="อายุ" onCopy={handleCopy} />
-                <CopyableCard value={row.retireYear} label="ปีเกษียณ" onCopy={handleCopy} />
               </div>
+              <button
+                onClick={() => setSelectedRow(row)}
+                className="mt-3 w-full py-2 px-3 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                แสดงข้อมูลเพิ่มเติม
+              </button>
             </div>
           ))}
         </div>
