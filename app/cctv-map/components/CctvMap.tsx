@@ -436,6 +436,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   };
 
   const openPdfUrl = (url: string) => {
+    console.log('[CctvMap] openPdfUrl called with:', url);
     const telegramWebApp = (window as Window & {
       Telegram?: {
         WebApp?: {
@@ -445,13 +446,15 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     }).Telegram?.WebApp;
 
     if (telegramWebApp?.openLink) {
+      console.log('[CctvMap] Using Telegram WebApp openLink');
       telegramWebApp.openLink(url, { try_instant_view: false });
       return;
     }
 
+    console.log('[CctvMap] Using regular link click');
     const link = document.createElement("a");
     link.href = url;
-    link.target = "_self";
+    link.target = "_blank";
     link.rel = "noopener noreferrer";
     document.body.appendChild(link);
     link.click();
