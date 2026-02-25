@@ -71,6 +71,10 @@ env:
     value: "2094374026"
     availability:
       - RUNTIME
+  - variable: PHONE_SHEET_GID
+    value: "1143152346"
+    availability:
+      - RUNTIME
   - variable: ADMIN_TELEGRAM_USER_IDS
     secret: adminTelegramUserIds
     availability:

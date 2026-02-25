@@ -47,6 +47,10 @@ export const config = {
     slipSheetGid: process.env.SLIP_SHEET_GID
       ? Number(process.env.SLIP_SHEET_GID.trim())
       : undefined,
+    /** GID สำหรับแท็บเบอร์โทรศัพท์ (ถ้ามี) */
+    phoneSheetGid: process.env.PHONE_SHEET_GID
+      ? Number(process.env.PHONE_SHEET_GID.trim())
+      : undefined,
   },
   gemini: {
     apiKey: getEnv("GEMINI_API_KEY"),

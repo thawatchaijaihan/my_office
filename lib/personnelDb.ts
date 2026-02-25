@@ -7,18 +7,44 @@ import { getFirestoreDb } from "./firebaseAdmin";
 export const PERSONNEL_COLLECTION = "personnel";
 
 export type PersonnelDoc = {
-  /** ยศ (จากรายชื่อกำลังพล) */
+  /** ยศ */
   rank: string;
-  /** ชื่อ (จากรายชื่อกำลังพล) */
+  /** ชื่อ */
   firstName: string;
-  /** สกุล (จากรายชื่อกำลังพล) */
+  /** นามสกุล */
   lastName: string;
-  /** หมายเลขโทรศัพท์ (จากแท็บ index) */
+  /** หมายเลขโทรศัพท์ */
   phone: string;
-  /** ชื่อธนาคาร (จากแท็บ bank) */
+  /** ธนาคาร */
   bank: string;
-  /** เลขที่บัญชี (จากแท็บ bank) */
+  /** เลขที่บัญชี */
   accountNumber: string;
+  /** หมายเลขประจำตัวประชาชน */
+  citizenId: string;
+  /** หมายเลขทหาร */
+  militaryId: string;
+  /** ปฏิบัติหน้าที่ */
+  duty: string;
+  /** ตำแหน่งบรรจุ */
+  position: string;
+  /** เหล่า */
+  unit: string;
+  /** กำเนิด */
+  birthplace: string;
+  /** วันเกิด */
+  birthDate: string;
+  /** วันขึ้นทะเบียน */
+  registeredDate: string;
+  /** วันที่บรรจุ */
+  enlistmentDate: string;
+  /** วันที่ครองยศ */
+  rankDate: string;
+  /** เงินเดือน(ปัจจุบัน) */
+  salary: string;
+  /** อายุ */
+  age: string;
+  /** ปีเกษียณ */
+  retireYear: string;
   /** อัปเดตล่าสุด (ใช้ใน Firestore) */
   updatedAt: string;
 };
@@ -135,6 +161,19 @@ export async function getPersonnelRagContext(
           phone: String(d.phone ?? ""),
           bank: String(d.bank ?? ""),
           accountNumber: String(d.accountNumber ?? ""),
+          citizenId: String(d.citizenId ?? ""),
+          militaryId: String(d.militaryId ?? ""),
+          duty: String(d.duty ?? ""),
+          position: String(d.position ?? ""),
+          unit: String(d.unit ?? ""),
+          birthplace: String(d.birthplace ?? ""),
+          birthDate: String(d.birthDate ?? ""),
+          registeredDate: String(d.registeredDate ?? ""),
+          enlistmentDate: String(d.enlistmentDate ?? ""),
+          rankDate: String(d.rankDate ?? ""),
+          salary: String(d.salary ?? ""),
+          age: String(d.age ?? ""),
+          retireYear: String(d.retireYear ?? ""),
           updatedAt: String(d.updatedAt ?? ""),
         });
       }
@@ -188,6 +227,19 @@ export async function getAllPersonnel(limit = 2000): Promise<PersonnelDoc[]> {
         phone: String(d.phone ?? ""),
         bank: String(d.bank ?? ""),
         accountNumber: String(d.accountNumber ?? ""),
+        citizenId: String(d.citizenId ?? ""),
+        militaryId: String(d.militaryId ?? ""),
+        duty: String(d.duty ?? ""),
+        position: String(d.position ?? ""),
+        unit: String(d.unit ?? ""),
+        birthplace: String(d.birthplace ?? ""),
+        birthDate: String(d.birthDate ?? ""),
+        registeredDate: String(d.registeredDate ?? ""),
+        enlistmentDate: String(d.enlistmentDate ?? ""),
+        rankDate: String(d.rankDate ?? ""),
+        salary: String(d.salary ?? ""),
+        age: String(d.age ?? ""),
+        retireYear: String(d.retireYear ?? ""),
         updatedAt: String(d.updatedAt ?? ""),
       });
     }

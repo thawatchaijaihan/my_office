@@ -1,27 +1,43 @@
 /**
  * อ่านข้อมูลจาก Google Sheets สำหรับฐานข้อมูลกำลังพล
- * แท็บ: รายชื่อกำลังพล (หลัก), index (เบอร์), bank (ธนาคาร+เลขบัญชี)
+ * แท็บ: ข้อมูลกำลังพล (หลัก), เบอร์โทร (phone)
  */
 import { listSpreadsheetTabs, readValues } from "./googleSheets";
 import { config } from "./config";
 import type { PersonnelDoc } from "./personnelDb";
-import { personnelKey, personnelKeyByNameOnly } from "./personnelDb";
+import { personnelKeyByNameOnly } from "./personnelDb";
 
-const PERSONNEL_TAB = "รายชื่อกำลังพล";
-const INDEX_TAB = "index";
-const BANK_TAB = "bank";
+const PERSONNEL_TAB = "ข้อมูลกำลังพล";
+const PHONE_TAB = "เบอร์โทร";
 
 function getCell(row: string[], idx: number): string {
   return (row[idx] ?? "").trim();
 }
 
 /**
- * อ่านรายชื่อหลักจากแท็บ "รายชื่อกำลังพล": คอลัมน์ A=ยศ, B=ชื่อ, C=สกุล
- * ถ้าแถวแรกเป็นหัวตาราง (มีคำว่า ยศ/ชื่อ/สกุล) จะข้ามแถวแรก
+ * Get sheet name from gid by fetching spreadsheet metadata
  */
-async function readPersonnelList(spreadsheetId: string): Promise<{ rank: string; firstName: string; lastName: string }[]> {
-  const values = await readValues({ spreadsheetId, range: `'${PERSONNEL_TAB}'!A:C` });
-  const rows: { rank: string; firstName: string; lastName: string }[] = [];
+async function getSheetNameByGid(spreadsheetId: string, gid: number): Promise<string | null> {
+  const tabs = await listSpreadsheetTabs({ spreadsheetId });
+  const tab = tabs.find((t) => t.gid === gid);
+  return tab?.title ?? null;
+}
+
+/**
+ * อ่านข้อมูลกำลังพลจากแท็บ "ข้อมูลกำลังพล": 
+ * A=ยศ, B=ชื่อ, C=นามสกุล, D=ธนาคาร, E=เลขบัญชี, F=หมายเลขประจำตัวประชาชน, G=หมายเลขทหาร,
+ * H=ปฏิบัติหน้าที่, I=ตำแหน่งบรรจุ, J=เหล่า, K=กำเนิด, L=วันเกิด, M=วันขึ้นทะเบียน,
+ * N=วันที่บรรจุ, O=วันที่ครองยศ, P=เงินเดือน(ปัจจุบัน), Q=อายุ, R=ปีเกษียณ
+ */
+async function readPersonnelList(spreadsheetId: string, personnelGid?: number): Promise<Omit<PersonnelDoc, "phone" | "updatedAt">[]> {
+  let sheetName = PERSONNEL_TAB;
+  if (personnelGid) {
+    const name = await getSheetNameByGid(spreadsheetId, personnelGid);
+    if (name) sheetName = name;
+  }
+  
+  const values = await readValues({ spreadsheetId, range: `'${sheetName}'!A:R` });
+  const rows: Omit<PersonnelDoc, "phone" | "updatedAt">[] = [];
   const headerLike = /^(ยศ|ชื่อ|สกุล|rank|name)$/i;
   let start = 0;
   if (
@@ -36,50 +52,100 @@ async function readPersonnelList(spreadsheetId: string): Promise<{ rank: string;
     const firstName = getCell(r, 1);
     const lastName = getCell(r, 2);
     if (!rank && !firstName && !lastName) continue;
-    rows.push({ rank, firstName, lastName });
+    rows.push({
+      rank,
+      firstName,
+      lastName,
+      bank: getCell(r, 3),
+      accountNumber: getCell(r, 4),
+      citizenId: getCell(r, 5),
+      militaryId: getCell(r, 6),
+      duty: getCell(r, 7),
+      position: getCell(r, 8),
+      unit: getCell(r, 9),
+      birthplace: getCell(r, 10),
+      birthDate: getCell(r, 11),
+      registeredDate: getCell(r, 12),
+      enlistmentDate: getCell(r, 13),
+      rankDate: getCell(r, 14),
+      salary: getCell(r, 15),
+      age: getCell(r, 16),
+      retireYear: getCell(r, 17),
+    });
   }
   return rows;
 }
 
 /**
- * อ่านเบอร์จากแท็บ "index": B=ยศ, C=ชื่อ, D=สกุล, K=เบอร์ — จับคู่ด้วย ชื่อ+สกุล เท่านั้น
+ * อ่านเบอร์จากแท็บ "เบอร์โทร" หรือจาก GID ที่กำหนด — จับคู่ด้วย ชื่อ+สกุล
+ * คาดว่า columns: A=ชื่อ, B=นามสกุล, C=เบอร์ (หรืออาจมี column อื่นนำหน้า)
+ * พยายามหา column ที่มีเบอร์โทรจาก header หรือ pattern
  */
-async function readIndexPhones(spreadsheetId: string): Promise<Map<string, string>> {
-  const values = await readValues({ spreadsheetId, range: `'${INDEX_TAB}'!A2:O` });
+async function readPhoneNumbers(spreadsheetId: string, phoneGid?: number): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  for (const r of values) {
-    const firstName = getCell(r, 2);
-    const lastName = getCell(r, 3);
-    const phone = getCell(r, 10);
+  
+  // Determine sheet name
+  let sheetName = PHONE_TAB;
+  if (phoneGid) {
+    const name = await getSheetNameByGid(spreadsheetId, phoneGid);
+    if (name) sheetName = name;
+  }
+
+  // Try to read - first try with header, then without
+  let values: string[][] = [];
+  try {
+    values = await readValues({ spreadsheetId, range: `'${sheetName}'!A:Z` });
+  } catch (e) {
+    console.log("[personnelSheets] Could not read phone sheet:", e);
+    return map;
+  }
+
+  if (values.length === 0) return map;
+
+  // Find header row and data start
+  const headerRow = values[0]!;
+  let startRow = 1;
+  
+  // Check if first row is header (contains keywords)
+  const headerKeywords = /^(ชื่อ|นามสกุล|เบอร์|phone|mobile|name|surname)$/i;
+  const hasHeader = headerKeywords.test(headerRow.join(" "));
+  if (!hasHeader) {
+    startRow = 0;
+  }
+
+  // Find column indices - try to find name and phone columns
+  let nameCol = -1;
+  let surnameCol = -1;
+  let phoneCol = -1;
+
+  for (let i = 0; i < headerRow.length; i++) {
+    const h = headerRow[i]?.toLowerCase() ?? "";
+    if (h.includes("ชื่อ") || h === "name" || h === "firstname") {
+      if (nameCol === -1) nameCol = i;
+    } else if (h.includes("นามสกุล") || h === "surname" || h === "lastname" || h === "สกุล") {
+      surnameCol = i;
+    } else if (h.includes("เบอร์") || h.includes("โทร") || h === "phone" || h === "mobile") {
+      phoneCol = i;
+    }
+  }
+
+  // If can't find by header, guess: A=name, B=surname, C=phone
+  if (nameCol === -1) nameCol = 0;
+  if (surnameCol === -1) surnameCol = 1;
+  if (phoneCol === -1) phoneCol = 2;
+
+  for (let i = startRow; i < values.length; i++) {
+    const r = values[i]!;
+    const firstName = getCell(r, nameCol);
+    const lastName = getCell(r, surnameCol);
+    const phone = getCell(r, phoneCol);
+    
     if (!firstName && !lastName) continue;
+    
     const key = personnelKeyByNameOnly(firstName, lastName);
     if (phone) map.set(key, phone);
   }
-  return map;
-}
 
-/**
- * อ่านธนาคาร+เลขบัญชีจากแท็บ "bank": A=ยศ, B=ชื่อ, C=สกุล, D=ธนาคาร, E=เลขที่บัญชี — จับคู่ด้วย ชื่อ+สกุล เท่านั้น
- */
-async function readBankInfo(spreadsheetId: string): Promise<Map<string, { bank: string; accountNumber: string }>> {
-  const values = await readValues({ spreadsheetId, range: `'${BANK_TAB}'!A:E` });
-  const map = new Map<string, { bank: string; accountNumber: string }>();
-  const headerLike = /^(ยศ|ชื่อ|สกุล|ธนาคาร|บัญชี|bank|account)$/i;
-  let start = 0;
-  if (values.length > 0) {
-    const first = values[0]!;
-    if (headerLike.test(getCell(first, 0)) || headerLike.test(getCell(first, 3))) start = 1;
-  }
-  for (let i = start; i < values.length; i++) {
-    const r = values[i]!;
-    const firstName = getCell(r, 1);
-    const lastName = getCell(r, 2);
-    const bank = getCell(r, 3);
-    const accountNumber = getCell(r, 4);
-    if (!firstName && !lastName) continue;
-    const key = personnelKeyByNameOnly(firstName, lastName);
-    if (bank || accountNumber) map.set(key, { bank, accountNumber });
-  }
   return map;
 }
 
@@ -90,7 +156,7 @@ export type SyncPersonnelResult = {
 };
 
 /**
- * อ่าน 3 แท็บจากชีตฐานข้อมูลกำลังพล แล้วรวมเป็น PersonnelDoc[] พร้อมส่งลง Firestore
+ * อ่านข้อมูลกำลังพลและเบอร์จาก Sheets แล้วรวมเป็น PersonnelDoc[] พร้อมส่งลง Firestore
  */
 export async function loadAndMergePersonnel(): Promise<PersonnelDoc[]> {
   const spreadsheetId = config.google.personnelSheetsId;
@@ -98,29 +164,30 @@ export async function loadAndMergePersonnel(): Promise<PersonnelDoc[]> {
 
   const tabs = await listSpreadsheetTabs({ spreadsheetId });
   const hasPersonnel = tabs.some((t) => t.title.trim() === PERSONNEL_TAB);
-  const hasIndex = tabs.some((t) => t.title.trim() === INDEX_TAB);
-  const hasBank = tabs.some((t) => t.title.trim() === BANK_TAB);
-  if (!hasPersonnel) throw new Error(`ไม่พบแท็บ "${PERSONNEL_TAB}" ในชีต`);
-  if (!hasIndex) throw new Error(`ไม่พบแท็บ "${INDEX_TAB}" ในชีต`);
-  if (!hasBank) throw new Error(`ไม่พบแท็บ "${BANK_TAB}" ในชีต`);
+  
+  // Check for phone sheet - could be named "เบอร์โทร" or we have a GID
+  const hasPhone = tabs.some((t) => t.title.trim() === PHONE_TAB);
+  const phoneGid = config.google.phoneSheetGid;
+  
+  if (!hasPersonnel && !phoneGid) {
+    throw new Error(`ไม่พบแท็บ "${PERSONNEL_TAB}" และไม่มี PHONE_SHEET_GID`);
+  }
 
-  const [list, phoneMap, bankMap] = await Promise.all([
-    readPersonnelList(spreadsheetId),
-    readIndexPhones(spreadsheetId),
-    readBankInfo(spreadsheetId),
+  // For now, assume personnel data comes from the same spreadsheet
+  // and phone from either same sheet or GID
+  const personnelGid = config.google.indexSheetGid; // reuse index gid for personnel if set
+
+  const [list, phoneMap] = await Promise.all([
+    readPersonnelList(spreadsheetId, personnelGid),
+    readPhoneNumbers(spreadsheetId, phoneGid),
   ]);
 
-  const docs: PersonnelDoc[] = list.map(({ rank, firstName, lastName }) => {
-    const matchKey = personnelKeyByNameOnly(firstName, lastName);
+  const docs: PersonnelDoc[] = list.map((person) => {
+    const matchKey = personnelKeyByNameOnly(person.firstName, person.lastName);
     const phone = phoneMap.get(matchKey) ?? "";
-    const bankInfo = bankMap.get(matchKey) ?? { bank: "", accountNumber: "" };
     return {
-      rank,
-      firstName,
-      lastName,
+      ...person,
       phone,
-      bank: bankInfo.bank,
-      accountNumber: bankInfo.accountNumber,
       updatedAt: "",
     };
   });

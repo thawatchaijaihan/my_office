@@ -10,6 +10,19 @@ type PersonnelRow = {
   phone: string;
   bank: string;
   accountNumber: string;
+  citizenId: string;
+  militaryId: string;
+  duty: string;
+  position: string;
+  unit: string;
+  birthplace: string;
+  birthDate: string;
+  registeredDate: string;
+  enlistmentDate: string;
+  rankDate: string;
+  salary: string;
+  age: string;
+  retireYear: string;
 };
 
 function matchSearch(row: PersonnelRow, q: string): boolean {
@@ -22,6 +35,11 @@ function matchSearch(row: PersonnelRow, q: string): boolean {
     row.phone,
     row.bank,
     row.accountNumber,
+    row.citizenId,
+    row.militaryId,
+    row.duty,
+    row.position,
+    row.unit,
   ]
     .filter(Boolean)
     .join(" ")
@@ -159,6 +177,19 @@ export default function PersonnelPage() {
                 <CopyableCard value={row.phone} label="เบอร์โทร" onCopy={handleCopy} />
                 <CopyableCard value={row.bank} label="ธนาคาร" onCopy={handleCopy} />
                 <CopyableCard value={row.accountNumber} label="เลขบัญชี" onCopy={handleCopy} />
+                <CopyableCard value={row.citizenId} label="เลขประชาชน" onCopy={handleCopy} />
+                <CopyableCard value={row.militaryId} label="เลขทหาร" onCopy={handleCopy} />
+                <CopyableCard value={row.duty} label="ปฏิบัติหน้าที่" onCopy={handleCopy} />
+                <CopyableCard value={row.position} label="ตำแหน่ง" onCopy={handleCopy} />
+                <CopyableCard value={row.unit} label="เหล่า" onCopy={handleCopy} />
+                <CopyableCard value={row.birthplace} label="กำเนิด" onCopy={handleCopy} />
+                <CopyableCard value={row.birthDate} label="วันเกิด" onCopy={handleCopy} />
+                <CopyableCard value={row.registeredDate} label="วันขึ้นทะเบียน" onCopy={handleCopy} />
+                <CopyableCard value={row.enlistmentDate} label="วันบรรจุ" onCopy={handleCopy} />
+                <CopyableCard value={row.rankDate} label="วันครองยศ" onCopy={handleCopy} />
+                <CopyableCard value={row.salary} label="เงินเดือน" onCopy={handleCopy} />
+                <CopyableCard value={row.age} label="อายุ" onCopy={handleCopy} />
+                <CopyableCard value={row.retireYear} label="ปีเกษียณ" onCopy={handleCopy} />
               </div>
             </div>
           ))}
