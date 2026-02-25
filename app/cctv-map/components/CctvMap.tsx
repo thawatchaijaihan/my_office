@@ -108,6 +108,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
   const [isPdfOutdated, setIsPdfOutdated] = useState(false);
+  const [newPdfUrl, setNewPdfUrl] = useState<string | null>(null);
   const pdfGenerationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [markerMode, setMarkerMode] = useState<'all' | 'ok' | 'pending' | 'none'>('all');
@@ -428,6 +429,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       }
       setCachedPdfUrl(pdfUrl);
       setIsPdfOutdated(false);
+      setNewPdfUrl(pdfUrl); // เก็บ URL ใหม่เพื่อแสดงปุ่มดาวน์โหลด
       return pdfUrl;
     } catch (e) {
       console.error('[CctvMap] PDF generation failed:', e);
@@ -465,21 +467,18 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     if (cachedPdfUrl && !isPdfOutdated) {
       openPdfUrl(cachedPdfUrl);
     } else {
+      setNewPdfUrl(null); // ล้าง URL เดิมก่อนสร้างใหม่
       setIsGeneratingPdf(true);
       regeneratePdf()
         .then((newPdfUrl) => {
-          if (newPdfUrl) {
-            openPdfUrl(newPdfUrl);
-          } else {
-            alert("Unable to open PDF");
-          }
+          // ไม่เปิดอัตโนมัติ ให้ผู้ใช้กดปุ่มดาวน์โหลดเอง
         })
         .catch((error) => {
           console.error('PDF generation failed:', error);
           alert('สร้าง PDF ไม่สำเร็จ');
         })
         .finally(() => {
-          setIsGeneratingPdf(false);
+          // ไม่ปิด modal ให้แสดงปุ่มดาวน์โหลด
         });
     }
   };
@@ -990,10 +989,38 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 </svg>
               </div>
             </div>
-            <div className="text-center font-sans">
-              <h3 className="text-lg font-bold text-zinc-900">กำลังสร้าง PDF</h3>
-              <p className="text-sm text-zinc-500">กรุณารอสักครู่...</p>
-            </div>
+            {newPdfUrl ? (
+              <>
+                <div className="text-center font-sans">
+                  <h3 className="text-lg font-bold text-zinc-900">สร้าง PDF เสร็จแล้ว</h3>
+                  <p className="text-sm text-zinc-500">พร้อมดาวน์โหลดแล้ว</p>
+                </div>
+                <a
+                  href={newPdfUrl}
+                  download={`cctv-report-${new Date().toISOString().split('T')[0]}.pdf`}
+                  className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition hover:bg-green-700"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  ดาวน์โหลด PDF
+                </a>
+                <button
+                  onClick={() => {
+                    setNewPdfUrl(null);
+                    setIsGeneratingPdf(false);
+                  }}
+                  className="text-sm text-zinc-500 hover:text-zinc-700"
+                >
+                  ปิด
+                </button>
+              </>
+            ) : (
+              <div className="text-center font-sans">
+                <h3 className="text-lg font-bold text-zinc-900">กำลังสร้าง PDF</h3>
+                <p className="text-sm text-zinc-500">กรุณารอสักครู่...</p>
+              </div>
+            )}
           </div>
         </div>
       )}
