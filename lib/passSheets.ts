@@ -122,6 +122,21 @@ export async function readIndexRows(): Promise<IndexRow[]> {
 }
 
 export async function readSlipRows(): Promise<SlipRow[]> {
+  // If no slipSheetGid is configured and no "slip" sheet exists, return empty
+  if (!config.google.slipSheetGid) {
+    try {
+      const tabs = await listSpreadsheetTabs({});
+      const hasSlip = tabs.some((t) => t.title.trim() === SLIP_SHEET_NAME);
+      if (!hasSlip) {
+        console.log("[passSheets] No slip sheet found, returning empty array");
+        return [];
+      }
+    } catch (e) {
+      console.log("[passSheets] Could not check for slip sheet:", e);
+      return [];
+    }
+  }
+
   const sheetName = await resolveSheetName({
     defaultName: SLIP_SHEET_NAME,
     gid: config.google.slipSheetGid,
