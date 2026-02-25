@@ -17,3 +17,9 @@ export type Camera = {
   lat: number;
   lng: number;
 };
+
+export type CameraWithCheck = Camera & {
+  lastCheckedAt?: string;
+  lastCheckedImage?: string;
+  lastCheckedImagePath?: string;
+};

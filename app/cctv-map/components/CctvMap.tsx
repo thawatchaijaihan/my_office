@@ -6,7 +6,7 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "f
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
-import { Camera, CameraType } from "../data/types";
+import { Camera, CameraType, CameraWithCheck } from "../data/types";
 import { database, storage } from "../lib/firebase";
 import { generateCctvReport } from "../utils/PdfReportGenerator";
 
@@ -94,12 +94,6 @@ const compressImage = (file: File): Promise<string> => {
     reader.onerror = () => reject(new Error("Read error"));
     reader.readAsDataURL(file);
   });
-};
-
-type CameraWithCheck = Camera & {
-  lastCheckedAt?: string;
-  lastCheckedImage?: string;
-  lastCheckedImagePath?: string;
 };
 
 type CctvMapProps = {
