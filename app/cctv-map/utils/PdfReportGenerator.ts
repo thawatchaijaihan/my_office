@@ -12,6 +12,135 @@ const toThaiNumerals = (text: string) => {
   return text.replace(/[0-9]/g, (digit) => thaiNumerals[parseInt(digit)]);
 };
 
+// Cache keys
+const IMAGE_CACHE_PREFIX = 'pdf_img_cache_';
+const PDF_CACHE_KEY = 'pdf_full_cache';
+
+interface PdfCacheData {
+  url: string;
+  timestamp: number;
+}
+
+interface ImageCacheItem {
+  base64: string;
+  timestamp: number;
+}
+
+interface PdfCacheItem {
+  pdfUrl: string;
+  imageSignatures: Record<string, string>; // cameraId -> image signature (URL + lastCheckedAt)
+  timestamp: number;
+}
+
+// Get image signature for caching (URL + lastCheckedAt)
+const getImageSignature = (camera: CameraWithCheck): string => {
+  return `${camera.lastCheckedImage}_${camera.lastCheckedAt || ''}`;
+};
+
+// Get all image signatures as a unique key
+const getPdfSignature = (cameras: CameraWithCheck[]): string => {
+  const signatures = cameras
+    .filter(c => c.lastCheckedImage)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(c => getImageSignature(c))
+    .join('|');
+  return signatures;
+};
+
+// Get cached PDF - no expiry, only invalidates when images change
+const getCachedPdf = (): string | null => {
+  try {
+    const cached = localStorage.getItem(PDF_CACHE_KEY);
+    if (!cached) return null;
+    
+    const cacheData: PdfCacheItem = JSON.parse(cached);
+    console.log('[PDF Cache] Found cached PDF');
+    return cacheData.pdfUrl;
+  } catch (e) {
+    console.error('[PDF Cache] Error reading PDF cache:', e);
+    return null;
+  }
+};
+
+// Save PDF to cache
+const savePdfToCache = (pdfUrl: string, cameras: CameraWithCheck[]) => {
+  try {
+    const signatures = cameras
+      .filter(c => c.lastCheckedImage)
+      .reduce((acc, c) => {
+        acc[c.id] = getImageSignature(c);
+        return acc;
+      }, {} as Record<string, string>);
+    
+    const cacheData: PdfCacheItem = {
+      pdfUrl,
+      imageSignatures: signatures,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(PDF_CACHE_KEY, JSON.stringify(cacheData));
+    console.log('[PDF Cache] Saved PDF to cache');
+  } catch (e) {
+    console.error('[PDF Cache] Error saving PDF cache:', e);
+  }
+};
+
+// Check if all images are the same as cached
+const checkImagesUnchanged = (cameras: CameraWithCheck[]): boolean => {
+  try {
+    const cached = localStorage.getItem(PDF_CACHE_KEY);
+    if (!cached) return false;
+    
+    const cacheData: PdfCacheItem = JSON.parse(cached);
+    
+    // Check each camera's image signature
+    for (const camera of cameras) {
+      if (camera.lastCheckedImage) {
+        const currentSig = getImageSignature(camera);
+        const cachedSig = cacheData.imageSignatures[camera.id];
+        
+        if (!cachedSig || currentSig !== cachedSig) {
+          console.log('[PDF Cache] Image changed:', camera.id);
+          return false;
+        }
+      }
+    }
+    
+    console.log('[PDF Cache] All images unchanged');
+    return true;
+  } catch (e) {
+    console.error('[PDF Cache] Error checking images:', e);
+    return false;
+  }
+};
+
+// Get cached image base64 - no expiry, only invalidates when image URL changes
+const getCachedImage = (camera: CameraWithCheck): string | null => {
+  try {
+    const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
+    const cached = localStorage.getItem(cacheKey);
+    if (!cached) return null;
+    
+    const cacheData: ImageCacheItem = JSON.parse(cached);
+    return cacheData.base64;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Save image to cache
+const saveImageToCache = (camera: CameraWithCheck, base64: string) => {
+  try {
+    const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
+    const cacheData: ImageCacheItem = {
+      base64,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  } catch (e) {
+    console.error('[PDF Cache] Error saving image cache:', e);
+  }
+};
+
 export const generateCctvReport = async (
   cameras: CameraWithCheck[],
 ): Promise<Blob | null> => {
@@ -29,6 +158,10 @@ export const generateCctvReport = async (
     alert("ไม่มีรูปภาพกล้องที่ตรวจสอบแล้วสำหรับออกรายงาน");
     return null;
   }
+
+  // Check if all images are unchanged - if so, we don't need to regenerate
+  // But we return null here and let the caller handle using cached PDF URL
+  // This is a check function, not the full generation
 
   const grouped: Record<string, CameraWithCheck[]> = {};
   camerasWithImages.forEach(camera => {
@@ -62,6 +195,11 @@ export const generateCctvReport = async (
 
   let isFirstPage = true;
   let pageCount = 0;
+  
+  // Track which images used cache
+  let cachedImageCount = 0;
+  let totalImages = 0;
+  
   for (const [type, groupCameras] of Object.entries(grouped)) {
     console.log(`[PDF] กำลังสร้างหน้าสำหรับ ${type}...`);
     
@@ -125,6 +263,7 @@ export const generateCctvReport = async (
         img.style.objectFit = "cover";
         img.style.display = "block";
         img.setAttribute('data-camera-id', camera.id);
+        img.setAttribute('data-image-signature', getImageSignature(camera));
         
         const label = document.createElement("div");
         label.style.position = "absolute";
@@ -151,15 +290,27 @@ export const generateCctvReport = async (
       // รอให้รูปภาพโหลดเสร็จทั้งหมด
       console.log('[PDF]   รอโหลดรูปภาพ...');
       const images = container.querySelectorAll('img');
+      totalImages += images.length;
       console.log('[PDF]   จำนวนรูป:', images.length);
       
-      // แปลงรูปเป็น base64 เพื่อหลีก CORS
+      // แปลงรูปเป็น base64 เพื่อหลีก CORS - with caching
       const loadPromises = Array.from(images).map(async (img, idx) => {
         const htmlImg = img as HTMLImageElement;
         const cameraId = htmlImg.getAttribute('data-camera-id');
         const originalSrc = htmlImg.src;
+        const imageSig = htmlImg.getAttribute('data-image-signature');
         
         try {
+          // First check if we have a cached base64 for this exact image signature
+          const cachedBase64 = getCachedImage({ id: cameraId!, lastCheckedImage: originalSrc, lastCheckedAt: '' });
+          
+          if (cachedBase64) {
+            console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): ใช้ cache`);
+            htmlImg.src = cachedBase64;
+            cachedImageCount++;
+            return;
+          }
+          
           console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): กำลังโหลด...`);
           
           // Fetch และแปลงเป็น base64
@@ -175,7 +326,10 @@ export const generateCctvReport = async (
           });
           
           htmlImg.src = base64;
-          console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): แปลง base64 สำเร็จ`);
+          
+          // Save to cache
+          saveImageToCache({ id: cameraId!, lastCheckedImage: originalSrc, lastCheckedAt: '' }, base64);
+          console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): แปลง base64 สำเร็จ + cache`);
         } catch (error) {
           console.error(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): ERROR`, error);
           throw error;
@@ -250,8 +404,23 @@ export const generateCctvReport = async (
   console.log('[PDF] ลบ container');
   document.body.removeChild(container);
   
+  console.log(`[PDF Cache] สรุป: ใช้ cache ${cachedImageCount}/${totalImages} รูป`);
+  
   console.log('[PDF] บันทึกไฟล์...');
   const pdfBlob = pdf.output("blob");
   console.log('[PDF] เสร็จสิ้น');
   return pdfBlob;
+};
+
+// Export check function for external use
+export const checkPdfCacheValid = (cameras: CameraWithCheck[]): string | null => {
+  if (checkImagesUnchanged(cameras)) {
+    return getCachedPdf();
+  }
+  return null;
+};
+
+// Export save function for external use
+export const savePdfCache = (pdfUrl: string, cameras: CameraWithCheck[]) => {
+  savePdfToCache(pdfUrl, cameras);
 };
