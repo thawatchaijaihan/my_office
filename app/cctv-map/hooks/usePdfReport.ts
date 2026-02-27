@@ -1,0 +1,157 @@
+"use client";
+
+import { get, ref, set } from "firebase/database";
+import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
+import { useEffect, useRef, useState } from "react";
+
+import { CameraWithCheck } from "../data/types";
+import { database, storage } from "../lib/firebase";
+import { generateCctvReport, checkPdfCacheValid, savePdfCache } from "../utils/PdfReportGenerator";
+
+export function usePdfReport(cameraItems: CameraWithCheck[]) {
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
+    const [isPdfOutdated, setIsPdfOutdated] = useState(false);
+    const [newPdfUrl, setNewPdfUrl] = useState<string | null>(null);
+    const [pdfReady, setPdfReady] = useState(false);
+    const pdfGenerationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Load cached PDF URL from Firebase
+    useEffect(() => {
+        const reportRef = ref(database, "cctvReport");
+        get(reportRef)
+            .then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    setCachedPdfUrl(data.url);
+                }
+            })
+            .catch((error) => console.warn("[CCTV] load cctvReport failed:", error));
+    }, []);
+
+    const regeneratePdf = async (): Promise<string | null> => {
+        try {
+            console.log('[CctvMap] ตรวจสอบ cache PDF...');
+            const cached = checkPdfCacheValid(cameraItems);
+
+            if (cached) {
+                console.log('[CctvMap] ใช้ PDF จาก cache');
+                setCachedPdfUrl(cached);
+                setIsPdfOutdated(false);
+                setNewPdfUrl(cached);
+                setPdfReady(true);
+                return cached;
+            }
+
+            console.log('[CctvMap] เริ่มสร้าง PDF ใหม่...');
+            const pdfBlob = await generateCctvReport(cameraItems);
+            if (!pdfBlob) {
+                console.error('[CctvMap] PDF blob is null');
+                return null;
+            }
+            console.log('[CctvMap] PDF blob size:', pdfBlob.size);
+
+            const pdfPath = `cctv-reports/latest-${Date.now()}.pdf`;
+            console.log('[CctvMap] Uploading to:', pdfPath);
+            const pdfRef = storageRef(storage, pdfPath);
+
+            await uploadBytes(pdfRef, pdfBlob);
+            console.log('[CctvMap] Upload complete, getting URL...');
+
+            const pdfUrl = await getDownloadURL(pdfRef);
+            console.log('[CctvMap] PDF URL:', pdfUrl);
+
+            savePdfCache(pdfUrl, cameraItems);
+
+            try {
+                await set(ref(database, "cctvReport"), {
+                    url: pdfUrl,
+                    generatedAt: new Date().toISOString(),
+                });
+                console.log('[CctvMap] Saved to database');
+            } catch (dbError) {
+                console.warn("Unable to write cctvReport to database:", dbError);
+            }
+            setCachedPdfUrl(pdfUrl);
+            setIsPdfOutdated(false);
+            setNewPdfUrl(pdfUrl);
+            console.log('[CctvMap] Setting pdfReady to true...');
+            setPdfReady(true);
+            console.log('[CctvMap] Returning pdfUrl...');
+            return pdfUrl;
+        } catch (e) {
+            console.error('[CctvMap] PDF generation failed:', e);
+            return null;
+        }
+    };
+
+    const openPdfUrl = (url: string) => {
+        console.log('[CctvMap] openPdfUrl called with:', url);
+        const telegramWebApp = (window as Window & {
+            Telegram?: {
+                WebApp?: {
+                    openLink?: (href: string, options?: Record<string, unknown>) => void;
+                };
+            };
+        }).Telegram?.WebApp;
+
+        if (telegramWebApp?.openLink) {
+            console.log('[CctvMap] Using Telegram WebApp openLink');
+            telegramWebApp.openLink(url, { try_instant_view: false });
+            return;
+        }
+
+        console.log('[CctvMap] Using regular link click');
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleOpenPdf = () => {
+        if (cachedPdfUrl && !isPdfOutdated) {
+            openPdfUrl(cachedPdfUrl);
+        } else {
+            setPdfReady(false);
+            setNewPdfUrl(null);
+            setIsGeneratingPdf(true);
+            regeneratePdf()
+                .then(() => {
+                    // ไม่เปิดอัตโนมัติ ให้ผู้ใช้กดปุ่มดาวน์โหลดเอง
+                })
+                .catch((error) => {
+                    console.error('PDF generation failed:', error);
+                    alert('สร้าง PDF ไม่สำเร็จ');
+                })
+                .finally(() => {
+                    // ไม่ปิด modal ให้แสดงปุ่มดาวน์โหลด
+                });
+        }
+    };
+
+    const schedulePdfRegeneration = () => {
+        setIsPdfOutdated(true);
+        if (pdfGenerationTimeoutRef.current) {
+            clearTimeout(pdfGenerationTimeoutRef.current);
+        }
+        pdfGenerationTimeoutRef.current = setTimeout(() => {
+            regeneratePdf();
+        }, 3000);
+    };
+
+    return {
+        isGeneratingPdf,
+        setIsGeneratingPdf,
+        cachedPdfUrl,
+        isPdfOutdated,
+        newPdfUrl,
+        setNewPdfUrl,
+        pdfReady,
+        setPdfReady,
+        handleOpenPdf,
+        schedulePdfRegeneration,
+    };
+}

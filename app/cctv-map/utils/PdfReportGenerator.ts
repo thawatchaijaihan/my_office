@@ -57,7 +57,7 @@ const getCachedPdf = (): string | null => {
   try {
     const cached = localStorage.getItem(PDF_CACHE_KEY);
     if (!cached) return null;
-    
+
     const cacheData: PdfCacheItem = JSON.parse(cached);
     console.log('[PDF Cache] Found cached PDF');
     return cacheData.pdfUrl;
@@ -76,7 +76,7 @@ const savePdfToCache = (pdfUrl: string, cameras: CameraWithCheck[]) => {
         acc[c.id] = getImageSignature(c);
         return acc;
       }, {} as Record<string, string>);
-    
+
     const cacheData: PdfCacheItem = {
       pdfUrl,
       imageSignatures: signatures,
@@ -94,22 +94,22 @@ const checkImagesUnchanged = (cameras: CameraWithCheck[]): boolean => {
   try {
     const cached = localStorage.getItem(PDF_CACHE_KEY);
     if (!cached) return false;
-    
+
     const cacheData: PdfCacheItem = JSON.parse(cached);
-    
+
     // Check each camera's image signature
     for (const camera of cameras) {
       if (camera.lastCheckedImage) {
         const currentSig = getImageSignature(camera);
         const cachedSig = cacheData.imageSignatures[camera.id];
-        
+
         if (!cachedSig || currentSig !== cachedSig) {
           console.log('[PDF Cache] Image changed:', camera.id);
           return false;
         }
       }
     }
-    
+
     console.log('[PDF Cache] All images unchanged');
     return true;
   } catch (e) {
@@ -121,10 +121,12 @@ const checkImagesUnchanged = (cameras: CameraWithCheck[]): boolean => {
 // Get cached image base64 - no expiry, only invalidates when image URL changes
 const getCachedImage = (camera: ImageCacheKey): string | null => {
   try {
-    const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
+    // ใช้ string replacement ง่ายๆ แทน btoa เพื่อป้องกันปัญหาตัวอักษรพิเศษและ collision
+    const safeUrl = (camera.lastCheckedImage || '').replace(/[^a-zA-Z0-9]/g, '').slice(-60);
+    const cacheKey = IMAGE_CACHE_PREFIX + safeUrl;
     const cached = localStorage.getItem(cacheKey);
     if (!cached) return null;
-    
+
     const cacheData: ImageCacheItem = JSON.parse(cached);
     return cacheData.base64;
   } catch (e) {
@@ -135,7 +137,8 @@ const getCachedImage = (camera: ImageCacheKey): string | null => {
 // Save image to cache
 const saveImageToCache = (camera: ImageCacheKey, base64: string) => {
   try {
-    const cacheKey = IMAGE_CACHE_PREFIX + btoa(camera.lastCheckedImage || '').slice(0, 50);
+    const safeUrl = (camera.lastCheckedImage || '').replace(/[^a-zA-Z0-9]/g, '').slice(-60);
+    const cacheKey = IMAGE_CACHE_PREFIX + safeUrl;
     const cacheData: ImageCacheItem = {
       base64,
       timestamp: Date.now()
@@ -150,15 +153,15 @@ export const generateCctvReport = async (
   cameras: CameraWithCheck[],
 ): Promise<Blob | null> => {
   const imagesPerPage = 12;
-  
+
   console.log('[PDF] เริ่มสร้าง PDF');
   console.log('[PDF] กล้องทั้งหมด:', cameras.length);
-  
+
   // Filter cameras that have images
   const camerasWithImages = cameras.filter(c => c.lastCheckedImage);
-  
+
   console.log('[PDF] กล้องที่มีรูป:', camerasWithImages.length);
-  
+
   if (camerasWithImages.length === 0) {
     alert("ไม่มีรูปภาพกล้องที่ตรวจสอบแล้วสำหรับออกรายงาน");
     return null;
@@ -188,7 +191,7 @@ export const generateCctvReport = async (
   container.style.position = "absolute";
   container.style.left = "-9999px";
   container.style.top = "0";
-  container.style.width = "210mm"; 
+  container.style.width = "210mm";
   container.style.backgroundColor = "white";
   container.style.padding = "20mm 20mm 15mm 25mm"; // Margins: Top 20, Right 20, Bottom 15, Left 25 (approx for government style)
   container.style.fontFamily = "'TH Sarabun New', sans-serif";
@@ -200,28 +203,28 @@ export const generateCctvReport = async (
 
   let isFirstPage = true;
   let pageCount = 0;
-  
+
   // Track which images used cache
   let cachedImageCount = 0;
   let totalImages = 0;
-  
+
   for (const [type, groupCameras] of Object.entries(grouped)) {
     console.log(`[PDF] กำลังสร้างหน้าสำหรับ ${type}...`);
-    
+
     for (let i = 0; i < groupCameras.length; i += imagesPerPage) {
       pageCount++;
       console.log(`[PDF] หน้าที่ ${pageCount}...`);
-      
+
       if (!isFirstPage) {
         pdf.addPage();
       }
       isFirstPage = false;
-      
+
       container.innerHTML = "";
       const pageCameras = groupCameras.slice(i, i + imagesPerPage);
-      
+
       console.log(`[PDF]   กล้อง ${pageCameras.length} ตัว:`, pageCameras.map(c => c.name).join(', '));
-      
+
       // Add Header
       const header = document.createElement("div");
       header.style.textAlign = "center";
@@ -230,14 +233,14 @@ export const generateCctvReport = async (
       header.style.fontWeight = "bold";
       header.style.fontSize = "20pt";
       header.style.lineHeight = "1.1";
-      
+
       const line1 = document.createElement("div");
       line1.innerText = "ภาพจากระบบกล้องวงจรปิดภายในเขตรับผิดชอบ";
-      
+
       const line2 = document.createElement("div");
       const displayType = type.replace(/ร้อย\.(\d+)/, "ร้อย.ป.ที่ $1");
       line2.innerText = toThaiNumerals(`หน่วย ${displayType}`);
-      
+
       header.appendChild(line1);
       header.appendChild(line2);
       container.appendChild(header);
@@ -248,8 +251,8 @@ export const generateCctvReport = async (
       grid.style.gridTemplateRows = "repeat(4, 1fr)";
       grid.style.gap = "5mm";
       grid.style.width = "100%";
-      grid.style.height = "195mm"; 
-      
+      grid.style.height = "195mm";
+
       pageCameras.forEach((camera) => {
         const cell = document.createElement("div");
         cell.style.position = "relative";
@@ -269,7 +272,7 @@ export const generateCctvReport = async (
         img.style.display = "block";
         img.setAttribute('data-camera-id', camera.id);
         img.setAttribute('data-image-signature', getImageSignature(camera));
-        
+
         const label = document.createElement("div");
         label.style.position = "absolute";
         label.style.bottom = "12px";
@@ -284,7 +287,7 @@ export const generateCctvReport = async (
         const nameThai = toThaiNumerals(camera.name);
         const descThai = camera.description ? toThaiNumerals(camera.description) : "";
         label.innerText = `${nameThai}${descThai ? ` : ${descThai}` : ""}`;
-        
+
         cell.appendChild(img);
         cell.appendChild(label);
         grid.appendChild(cell);
@@ -297,41 +300,50 @@ export const generateCctvReport = async (
       const images = container.querySelectorAll('img');
       totalImages += images.length;
       console.log('[PDF]   จำนวนรูป:', images.length);
-      
+
       // แปลงรูปเป็น base64 เพื่อหลีก CORS - with caching
       const loadPromises = Array.from(images).map(async (img, idx) => {
         const htmlImg = img as HTMLImageElement;
         const cameraId = htmlImg.getAttribute('data-camera-id');
         const originalSrc = htmlImg.src;
         const imageSig = htmlImg.getAttribute('data-image-signature');
-        
+
         try {
           // First check if we have a cached base64 for this exact image signature
           const cachedBase64 = getCachedImage({ lastCheckedImage: originalSrc });
-          
+
           if (cachedBase64) {
             console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): ใช้ cache`);
-            htmlImg.src = cachedBase64;
+            await new Promise<void>((resolve, reject) => {
+              htmlImg.onload = () => resolve();
+              htmlImg.onerror = reject;
+              htmlImg.src = cachedBase64;
+            });
             cachedImageCount++;
             return;
           }
-          
+
           console.log(`[PDF]     รูปที่ ${idx + 1} (${cameraId}): กำลังโหลด...`);
-          
+
           // Fetch และแปลงเป็น base64
           const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(originalSrc)}`;
           const response = await fetch(proxyUrl);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          
+
           const blob = await response.blob();
           const base64 = await new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
-          
-          htmlImg.src = base64;
-          
+
+          // Wait for the image to actually render the new base64 src
+          await new Promise<void>((resolve, reject) => {
+            htmlImg.onload = () => resolve();
+            htmlImg.onerror = reject;
+            htmlImg.src = base64;
+          });
+
           // Save to cache
           saveImageToCache({ lastCheckedImage: originalSrc }, base64);
           console.log(`[PDF Cache]     รูปที่ ${idx + 1} (${cameraId}): แปลง base64 สำเร็จ + cache`);
@@ -340,10 +352,12 @@ export const generateCctvReport = async (
           throw error;
         }
       });
-      
+
       try {
         await Promise.all(loadPromises);
-        console.log('[PDF]   โหลดรูปเสร็จทั้งหมด');
+        console.log('[PDF]   โหลดรูปเสร็จทั้งหมด รอ render...');
+        // รอให้เบราว์เซอร์มีเวลา render base64 ลงจอจริงๆ ก่อนเรียก html2canvas
+        await new Promise(r => setTimeout(r, 1000));
       } catch (error) {
         console.error('[PDF]   มีรูปโหลดไม่สำเร็จ:', error);
         alert('ไม่สามารถโหลดรูปภาพบางรูปได้ กรุณาลองใหม่อีกครั้ง');
@@ -356,7 +370,7 @@ export const generateCctvReport = async (
       footer.style.marginTop = "8mm";
       footer.style.display = "flex";
       footer.style.flexDirection = "column";
-      footer.style.alignItems = "flex-end"; 
+      footer.style.alignItems = "flex-end";
       footer.style.fontFamily = "'TH Sarabun New', sans-serif";
       footer.style.fontSize = "16pt";
       footer.style.lineHeight = "1.2";
@@ -408,9 +422,9 @@ export const generateCctvReport = async (
 
   console.log('[PDF] ลบ container');
   document.body.removeChild(container);
-  
+
   console.log(`[PDF Cache] สรุป: ใช้ cache ${cachedImageCount}/${totalImages} รูป`);
-  
+
   console.log('[PDF] บันทึกไฟล์...');
   const pdfBlob = pdf.output("blob");
   console.log('[PDF] เสร็จสิ้น');
