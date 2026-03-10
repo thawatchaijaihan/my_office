@@ -26,6 +26,14 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/map-cctv",
+        destination: "/cctv-map",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
