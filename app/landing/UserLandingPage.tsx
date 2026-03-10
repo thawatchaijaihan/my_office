@@ -151,7 +151,7 @@ export default function UserLandingPage() {
             <p className="text-xl text-white opacity-90">กรุณาเลือกรายการที่ต้องการใช้บริการ</p>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
           <a
             href="https://docs.google.com/forms/d/e/1FAIpQLSfCHZhNhdwIKiQoZH3FpSRZWTsuH5qOxD-DsTYAji2i7iKdCw/viewform"
             target="_blank"
@@ -181,6 +181,23 @@ export default function UserLandingPage() {
             <h2 className="text-2xl font-bold text-center mb-3 text-[#667eea]">ค้นหาบัตรผ่าน</h2>
             <p className="text-gray-600 text-center leading-relaxed">ตรวจสอบสถานะการขอบัตรผ่านของคุณ</p>
           </button>
+
+          <a
+            href="https://jaihan-assistant--jaihan-assistant.asia-southeast1.hosted.app/cctv-map"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-[20px] p-10 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_15px_50px_rgba(102,126,234,0.3)] group"
+          >
+            <div className="w-[70px] h-[70px] mx-auto mb-6 bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-[15px] flex items-center justify-center">
+              <svg fill="none" stroke="white" viewBox="0 0 24 24" className="w-10 h-10">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-center mb-3 text-[#667eea]">ตรวจสอบกล้องวงจรปิด</h2>
+            <p className="text-gray-600 text-center leading-relaxed whitespace-pre-line">
+              ตรวจสอบตำแหน่งและสถานะของกล้องวงจรปิดในพื้นที่
+            </p>
+          </a>
         </div>
       </main>
     );
