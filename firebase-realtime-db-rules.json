@@ -12,7 +12,7 @@
     },
     "cameras": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null"
     },
     "cctvReport": {
       ".read": true,

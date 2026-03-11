@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 
 import { CameraType, CameraWithCheck } from "../data/types";
 import { typeOptions } from "../components/FilterPanel";
+import { getCheckWindow, isCameraCheckedInCurrentHalf } from "../utils/checkUtils";
 
 type UseCameraCheckStatusOptions = {
     cameraItems: CameraWithCheck[];
@@ -17,11 +18,7 @@ export function useCameraCheckStatus({
     markerMode,
 }: UseCameraCheckStatusOptions) {
     const typeCheckStatus = useMemo(() => {
-        const now = new Date();
-        const isFirstHalf = now.getDate() <= 15;
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        const mid = new Date(now.getFullYear(), now.getMonth(), 16);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const window = getCheckWindow();
 
         return typeOptions.reduce<Record<CameraType, boolean>>((acc, type) => {
             const camerasOfType = cameraItems.filter(
@@ -32,44 +29,16 @@ export function useCameraCheckStatus({
                 return acc;
             }
 
-            const inCurrentHalf = (date: Date) =>
-                isFirstHalf ? date >= start && date < mid : date >= mid && date < end;
-
-            acc[type] = camerasOfType.every((camera) => {
-                if (!camera.lastCheckedAt) return false;
-                const checkedAt = new Date(camera.lastCheckedAt);
-                if (Number.isNaN(checkedAt.getTime())) return false;
-                return inCurrentHalf(checkedAt);
-            });
+            acc[type] = camerasOfType.every((camera) => isCameraCheckedInCurrentHalf(camera));
             return acc;
         }, {} as Record<CameraType, boolean>);
     }, [cameraItems]);
 
-    const checkWindow = useMemo(() => {
-        const now = new Date();
-        const isFirstHalf = now.getDate() <= 15;
-        return {
-            isFirstHalf,
-            start: new Date(now.getFullYear(), now.getMonth(), 1),
-            mid: new Date(now.getFullYear(), now.getMonth(), 16),
-            end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
-        };
-    }, []);
+    const checkWindow = useMemo(() => getCheckWindow(), []);
 
     const isCheckedInCurrentHalf = useCallback(
-        (camera: CameraWithCheck) => {
-            const legacyMode = process.env.NEXT_PUBLIC_CCTV_LEGACY_MODE === "true";
-            if (legacyMode && camera.lastCheckedImage) return true;
-
-            if (!camera.lastCheckedAt) return false;
-            const checkedAt = new Date(camera.lastCheckedAt);
-            if (Number.isNaN(checkedAt.getTime())) return false;
-            if (checkWindow.isFirstHalf) {
-                return checkedAt >= checkWindow.start && checkedAt < checkWindow.mid;
-            }
-            return checkedAt >= checkWindow.mid && checkedAt < checkWindow.end;
-        },
-        [checkWindow],
+        (camera: CameraWithCheck) => isCameraCheckedInCurrentHalf(camera),
+        [],
     );
 
     const displayedCameras = useMemo(() => {

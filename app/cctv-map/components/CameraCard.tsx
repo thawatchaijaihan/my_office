@@ -213,7 +213,9 @@ function CameraCard({
         {camera.description} / {typeLabels[camera.type]}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <label className="inline-flex min-w-[96px] items-center justify-center cursor-pointer rounded-md bg-green-600 px-2 py-1 text-[11px] font-bold text-white transition hover:bg-green-700">
+        <label className={`inline-flex min-w-[96px] items-center justify-center cursor-pointer rounded-md px-2 py-1 text-[11px] font-bold text-white transition ${
+          isChecked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+        }`}>
           อัพโหลดภาพจากกล้อง
           <input
             type="file"

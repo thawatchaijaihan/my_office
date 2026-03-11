@@ -144,7 +144,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     }
   }, [filteredCameras, selectedCameraId, setSelectedCameraId]);
 
-  // Fit map bounds to filtered cameras
+  // Fit map bounds to filtered cameras only when filters change or camera count changes
   useEffect(() => {
     if (!mapRef.current) return;
     if (filteredCameras.length === 0) return;
@@ -155,7 +155,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       bounds.extend({ lat: camera.lat, lng: camera.lng });
     });
     mapRef.current.fitBounds(bounds);
-  }, [filteredCameras]);
+  }, [searchTerm, activeTypes.length, filteredCameras.length]);
 
   // --- Render ---
   if (!apiKey) {
@@ -179,6 +179,15 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
       <div className="grid min-h-0 grid-cols-1 grid-rows-[auto_auto] gap-4 lg:h-full lg:grid-rows-none lg:grid-cols-[360px_1fr] lg:items-start xl:grid-cols-[380px_1fr] 2xl:grid-cols-[420px_1fr]">
         {/* Left Panel - Camera List */}
         <section className="order-2 flex flex-col gap-4 bg-white p-5 shadow-sm ring-1 ring-green-100 lg:order-1 lg:h-full lg:min-h-0 lg:overflow-y-auto">
+          <FilterPanel
+            activeTypes={activeTypes}
+            typeCheckStatus={typeCheckStatus}
+            onToggleType={toggleType}
+            onFilterPointerDown={handleFilterPointerDown}
+            onFilterClick={handleFilterClick}
+            clearLongPressTimer={clearLongPressTimer}
+          />
+
           <div className="space-y-4">
             <label className="text-sm font-medium text-green-900">
               <input
@@ -212,104 +221,99 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
         </section>
 
         {/* Right Panel - Map */}
-        <section className="order-1 flex min-h-[50vh] flex-col self-start overflow-hidden border border-zinc-100 bg-white shadow-sm ring-1 ring-green-100 lg:order-2 lg:min-h-0 lg:h-full">
+        <section className="order-1 flex flex-col self-start bg-white shadow-sm ring-1 ring-green-100 lg:order-2 lg:h-full lg:min-h-0 lg:overflow-hidden">
           <div
-            className="relative h-[50vh] w-full shrink-0 grow lg:min-h-0 lg:h-full lg:flex-1"
-            style={{ minHeight: "50vh" }}
+            className="flex w-full flex-col lg:relative lg:block lg:h-full lg:flex-1"
           >
             {(isAddingCamera || movingCameraId) && (
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
                 <div className="h-4 w-4 rounded-full border-2 border-white bg-green-600 shadow-md" />
               </div>
             )}
+            <div className="relative z-0 h-[45vh] w-full shrink-0 lg:h-full lg:flex-1">
+              <div className="absolute inset-0 h-full w-full">
+                <GoogleMap
+                  mapContainerStyle={containerStyle}
+                  center={mapCenter}
+                  zoom={15}
+                  onLoad={(map) => {
+                    mapRef.current = map;
+                    window.setTimeout(() => {
+                      if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
+                        mapRef.current.resize();
+                      }
+                    }, 0);
+                    window.setTimeout(() => {
+                      if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
+                        mapRef.current.resize();
+                      }
+                    }, 200);
+                  }}
+                  onClick={() => setSelectedCameraId(null)}
+                  options={{
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: false,
+                    mapTypeId: "satellite",
+                  }}
+                >
+                  {markerMode !== 'none' &&
+                    displayedCameras.map((camera) => {
+                      const needsCheck = !isCheckedInCurrentHalf(camera);
+                      const icon =
+                        typeof google !== "undefined"
+                          ? {
+                              path: google.maps.SymbolPath.CIRCLE,
+                              fillColor: needsCheck ? "#dc2626" : "#2563eb",
+                              fillOpacity: 1,
+                              strokeColor: "#ffffff",
+                              strokeWeight: 4,
+                              scale: 10,
+                            }
+                          : undefined;
 
-            <FilterPanel
-              activeTypes={activeTypes}
-              typeCheckStatus={typeCheckStatus}
-              onToggleType={toggleType}
-              onFilterPointerDown={handleFilterPointerDown}
-              onFilterClick={handleFilterClick}
-              clearLongPressTimer={clearLongPressTimer}
-            />
+                      return (
+                        <MarkerF
+                          key={camera.id}
+                          position={{ lat: camera.lat, lng: camera.lng }}
+                          onClick={() => handleSelect(camera.id)}
+                          icon={icon}
+                        />
+                      );
+                    })}
 
-            <MapControls
-              markerMode={markerMode}
-              isAdminMode={isAdminMode}
-              isAddingCamera={isAddingCamera}
-              movingCameraId={movingCameraId}
-              isGeneratingPdf={isGeneratingPdf}
-              cachedPdfUrl={cachedPdfUrl}
-              isPdfOutdated={isPdfOutdated}
-              onMarkerModeChange={handleMarkerModeChange}
-              onOpenPdf={handleOpenPdf}
-              onStartAddCamera={handleStartAddCamera}
-              onHandleAddCameraAtCenter={handleAddCameraAtCenter}
-              onCloseAddForm={() => setIsAddingCamera(false)}
-              onConfirmMoveCamera={confirmMoveCamera}
-              onCancelMoveCamera={cancelMoveCamera}
-            />
+                  {markerMode !== 'none' && selectedCamera && (
+                    <CameraInfoOverlay
+                      camera={selectedCamera}
+                      isCheckedInCurrentHalf={isCheckedInCurrentHalf}
+                      onClose={() => setSelectedCameraId(null)}
+                      onUpdateCamera={updateCamera}
+                      onSchedulePdfRegeneration={schedulePdfRegeneration}
+                      isAdminMode={isAdminMode}
+                    />
+                  )}
+                </GoogleMap>
+              </div>
+            </div>
 
-            <div className="absolute inset-0 h-full w-full lg:relative lg:block">
-              <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={mapCenter}
-                zoom={15}
-                onLoad={(map) => {
-                  mapRef.current = map;
-                  window.setTimeout(() => {
-                    if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
-                      mapRef.current.resize();
-                    }
-                  }, 0);
-                  window.setTimeout(() => {
-                    if (mapRef.current && "resize" in mapRef.current && typeof mapRef.current.resize === "function") {
-                      mapRef.current.resize();
-                    }
-                  }, 200);
-                }}
-                onClick={() => setSelectedCameraId(null)}
-                options={{
-                  mapTypeControl: false,
-                  streetViewControl: false,
-                  fullscreenControl: false,
-                  mapTypeId: "satellite",
-                }}
-              >
-                {markerMode !== 'none' &&
-                  displayedCameras.map((camera) => {
-                    const needsCheck = !isCheckedInCurrentHalf(camera);
-                    const icon =
-                      typeof google !== "undefined"
-                        ? {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            fillColor: needsCheck ? "#dc2626" : "#2563eb",
-                            fillOpacity: 1,
-                            strokeColor: "#ffffff",
-                            strokeWeight: 4,
-                            scale: 10,
-                          }
-                        : undefined;
+            <div className="relative z-10 bg-white">
 
-                    return (
-                      <MarkerF
-                        key={camera.id}
-                        position={{ lat: camera.lat, lng: camera.lng }}
-                        onClick={() => handleSelect(camera.id)}
-                        icon={icon}
-                      />
-                    );
-                  })}
-
-                {markerMode !== 'none' && selectedCamera && (
-                  <CameraInfoOverlay
-                    camera={selectedCamera}
-                    isCheckedInCurrentHalf={isCheckedInCurrentHalf}
-                    onClose={() => setSelectedCameraId(null)}
-                    onUpdateCamera={updateCamera}
-                    onSchedulePdfRegeneration={schedulePdfRegeneration}
-                  />
-                )}
-              </GoogleMap>
+              <MapControls
+                markerMode={markerMode}
+                isAdminMode={isAdminMode}
+                isAddingCamera={isAddingCamera}
+                movingCameraId={movingCameraId}
+                isGeneratingPdf={isGeneratingPdf}
+                cachedPdfUrl={cachedPdfUrl}
+                isPdfOutdated={isPdfOutdated}
+                onMarkerModeChange={handleMarkerModeChange}
+                onOpenPdf={handleOpenPdf}
+                onStartAddCamera={handleStartAddCamera}
+                onHandleAddCameraAtCenter={handleAddCameraAtCenter}
+                onCloseAddForm={() => setIsAddingCamera(false)}
+                onConfirmMoveCamera={confirmMoveCamera}
+                onCancelMoveCamera={cancelMoveCamera}
+              />
             </div>
           </div>
         </section>

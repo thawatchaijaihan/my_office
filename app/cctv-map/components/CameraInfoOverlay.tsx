@@ -14,6 +14,7 @@ type CameraInfoOverlayProps = {
   onClose: () => void;
   onUpdateCamera: (id: string, updates: Partial<CameraWithCheck>) => Promise<void>;
   onSchedulePdfRegeneration: () => void;
+  isAdminMode: boolean;
 };
 
 export default function CameraInfoOverlay({
@@ -22,6 +23,7 @@ export default function CameraInfoOverlay({
   onClose,
   onUpdateCamera,
   onSchedulePdfRegeneration,
+  isAdminMode,
 }: CameraInfoOverlayProps) {
   const overlayContainerRef = useRef<HTMLDivElement | null>(null);
   const overlayImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -98,7 +100,7 @@ export default function CameraInfoOverlay({
                         overlayUploadCameraRef.current = camera;
                         overlayImageInputRef.current?.click();
                       }}
-                      className="text-blue-600 underline decoration-blue-600/50 hover:decoration-blue-600"
+                      className="font-bold text-red-600 underline decoration-red-600/50 hover:decoration-red-600"
                     >
                       แก้ไขภาพ
                     </button>
@@ -131,7 +133,7 @@ export default function CameraInfoOverlay({
                           /* ignore */
                         }
                         const imageRef = storageRef(storage, imagePath);
-                        await uploadString(imageRef, result, "data_url");
+                        await uploadString(imageRef, result, "data_url", { contentType: 'image/jpeg' });
                         const url = await getDownloadURL(imageRef);
                         await onUpdateCamera(cam.id, {
                           lastCheckedImage: url,
@@ -150,25 +152,13 @@ export default function CameraInfoOverlay({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (camera.lastCheckedImage) {
-                      window.open(camera.lastCheckedImage, "_blank", "noopener,noreferrer");
-                    } else {
-                      overlayUploadCameraRef.current = camera;
-                      overlayImageInputRef.current?.click();
-                    }
+                    overlayUploadCameraRef.current = camera;
+                    overlayImageInputRef.current?.click();
                   }}
-                  className={`font-bold text-red-600 ${
-                    camera.lastCheckedImage
-                      ? "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
-                      : "cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
-                  }`}
-                  title={
-                    camera.lastCheckedImage
-                      ? "คลิกเพื่อดูภาพจากกล้อง"
-                      : "คลิกเพื่ออัปโหลดรูปตรวจสอบกล้อง"
-                  }
+                  className="font-bold text-red-600 cursor-pointer underline decoration-red-600/50 hover:decoration-red-600"
+                  title="คลิกเพื่ออัปโหลดรูปตรวจสอบกล้อง"
                 >
-                  กรุณาตรวจสอบ
+                  {isAdminMode ? "กรุณาตรวจสอบ" : "รอตรวจสอบ"}
                 </button>
               </>
             )}

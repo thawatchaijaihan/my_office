@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Camera } from "../data/types";
+import { isCameraCheckedInCurrentHalf } from "./checkUtils";
 
 type CameraWithCheck = Camera & {
   lastCheckedAt?: string;
@@ -157,8 +158,8 @@ export const generateCctvReport = async (
   console.log('[PDF] เริ่มสร้าง PDF');
   console.log('[PDF] กล้องทั้งหมด:', cameras.length);
 
-  // Filter cameras that have images
-  const camerasWithImages = cameras.filter(c => c.lastCheckedImage);
+  // Filter cameras that have images AND are checked in current half-month
+  const camerasWithImages = cameras.filter(c => c.lastCheckedImage && isCameraCheckedInCurrentHalf(c));
 
   console.log('[PDF] กล้องที่มีรูป:', camerasWithImages.length);
 

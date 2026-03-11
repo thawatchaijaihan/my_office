@@ -39,23 +39,23 @@ export default function FilterPanel({
 }: FilterPanelProps) {
   return (
     <>
-      {/* Desktop Filter Panel */}
-      <div className="absolute left-3 top-3 z-10 hidden space-y-2 lg:block">
+      {/* Desktop Filter Panel (Sidebar) */}
+      <div className="hidden space-y-2 lg:block">
         <p className="text-[10px] text-zinc-500">กด Ctrl ค้างเพื่อเลือกหลายตัว</p>
-        <div className="flex w-40 flex-col gap-1">
+        <div className="grid w-full grid-cols-3 gap-1">
           {typeOptions.map((type) => (
             <button
               key={type}
               type="button"
               onClick={(e) => onToggleType(type, e)}
-              className={`inline-flex w-full justify-center border px-3 py-2 text-sm font-medium transition-transform ${
-                activeTypes.includes(type) ? "translate-x-[25%]" : ""
-              } ${
-                typeCheckStatus[type] === false
-                  ? "border-red-600 bg-red-600 text-white"
-                  : activeTypes.includes(type)
-                    ? "border-green-700 bg-green-700 text-white"
-                    : "border-green-700 bg-green-600 text-white hover:bg-green-700"
+              className={`inline-flex w-full items-center justify-center border px-1 py-2 text-center text-[11px] font-medium transition ${
+                activeTypes.includes(type)
+                  ? typeCheckStatus[type] === false
+                    ? "border-red-600 bg-red-600 text-white ring-2 ring-red-600 ring-offset-1"
+                    : "border-green-700 bg-green-700 text-white ring-2 ring-green-700 ring-offset-1"
+                  : typeCheckStatus[type] === false
+                    ? "border-red-600 bg-red-600 text-white"
+                    : "border-green-700 bg-green-700 text-white hover:bg-green-800"
               }`}
             >
               {typeLabels[type]}
@@ -79,11 +79,11 @@ export default function FilterPanel({
             className={`w-full border px-3 py-2 text-sm font-medium transition ${
               activeTypes.includes(type)
                 ? typeCheckStatus[type] === false
-                  ? "border-red-600 bg-white text-red-600 ring-2 ring-red-600 ring-offset-1"
-                  : "border-green-700 bg-white text-green-700 ring-2 ring-green-700 ring-offset-1"
+                  ? "border-red-600 bg-red-600 text-white ring-2 ring-red-600 ring-offset-1"
+                  : "border-green-700 bg-green-700 text-white ring-2 ring-green-700 ring-offset-1"
                 : typeCheckStatus[type] === false
                   ? "border-red-600 bg-red-600 text-white"
-                  : "border-green-700 bg-green-50 text-green-700"
+                  : "border-green-700 bg-green-700 text-white ring-0"
             }`}
           >
             {typeLabels[type]}
