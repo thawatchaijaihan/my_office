@@ -77,7 +77,8 @@ export default function DashboardNav() {
 
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.icon !== "access") return true;
-    return isApprover;
+    const skipAuth = (typeof window !== "undefined" && (process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "true" || process.env.NEXT_PUBLIC_DASHBOARD_SKIP_AUTH === "1")) || process.env.NODE_ENV === "development";
+    return isApprover || skipAuth;
   });
 
   const groupedHrefs = new Set([
