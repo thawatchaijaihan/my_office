@@ -20,10 +20,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 export default function StaffLandingPage() {
   return (
     <ThemeProvider
-      attribute="class"
       defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
     >
       <div className="dark-allowed">
         <Navbar />

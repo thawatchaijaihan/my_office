@@ -6,6 +6,7 @@ type ThemeProviderProps = {
   children: React.ReactNode;
   defaultTheme?: Theme;
   storageKey?: string;
+  [key: string]: any;
 };
 
 type ThemeProviderState = {
@@ -58,7 +59,6 @@ export function ThemeProvider({
 
   return (
     <ThemeProviderContext.Provider
-      {...props}
       value={value}
     >
       {children}
