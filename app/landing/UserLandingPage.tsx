@@ -235,7 +235,7 @@ export default function UserLandingPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="text-center mb-6 space-y-2">
               <p className="text-gray-600">กรอกข้อมูล ยศ ชื่อ สกุล และ เบอร์โทร เพื่อตรวจสอบการลงทะเบียนเพื่อขอบัตรผ่านสำหรับยานพาหนะ</p>
-              <p className="text-red-600 font-medium text-sm">หากขอบัตรผ่านให้กับ "ตัวเอง" รายชื่อผู้ถือจดทะเบียนรถต้องเป็นรายชื่อของผู้ขอบัตรผ่าน</p>
+              <p className="text-red-600 font-medium text-sm">หากขอบัตรผ่านให้กับ &quot;ตัวเอง&quot; รายชื่อผู้ถือจดทะเบียนรถต้องเป็นรายชื่อของผู้ขอบัตรผ่าน</p>
               <p className="text-green-600 font-medium text-sm">หากข้อมูลและหลักฐานถูกต้องกรุณาแจ้งชำระเงินค่าบัตรผ่านฯ ได้ที่ หมู่การข่าว ป.71 พัน.713</p>
             </div>
 
