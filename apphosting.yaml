@@ -116,3 +116,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL
+    value: "thawatchaijaihan@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME

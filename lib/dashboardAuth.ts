@@ -39,12 +39,13 @@ export async function isDashboardAuthorized(req: NextRequest): Promise<boolean> 
       if (emailAllowedDb || uidAllowedDb) return true;
 
       const emailOk =
-        config.admin.firebaseEmails.length === 0 ||
-        (user.email && config.admin.firebaseEmails.includes(user.email.toLowerCase()));
+        config.admin.firebaseEmails.length > 0 &&
+        user.email &&
+        config.admin.firebaseEmails.includes(user.email.toLowerCase());
       const uidOk =
-        config.admin.firebaseUids.length === 0 ||
+        config.admin.firebaseUids.length > 0 &&
         config.admin.firebaseUids.includes(user.uid);
-      if (emailOk && uidOk) return true;
+      if (emailOk || uidOk) return true;
     }
   }
 
