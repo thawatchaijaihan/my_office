@@ -4,10 +4,26 @@ import { BigQuery } from "@google-cloud/bigquery";
 export const dynamic = "force-dynamic";
 
 // Initialize BigQuery client
-const bigquery = new BigQuery({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713",
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./jaihan-assistant-90c28d13e839.json",
-});
+function getBigQueryClient() {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713";
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
+  
+  if (b64) {
+    try {
+      const credentials = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
+      return new BigQuery({ projectId, credentials });
+    } catch (e) {
+      console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 for BigQuery", e);
+    }
+  }
+
+  return new BigQuery({
+    projectId,
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./jaihan-assistant-90c28d13e839.json",
+  });
+}
+
+const bigquery = getBigQueryClient();
 
 interface BillingData {
   currentMonth: {
