@@ -25,7 +25,8 @@ export const cleanupOldStorageFiles = functions
       for (const file of cameraFiles) {
         try {
           const [metadata] = await file.getMetadata();
-          const createdDate = new Date(metadata.timeCreated);
+          if (!metadata.timeCreated) continue;
+          const createdDate = new Date(metadata.timeCreated as string);
 
           if (createdDate < thirtyDaysAgo) {
             await file.delete();
@@ -45,7 +46,8 @@ export const cleanupOldStorageFiles = functions
       for (const file of reportFiles) {
         try {
           const [metadata] = await file.getMetadata();
-          const createdDate = new Date(metadata.timeCreated);
+          if (!metadata.timeCreated) continue;
+          const createdDate = new Date(metadata.timeCreated as string);
 
           if (createdDate < thirtyDaysAgo) {
             await file.delete();
@@ -100,7 +102,8 @@ export const testCleanupStorage = functions
       for (const file of allFiles) {
         try {
           const [metadata] = await file.getMetadata();
-          const createdDate = new Date(metadata.timeCreated);
+          if (!metadata.timeCreated) continue;
+          const createdDate = new Date(metadata.timeCreated as string);
 
           if (createdDate < thirtyDaysAgo) {
             await file.delete();

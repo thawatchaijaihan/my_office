@@ -1,18 +1,22 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
+import cors from "cors";
+import sharp from "sharp";
 import { generatePdfWithPuppeteer } from "./pdfGenerator";
 
-// ถ้ายังไม่ได้ init ใน index.ts
-// admin.initializeApp();
+// Initialize admin if not done elsewhere
+if (admin.apps.length === 0) {
+  admin.initializeApp({
+    databaseURL: "https://jaihan-assistant.asia-southeast1.firebasedatabase.app",
+    storageBucket: "jaihan-assistant.firebasestorage.app"
+  });
+}
+
+const corsHandler = cors({ origin: true });
 
 /**
  * Trigger เมื่อมีการอัปโหลดรูปใหม่ใน camera-checks/
- * จะทำการ:
- * 1. Optimize รูปภาพ (resize, compress)
- * 2. สร้าง thumbnail
- * 3. บันทึก metadata
- * 4. Trigger PDF regeneration
  */
 export const onCameraImageUpload = functions
   .region("asia-southeast1")
@@ -29,7 +33,6 @@ export const onCameraImageUpload = functions
       const bucket = admin.storage().bucket();
       const file = bucket.file(filePath);
 
-      // Extract camera ID from path: camera-checks/{cameraId}/latest.jpg
       const pathParts = filePath.split("/");
       if (pathParts.length < 3) {
         console.warn("[Camera Image] Invalid path format");
@@ -39,13 +42,11 @@ export const onCameraImageUpload = functions
       const cameraId = pathParts[1];
       console.log(`[Camera Image] Camera ID: ${cameraId}`);
 
-      // Get download URL
       const [url] = await file.getSignedUrl({
         action: "read",
-        expires: "03-01-2500", // Long expiry
+        expires: "03-01-2500",
       });
 
-      // Update metadata in Realtime Database
       const cameraRef = admin.database().ref(`cameras/${cameraId}`);
       await cameraRef.update({
         lastCheckedImage: url,
@@ -56,11 +57,9 @@ export const onCameraImageUpload = functions
 
       console.log(`[Camera Image] Updated camera ${cameraId} metadata`);
 
-      // Mark PDF as outdated
       await admin.database().ref("cctvReport/outdated").set(true);
       console.log("[Camera Image] Marked PDF as outdated");
 
-      // Schedule PDF regeneration (debounced)
       await schedulePdfRegeneration();
 
       return null;
@@ -72,7 +71,6 @@ export const onCameraImageUpload = functions
 
 /**
  * Schedule PDF regeneration with debouncing
- * จะรอ 5 วินาทีหลังจากรูปสุดท้ายถูกอัปโหลด
  */
 async function schedulePdfRegeneration() {
   const scheduleRef = admin.database().ref("pdfGeneration/scheduled");
@@ -87,10 +85,13 @@ async function schedulePdfRegeneration() {
 }
 
 /**
- * Cloud Function ที่รันทุก 1 นาที
- * ตรวจสอบว่ามี PDF ที่ต้อง regenerate หรือไม่
+ * Cloud Function ที่รันทุก 1 นาที เพื่อตรวจสอบการสร้าง PDF
  */
 export const checkPdfRegeneration = functions
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "2GB",
+  })
   .region("asia-southeast1")
   .pubsub.schedule("every 1 minutes")
   .timeZone("Asia/Bangkok")
@@ -111,7 +112,6 @@ export const checkPdfRegeneration = functions
     const now = Date.now();
     const elapsed = now - scheduledAt;
 
-    // รอ 5 วินาที (debounce) ก่อนสร้าง PDF
     if (elapsed < 5000) {
       console.log("[PDF Check] Waiting for debounce...");
       return null;
@@ -120,18 +120,12 @@ export const checkPdfRegeneration = functions
     console.log("[PDF Check] Starting PDF generation...");
 
     try {
-      // Update status
       await scheduleRef.update({ status: "generating" });
-
-      // Call PDF generation function
       await generatePdfReport();
-
-      // Mark as completed
       await scheduleRef.update({
         status: "completed",
         completedAt: Date.now(),
       });
-
       console.log("[PDF Check] PDF generation completed");
     } catch (error) {
       console.error("[PDF Check] PDF generation failed:", error);
@@ -146,47 +140,40 @@ export const checkPdfRegeneration = functions
 
 /**
  * HTTP Function สำหรับสร้าง PDF แบบ manual
- * เรียกได้จาก client หรือ admin
  */
 export const generatePdf = functions
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "2GB",
+  })
   .region("asia-southeast1")
-  .https.onRequest(async (req, res) => {
-    // CORS
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
+  .https.onRequest((req, res) => {
+    return corsHandler(req, res, async () => {
+      try {
+        console.log("[Generate PDF] Starting...");
+        const pdfUrl = await generatePdfReport();
 
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-
-    try {
-      console.log("[Generate PDF] Starting...");
-      const pdfUrl = await generatePdfReport();
-
-      res.json({
-        success: true,
-        pdfUrl,
-        message: "PDF generated successfully",
-      });
-    } catch (error) {
-      console.error("[Generate PDF] Error:", error);
-      res.status(500).json({
-        success: false,
-        error: String(error),
-      });
-    }
+        res.json({
+          success: true,
+          pdfUrl,
+          message: "PDF generated successfully",
+        });
+      } catch (error) {
+        console.error("[Generate PDF] Error:", error);
+        res.status(500).json({
+          success: false,
+          error: String(error),
+        });
+      }
+    });
   });
 
 /**
  * Core function สำหรับสร้าง PDF
- * ใช้ Puppeteer สร้าง PDF จริง
  */
 async function generatePdfReport(): Promise<string> {
   console.log("[PDF Generation] Fetching cameras...");
 
-  // Get all cameras with images
   const camerasSnapshot = await admin.database().ref("cameras").once("value");
   const cameras = camerasSnapshot.val();
 
@@ -194,7 +181,6 @@ async function generatePdfReport(): Promise<string> {
     throw new Error("No cameras found");
   }
 
-  // Filter cameras with images
   const camerasWithImages = Object.entries(cameras)
     .filter(([_, camera]: [string, any]) => camera.lastCheckedImage)
     .map(([id, camera]: [string, any]) => ({
@@ -210,12 +196,11 @@ async function generatePdfReport(): Promise<string> {
     throw new Error("No cameras with images");
   }
 
-  // Generate PDF with Puppeteer
   console.log("[PDF Generation] Generating PDF with Puppeteer...");
   const pdfBuffer = await generatePdfWithPuppeteer(camerasWithImages);
 
-  // Upload to Storage
   const bucket = admin.storage().bucket();
+  console.log(`[PDF Generation] Using bucket: ${bucket.name}`);
   const pdfPath = `cctv-reports/latest-${Date.now()}.pdf`;
   const file = bucket.file(pdfPath);
 
@@ -226,13 +211,13 @@ async function generatePdfReport(): Promise<string> {
     },
   });
 
-  // Get download URL
+  console.log("[PDF Generation] Making file public...");
   await file.makePublic();
-  const pdfUrl = `https://storage.googleapis.com/${bucket.name}/${pdfPath}`;
+  
+  // Construct a more reliable public URL
+  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${pdfPath}`;
+  console.log("[PDF Generation] PDF Public URL:", publicUrl);
 
-  console.log("[PDF Generation] PDF URL:", pdfUrl);
-
-  // Save metadata
   const pdfMetadata = {
     generatedAt: new Date().toISOString(),
     cameraCount: camerasWithImages.length,
@@ -246,7 +231,7 @@ async function generatePdfReport(): Promise<string> {
   };
 
   await admin.database().ref("cctvReport").update({
-    url: pdfUrl,
+    url: publicUrl,
     metadata: pdfMetadata,
     outdated: false,
     lastGenerated: new Date().toISOString(),
@@ -254,108 +239,99 @@ async function generatePdfReport(): Promise<string> {
 
   console.log("[PDF Generation] Completed");
 
-  return pdfUrl;
+  return publicUrl;
 }
 
 /**
  * HTTP Function สำหรับ optimize รูปภาพ
- * Client สามารถเรียกเพื่อ pre-process รูปก่อนอัปโหลด
  */
 export const optimizeImage = functions
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 120,
+  })
   .region("asia-southeast1")
-  .https.onRequest(async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const { imageUrl } = req.body;
-
-      if (!imageUrl) {
-        res.status(400).json({ error: "imageUrl is required" });
+  .https.onRequest((req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
         return;
       }
 
-      // Download image
-      const response = await axios.get(imageUrl, {
-        responseType: "arraybuffer",
-      });
+      try {
+        const { imageUrl } = req.body;
 
-      const imageBuffer = Buffer.from(response.data);
+        if (!imageUrl) {
+          res.status(400).json({ error: "imageUrl is required" });
+          return;
+        }
 
-      // ในการใช้งานจริง ควรใช้ Sharp library สำหรับ optimize
-      // const sharp = require('sharp');
-      // const optimized = await sharp(imageBuffer)
-      //   .resize(800, 600, { fit: 'inside' })
-      //   .jpeg({ quality: 85 })
-      //   .toBuffer();
+        const response = await axios.get(imageUrl, {
+          responseType: "arraybuffer",
+        });
 
-      // For now, return original
-      const base64 = imageBuffer.toString("base64");
+        const imageBuffer = Buffer.from(response.data);
 
-      res.json({
-        success: true,
-        base64: `data:image/jpeg;base64,${base64}`,
-        originalSize: imageBuffer.length,
-        optimizedSize: imageBuffer.length,
-      });
-    } catch (error) {
-      console.error("[Optimize Image] Error:", error);
-      res.status(500).json({
-        success: false,
-        error: String(error),
-      });
-    }
+        // Optimize with Sharp
+        const optimized = await sharp(imageBuffer)
+          .resize(800, 600, { fit: "inside" })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+
+        const base64 = optimized.toString("base64");
+
+        res.json({
+          success: true,
+          base64: `data:image/jpeg;base64,${base64}`,
+          originalSize: imageBuffer.length,
+          optimizedSize: optimized.length,
+        });
+      } catch (error) {
+        console.error("[Optimize Image] Error:", error);
+        res.status(500).json({
+          success: false,
+          error: String(error),
+        });
+      }
+    });
   });
 
 /**
  * Get cached PDF metadata
  */
 export const getPdfMetadata = functions
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 60,
+  })
   .region("asia-southeast1")
-  .https.onRequest(async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET");
+  .https.onRequest((req, res) => {
+    return corsHandler(req, res, async () => {
+      try {
+        const reportSnapshot = await admin.database().ref("cctvReport").once("value");
+        const report = reportSnapshot.val();
 
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
+        if (!report) {
+          res.json({
+            exists: false,
+            outdated: true,
+          });
+          return;
+        }
 
-    try {
-      const reportSnapshot = await admin.database().ref("cctvReport").once("value");
-      const report = reportSnapshot.val();
-
-      if (!report) {
         res.json({
-          exists: false,
-          outdated: true,
+          exists: true,
+          outdated: report.outdated || false,
+          url: report.url,
+          lastGenerated: report.lastGenerated,
+          metadata: report.metadata,
         });
-        return;
+      } catch (error) {
+        console.error("[Get PDF Metadata] Error:", error);
+        res.status(500).json({
+          success: false,
+          error: String(error),
+        });
       }
-
-      res.json({
-        exists: true,
-        outdated: report.outdated || false,
-        url: report.url,
-        lastGenerated: report.lastGenerated,
-        metadata: report.metadata,
-      });
-    } catch (error) {
-      console.error("[Get PDF Metadata] Error:", error);
-      res.status(500).json({
-        success: false,
-        error: String(error),
-      });
-    }
+    });
   });

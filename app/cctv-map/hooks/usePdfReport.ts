@@ -71,17 +71,10 @@ export function usePdfReport(cameraItems: CameraWithCheck[]) {
                 console.warn('[CctvMap] Cloud Functions failed, falling back to client:', cloudError);
             }
 
-            console.log('[CctvMap] ตรวจสอบ cache PDF...');
-            const cached = checkPdfCacheValid(cameraItems);
-
-            if (cached) {
-                console.log('[CctvMap] ใช้ PDF จาก cache');
-                setCachedPdfUrl(cached);
-                setIsPdfOutdated(false);
-                setNewPdfUrl(cached);
-                setPdfReady(true);
-                return cached;
-            }
+            /* 
+             * Skip client-side cache during explicit regeneration to avoid stale 404 URLs.
+             * We only want a fresh PDF from Cloud Functions or a fresh client-side generation.
+             */
 
             console.log('[CctvMap] เริ่มสร้าง PDF ใหม่ (client-side)...');
             const pdfBlob = await generateCctvReport(cameraItems);

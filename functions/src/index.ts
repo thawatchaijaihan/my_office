@@ -1,7 +1,9 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
-admin.initializeApp();
+admin.initializeApp({
+  databaseURL: "https://jaihan-assistant.asia-southeast1.firebasedatabase.app",
+  storageBucket: "jaihan-assistant.firebasestorage.app"
+});
 
 // Import cleanup functions
 import { cleanupOldStorageFiles, testCleanupStorage } from "./cleanup";

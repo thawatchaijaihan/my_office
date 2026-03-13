@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import {
@@ -89,7 +89,7 @@ function ChartsRoot(props: ChartsRootProps) {
                   </li>
                 </ul>
                 </div>
-                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center min-w-[120px] min-h-[120px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
@@ -144,7 +144,7 @@ function ChartsRoot(props: ChartsRootProps) {
                   ))}
                 </ul>
                 </div>
-                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center min-w-[120px] min-h-[120px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
