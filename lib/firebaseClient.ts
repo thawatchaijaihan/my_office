@@ -21,6 +21,7 @@ function getFirebaseConfig() {
     projectId,
     appId,
     storageBucket: storageBucket || `${projectId}.firebasestorage.app`,
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
   };
 }
 

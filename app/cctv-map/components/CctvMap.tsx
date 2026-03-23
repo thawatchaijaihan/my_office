@@ -10,7 +10,6 @@ import MapControls from "./MapControls";
 import FilterPanel from "./FilterPanel";
 import EditCameraModal from "./EditCameraModal";
 import CameraInfoOverlay from "./CameraInfoOverlay";
-import PdfGenerationModal from "./PdfGenerationModal";
 
 import { useFilterPanel } from "../hooks/useFilterPanel";
 import { useCameraData } from "../hooks/useCameraData";
@@ -74,11 +73,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
 
   const pdf = usePdfReport(cameraItems);
   const {
-    isGeneratingPdf, setIsGeneratingPdf,
-    cachedPdfUrl, isPdfOutdated,
-    newPdfUrl, setNewPdfUrl,
-    pdfReady, setPdfReady,
-    handleOpenPdf,
     schedulePdfRegeneration,
   } = pdf;
 
@@ -303,11 +297,8 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 isAdminMode={isAdminMode}
                 isAddingCamera={isAddingCamera}
                 movingCameraId={movingCameraId}
-                isGeneratingPdf={isGeneratingPdf}
-                cachedPdfUrl={cachedPdfUrl}
-                isPdfOutdated={isPdfOutdated}
+                activeUnit={activeTypes[0]}
                 onMarkerModeChange={handleMarkerModeChange}
-                onOpenPdf={handleOpenPdf}
                 onStartAddCamera={handleStartAddCamera}
                 onHandleAddCameraAtCenter={handleAddCameraAtCenter}
                 onCloseAddForm={() => setIsAddingCamera(false)}
@@ -330,18 +321,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
           setIsAddingCamera(false);
         }}
         onSubmit={handleSubmitEdit}
-      />
-
-      {/* PDF Generation Modal */}
-      <PdfGenerationModal
-        isOpen={isGeneratingPdf}
-        pdfReady={pdfReady}
-        pdfUrl={newPdfUrl}
-        onClose={() => {
-          setNewPdfUrl(null);
-          setPdfReady(false);
-          setIsGeneratingPdf(false);
-        }}
       />
     </>
   );

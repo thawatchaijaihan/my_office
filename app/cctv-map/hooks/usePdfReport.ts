@@ -76,13 +76,23 @@ export function usePdfReport(cameraItems: CameraWithCheck[]) {
              * We only want a fresh PDF from Cloud Functions or a fresh client-side generation.
              */
 
-            console.log('[CctvMap] เริ่มสร้าง PDF ใหม่ (client-side)...');
-            const pdfBlob = await generateCctvReport(cameraItems);
-            if (!pdfBlob) {
-                console.error('[CctvMap] PDF blob is null');
-                return null;
+            console.log('[CctvMap] เริ่มสร้าง PDF ใหม่ (Google Docs API)...');
+            
+            const apiResponse = await fetch('/api/pdf/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    unitName: "ป.71 พัน.713", // Default unit name
+                    cameras: cameraItems,
+                }),
+            });
+
+            if (!apiResponse.ok) {
+                throw new Error(`API error: ${apiResponse.statusText}`);
             }
-            console.log('[CctvMap] PDF blob size:', pdfBlob.size);
+
+            const pdfBlob = await apiResponse.blob();
+            console.log('[CctvMap] PDF blob received from API, size:', pdfBlob.size);
 
             const pdfPath = `cctv-reports/latest-${Date.now()}.pdf`;
             console.log('[CctvMap] Uploading to:', pdfPath);
@@ -146,7 +156,9 @@ export function usePdfReport(cameraItems: CameraWithCheck[]) {
     };
 
     const handleOpenPdf = () => {
-        if (cachedPdfUrl && !isPdfOutdated) {
+        const localCacheUrl = checkPdfCacheValid(cameraItems);
+        // Force regeneration if local cache version changed or server says outdated
+        if (cachedPdfUrl && !isPdfOutdated && localCacheUrl === cachedPdfUrl) {
             openPdfUrl(cachedPdfUrl);
         } else {
             setPdfReady(false);

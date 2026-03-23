@@ -20,7 +20,7 @@ const toThaiNumerals = (text: string) => {
 
 // Cache keys
 const IMAGE_CACHE_PREFIX = 'pdf_img_cache_';
-const PDF_CACHE_KEY = 'pdf_full_cache';
+const PDF_CACHE_KEY = 'pdf_full_cache_v3';
 
 interface PdfCacheData {
   url: string;
@@ -195,7 +195,7 @@ export const generateCctvReport = async (
   container.style.width = "210mm";
   container.style.backgroundColor = "white";
   container.style.padding = "20mm 20mm 15mm 25mm"; // Margins: Top 20, Right 20, Bottom 15, Left 25 (approx for government style)
-  container.style.fontFamily = "'TH Sarabun New', sans-serif";
+  container.style.fontFamily = "'TH SarabunIT๙', sans-serif";
   container.style.boxSizing = "border-box";
   document.body.appendChild(container);
 
@@ -230,9 +230,9 @@ export const generateCctvReport = async (
       const header = document.createElement("div");
       header.style.textAlign = "center";
       header.style.marginBottom = "8mm";
-      header.style.fontFamily = "'TH Sarabun New', sans-serif";
+      header.style.fontFamily = "'TH SarabunIT๙', sans-serif";
       header.style.fontWeight = "bold";
-      header.style.fontSize = "20pt";
+      header.style.fontSize = "20pt"; // Title size
       header.style.lineHeight = "1.1";
 
       const line1 = document.createElement("div");
@@ -279,7 +279,7 @@ export const generateCctvReport = async (
         label.style.bottom = "12px";
         label.style.left = "0";
         label.style.right = "0";
-        label.style.fontSize = "12pt";
+        label.style.fontSize = "12pt"; // Label size (reduced to 12pt)
         label.style.fontWeight = "bold";
         label.style.textAlign = "center";
         label.style.color = "white";
@@ -372,8 +372,8 @@ export const generateCctvReport = async (
       footer.style.display = "flex";
       footer.style.flexDirection = "column";
       footer.style.alignItems = "flex-end";
-      footer.style.fontFamily = "'TH Sarabun New', sans-serif";
-      footer.style.fontSize = "16pt";
+      footer.style.fontFamily = "'TH SarabunIT๙', sans-serif";
+      footer.style.fontSize = "12pt"; // Footer size (reduced to 12pt)
       footer.style.lineHeight = "1.2";
       footer.style.paddingRight = "28mm";
 

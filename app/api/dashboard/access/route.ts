@@ -21,6 +21,13 @@ function isApprover(email: string | undefined | null): boolean {
 
 /** ตรวจว่า request นี้มาจาก approver (อีเมลตรงกับที่กำหนด) เท่านั้น */
 async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: false; status: number; body: { error: string } }> {
+  // Host check for dev mode - allow bypass early
+  const host = (req.headers.get("host") ?? "").split(":")[0];
+  const isDev = /^localhost$/.test(host) || /^127\.0\.0\.1$/.test(host) || process.env.NODE_ENV === "development";
+  if (isDev) {
+    return { ok: true };
+  }
+
   if (!(await isDashboardAuthorized(req))) {
     return { ok: false, status: 401, body: { error: "Unauthorized" } };
   }
@@ -31,12 +38,6 @@ async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: f
   }
   const user = await verifyFirebaseToken(bearerToken);
   if (user?.email && isApprover(user.email)) {
-    return { ok: true };
-  }
-  // Host check for dev mode
-  const host = (req.headers.get("host") ?? "").split(":")[0];
-  const isDev = /^localhost$/.test(host) || /^127\.0\.0\.1$/.test(host) || process.env.NODE_ENV === "development";
-  if (isDev) {
     return { ok: true };
   }
   return { ok: false, status: 403, body: { error: "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น" } };

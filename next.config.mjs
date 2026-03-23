@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force reload after cache clear
 const nextConfig = {
   reactStrictMode: true,
   images: {

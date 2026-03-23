@@ -95,9 +95,9 @@ export function DashboardAuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    if (skipAuth) return {};
     const token = await getIdToken();
     if (token) return { Authorization: `Bearer ${token}` };
+    if (skipAuth) return {};
     return {};
   }, [getIdToken, skipAuth]);
 

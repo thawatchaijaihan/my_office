@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
+import { GoogleDocsGenerator } from '@/lib/googleDocsGenerator';
 import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
  * คืน { ok: true, rowCount: N } หรือ { ok: false, error: "ข้อความ" }
  */
 export async function GET(req: NextRequest) {
+  console.log('--- HEARTBEAT: sheets-test GET ---');
   const authorized = await isDashboardAuthorized(req);
   if (!authorized) {
     return NextResponse.json({ ok: false, error: "ไม่มีสิทธิ์ (401)" }, { status: 401 });
