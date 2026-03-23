@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDashboardAuthorized } from "@/lib/dashboardAuth";
-import { GoogleDocsGenerator } from '@/lib/googleDocsGenerator';
 import { getCachedIndexRows } from "@/lib/indexRowsCache";
 
 export const runtime = "nodejs";

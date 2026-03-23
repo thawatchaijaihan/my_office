@@ -61,29 +61,3 @@
     @apply bg-background text-foreground;
   }
 }
-@layer base {
-  @font-face {
-    font-family: 'TH SarabunIT๙';
-    src: url('/fonts/THSarabunIT9.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-  }
-  @font-face {
-    font-family: 'TH SarabunIT๙';
-    src: url('/fonts/THSarabunIT9-Bold.ttf') format('truetype');
-    font-weight: bold;
-    font-style: normal;
-  }
-  @font-face {
-    font-family: 'TH SarabunIT๙';
-    src: url('/fonts/THSarabunIT9-Italic.ttf') format('truetype');
-    font-weight: normal;
-    font-style: italic;
-  }
-  @font-face {
-    font-family: 'TH SarabunIT๙';
-    src: url('/fonts/THSarabunIT9-BoldItalic.ttf') format('truetype');
-    font-weight: bold;
-    font-style: italic;
-  }
-}

@@ -70,17 +70,6 @@ export default function MapControls({
                 </svg>
               )}
             </button>
-            <a
-              href={`/reports/${encodeURIComponent(activeUnit || 'ALL')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-blue-600 bg-blue-600 text-white shadow-lg transition hover:bg-blue-700"
-              title="ดูรายงานหน้าเว็บ"
-            >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </a>
             {!isAddingCamera && !movingCameraId ? (
               <button
                 type="button"
@@ -141,15 +130,6 @@ export default function MapControls({
           >
             {getMarkerModeLabel()}
           </button>
-          <a
-            href={`/reports/${encodeURIComponent(activeUnit)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-            title="รายงานหน้าเว็บ"
-          >
-            🌐
-          </a>
           <>
             {!isAddingCamera && !movingCameraId ? (
               <button

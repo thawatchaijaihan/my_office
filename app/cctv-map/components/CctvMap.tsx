@@ -14,7 +14,6 @@ import CameraInfoOverlay from "./CameraInfoOverlay";
 import { useFilterPanel } from "../hooks/useFilterPanel";
 import { useCameraData } from "../hooks/useCameraData";
 import { useCameraCheckStatus } from "../hooks/useCameraCheckStatus";
-import { usePdfReport } from "../hooks/usePdfReport";
 import { useCameraActions } from "../hooks/useCameraActions";
 
 const mapCenter = {
@@ -71,17 +70,12 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
   });
   const { typeCheckStatus, isCheckedInCurrentHalf, displayedCameras } = checkStatus;
 
-  const pdf = usePdfReport(cameraItems);
-  const {
-    schedulePdfRegeneration,
-  } = pdf;
 
   const actions = useCameraActions({
     mapRef,
     updateCamera,
     setSelectedCameraId,
     setActiveTypes,
-    schedulePdfRegeneration,
   });
   const {
     editingCamera, setEditingCamera,
@@ -282,7 +276,6 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                       isCheckedInCurrentHalf={isCheckedInCurrentHalf}
                       onClose={() => setSelectedCameraId(null)}
                       onUpdateCamera={updateCamera}
-                      onSchedulePdfRegeneration={schedulePdfRegeneration}
                       isAdminMode={isAdminMode}
                     />
                   )}

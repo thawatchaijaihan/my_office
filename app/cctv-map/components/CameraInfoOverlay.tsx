@@ -13,7 +13,6 @@ type CameraInfoOverlayProps = {
   isCheckedInCurrentHalf: (camera: CameraWithCheck) => boolean;
   onClose: () => void;
   onUpdateCamera: (id: string, updates: Partial<CameraWithCheck>) => Promise<void>;
-  onSchedulePdfRegeneration: () => void;
   isAdminMode: boolean;
 };
 
@@ -22,7 +21,6 @@ export default function CameraInfoOverlay({
   isCheckedInCurrentHalf,
   onClose,
   onUpdateCamera,
-  onSchedulePdfRegeneration,
   isAdminMode,
 }: CameraInfoOverlayProps) {
   const overlayContainerRef = useRef<HTMLDivElement | null>(null);
@@ -140,7 +138,6 @@ export default function CameraInfoOverlay({
                           lastCheckedImagePath: imagePath,
                           lastCheckedAt: new Date().toISOString(),
                         });
-                        onSchedulePdfRegeneration();
                       })
                       .catch((err) => {
                         console.error("Image upload failed", err);

@@ -21,7 +21,6 @@ type UseCameraActionsOptions = {
     updateCamera: (id: string, updates: Partial<CameraWithCheck>) => Promise<void>;
     setSelectedCameraId: (id: string | null) => void;
     setActiveTypes: (types: React.SetStateAction<import("../data/types").CameraType[]>) => void;
-    schedulePdfRegeneration: () => void;
 };
 
 export function useCameraActions({
@@ -29,7 +28,6 @@ export function useCameraActions({
     updateCamera,
     setSelectedCameraId,
     setActiveTypes,
-    schedulePdfRegeneration,
 }: UseCameraActionsOptions) {
     const [editingCamera, setEditingCamera] = useState<CameraWithCheck | null>(null);
     const [isAddingCamera, setIsAddingCamera] = useState(false);
@@ -167,7 +165,6 @@ export function useCameraActions({
                 lastCheckedImagePath: imagePath,
                 lastCheckedAt: new Date().toISOString(),
             });
-            schedulePdfRegeneration();
             setOpenImages((prev) => ({
                 ...prev,
                 [camera.id]: false,
