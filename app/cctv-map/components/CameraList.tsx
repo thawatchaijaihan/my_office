@@ -39,7 +39,7 @@ export default function CameraList({
   }, [cameras, isCheckedInCurrentHalf]);
 
   return (
-    <div className="soft-scrollbar space-y-3 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-scroll">
+    <div className="soft-scrollbar space-y-3 pr-1 sm:min-h-0 sm:flex-1 sm:overflow-y-auto">
       {cameraCards.map(({ camera, isChecked }) => (
         <CameraCard
           key={camera.id}
