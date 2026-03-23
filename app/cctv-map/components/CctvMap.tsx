@@ -164,9 +164,9 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
 
   return (
     <>
-      <div className="grid min-h-0 grid-cols-1 grid-rows-[auto_auto] gap-4 md:h-full md:grid-rows-none md:grid-cols-[320px_1fr] md:items-start xl:grid-cols-[380px_1fr] 2xl:grid-cols-[420px_1fr]">
+      <div className="grid min-h-0 grid-cols-1 grid-rows-[auto_auto] gap-4 sm:h-full sm:grid-rows-none sm:grid-cols-[300px_1fr] sm:items-start md:grid-cols-[320px_1fr] xl:grid-cols-[380px_1fr] 2xl:grid-cols-[420px_1fr]">
         {/* Left Panel - Camera List */}
-        <section className="order-2 flex flex-col gap-4 bg-white p-5 shadow-sm ring-1 ring-green-100 md:order-1 md:h-full md:min-h-0 md:overflow-y-auto">
+        <section className="order-2 flex flex-col gap-4 bg-white p-5 shadow-sm ring-1 ring-green-100 sm:order-1 sm:h-full sm:min-h-0 sm:overflow-y-auto">
           <FilterPanel
             activeTypes={activeTypes}
             typeCheckStatus={typeCheckStatus}
