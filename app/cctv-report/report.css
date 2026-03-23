@@ -1,0 +1,93 @@
+/* A4 Print Styles for CCTV Report */
+
+:root {
+  --report-width: 210mm;
+  --report-height: 297mm;
+  --report-padding: 15mm;
+}
+
+.report-container {
+  width: var(--report-width);
+  min-height: var(--report-height);
+  padding: var(--report-padding);
+  margin: 20px auto;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-sizing: border-box;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1a1a1a;
+  position: relative;
+}
+
+.report-header {
+  border-bottom: 2px solid #2563eb;
+  padding-bottom: 5mm;
+  margin-bottom: 10mm;
+  text-align: center;
+}
+
+.report-footer {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 5mm;
+  margin-top: 10mm;
+  text-align: center;
+  font-size: 10pt;
+  color: #6b7280;
+  position: absolute;
+  bottom: var(--report-padding);
+  left: var(--report-padding);
+  right: var(--report-padding);
+}
+
+.report-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8mm;
+}
+
+.camera-item {
+  break-inside: avoid;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-info {
+  padding: 3mm;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.camera-image {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #eee;
+}
+
+/* Print Specifics */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-container {
+    margin: 0;
+    box-shadow: none;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

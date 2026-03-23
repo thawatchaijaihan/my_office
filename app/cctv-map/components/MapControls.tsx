@@ -70,6 +70,17 @@ export default function MapControls({
                 </svg>
               )}
             </button>
+            <a
+              href="/cctv-report"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-indigo-600 bg-indigo-600 text-white shadow-lg transition hover:bg-indigo-700"
+              title="พิมพ์รายงาน (A4)"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+            </a>
             {!isAddingCamera && !movingCameraId ? (
               <button
                 type="button"
@@ -130,6 +141,15 @@ export default function MapControls({
           >
             {getMarkerModeLabel()}
           </button>
+          <a
+            href="/cctv-report"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center border border-indigo-600 bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+            title="พิมพ์รายงาน"
+          >
+            🖨️
+          </a>
           <>
             {!isAddingCamera && !movingCameraId ? (
               <button
