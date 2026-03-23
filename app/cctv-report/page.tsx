@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { ref, onValue } from "firebase/database";
 import { database } from "../cctv-map/lib/firebase";
 import { CameraWithCheck } from "../cctv-map/data/types";
+import { isCameraCheckedInCurrentHalf } from "../cctv-map/utils/checkUtils";
 import "./report.css";
 
 export default function CctvReportPage() {
   const [cameras, setCameras] = useState<CameraWithCheck[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayMode, setDisplayMode] = useState<"all" | "functional">("all");
 
   useEffect(() => {
     const camerasRef = ref(database, "cameras");
@@ -36,21 +38,45 @@ export default function CctvReportPage() {
     return <div className="p-10 text-center">กำลังโหลดข้อมูล...</div>;
   }
 
+  // Filter cameras based on display mode
+  const filteredCameras = displayMode === "functional" 
+    ? cameras.filter(isCameraCheckedInCurrentHalf)
+    : cameras;
+
   // Chunk cameras into groups of 12 for paging
   const pageSize = 12;
   const pages = [];
-  for (let i = 0; i < cameras.length; i += pageSize) {
-    pages.push(cameras.slice(i, i + pageSize));
+  for (let i = 0; i < filteredCameras.length; i += pageSize) {
+    pages.push(filteredCameras.slice(i, i + pageSize));
   }
 
   return (
     <div className="min-h-screen bg-slate-100 py-10 print:p-0 print:bg-white">
-      <div className="no-print fixed top-5 right-5 z-50">
+      <div className="no-print fixed top-5 right-5 z-50 flex flex-col items-end gap-3">
+        <div className="flex bg-white rounded-md shadow-lg p-1 border border-slate-200">
+          <button
+            onClick={() => setDisplayMode("all")}
+            className={`px-4 py-1.5 rounded text-xs font-bold transition ${
+              displayMode === "all" ? "bg-[#12674A] text-white" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            แสดงทุกกล้อง
+          </button>
+          <button
+            onClick={() => setDisplayMode("functional")}
+            className={`px-4 py-1.5 rounded text-xs font-bold transition ${
+              displayMode === "functional" ? "bg-[#12674A] text-white" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            ตรวจสอบแล้ว
+          </button>
+        </div>
         <button
           onClick={handlePrint}
-          className="bg-blue-600 text-white px-6 py-2 rounded-full shadow-lg hover:bg-blue-700 transition"
+          className="bg-white text-white h-14 w-14 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(18,103,74,0.4)] hover:shadow-[0_0_20px_rgba(18,103,74,0.6)] transition-all border-2 border-[#12674A]"
+          title="พิมพ์รายงาน (A4)"
         >
-          🖨️ พิมพ์รายงาน (A4)
+          <span className="text-2xl">🖨️</span>
         </button>
       </div>
 
@@ -62,34 +88,47 @@ export default function CctvReportPage() {
           </header>
 
           <div className="report-content">
-            {pageItems.map((camera) => (
-              <div key={camera.id} className="camera-item">
-                {camera.lastCheckedImage ? (
-                  <img
-                    src={camera.lastCheckedImage}
-                    alt={camera.name}
-                    className="camera-image"
-                  />
-                ) : (
-                  <div className="camera-image flex items-center justify-center text-slate-400 italic text-xs">
-                    ไม่มีรูปภาพ
+            {pageItems.map((camera) => {
+              const isChecked = isCameraCheckedInCurrentHalf(camera);
+              return (
+                <div key={camera.id} className="camera-item">
+                  <div className="relative-container">
+                    {camera.lastCheckedImage ? (
+                      <img
+                        src={camera.lastCheckedImage}
+                        alt={camera.name}
+                        className="camera-image"
+                      />
+                    ) : (
+                      <div className="camera-image flex items-center justify-center text-slate-400 italic text-xs">
+                        ไม่มีรูปภาพ
+                      </div>
+                    )}
+                    {!isChecked && (
+                      <div className="status-overlay">
+                        กรุณาตรวจสอบ
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="camera-info">
-                  <span className="camera-name">{camera.name}</span>
-                  <span className="camera-desc">{camera.description}</span>
+                  <div className="camera-info">
+                    <span className="camera-label">
+                      {camera.name} : {camera.description}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <footer className="report-footer">
             <div className="report-footer-content">
-              <p>ตรวจถูกต้อง</p>
-              <p>ร.ต.</p>
-              <p>(ชัยชนะ   ศรีเชื้อ)</p>
-              <p>นชง. ป.71 พัน.713 ปฏิบัติหน้าที่</p>
-              <p>ฝอ.2 ป.71 พัน.713</p>
+              <div className="signature-block">
+                <p className="sig-line-1">ตรวจถูกต้อง</p>
+                <p className="sig-line-2">ร.ต.</p>
+                <p className="sig-line-3">(ชัยชนะ   ศรีเชื้อ)</p>
+                <p className="sig-line-4">นชง. ป.71 พัน.713 ปฏิบัติหน้าที่</p>
+                <p className="sig-line-5">ฝอ.2 ป.71 พัน.713</p>
+              </div>
             </div>
           </footer>
         </div>
