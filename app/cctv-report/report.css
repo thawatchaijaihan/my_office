@@ -1,70 +1,99 @@
-/* A4 Print Styles for CCTV Report */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
 
 :root {
   --report-width: 210mm;
   --report-height: 297mm;
-  --report-padding: 15mm;
+  --report-padding: 10mm;
 }
 
-.report-container {
+.report-page {
   width: var(--report-width);
-  min-height: var(--report-height);
+  height: var(--report-height);
   padding: var(--report-padding);
-  margin: 20px auto;
+  margin: 10px auto;
   background: white;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
   box-sizing: border-box;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: #1a1a1a;
+  font-family: 'Sarabun', sans-serif;
+  color: #000;
+  display: flex;
+  flex-direction: column;
   position: relative;
+  page-break-after: always;
 }
 
 .report-header {
-  border-bottom: 2px solid #2563eb;
-  padding-bottom: 5mm;
-  margin-bottom: 10mm;
+  border-bottom: 1px solid #000;
+  padding-bottom: 2mm;
+  margin-bottom: 5mm;
   text-align: center;
+}
+
+.report-header h1 {
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 0;
+}
+
+.report-header p {
+  font-size: 16pt;
+  margin: 0;
 }
 
 .report-footer {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 5mm;
-  margin-top: 10mm;
+  border-top: 1px solid #000;
+  padding-top: 2mm;
+  margin-top: auto;
+  font-size: 14pt;
+  line-height: 1.2;
+}
+
+.report-footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   text-align: center;
-  font-size: 10pt;
-  color: #6b7280;
-  position: absolute;
-  bottom: var(--report-padding);
-  left: var(--report-padding);
-  right: var(--report-padding);
 }
 
 .report-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8mm;
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 3mm;
 }
 
 .camera-item {
-  break-inside: avoid;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
+  border: 1px solid #000;
   display: flex;
   flex-direction: column;
-}
-
-.camera-info {
-  padding: 3mm;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 1mm;
+  max-height: 55mm; /* Adjusted to fit 4 rows in A4 */
 }
 
 .camera-image {
   width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
-  background: #eee;
+  aspect-ratio: 4/3;
+  object-fit: contain;
+  background: #fff;
+  border-bottom: 0.5px solid #000;
+}
+
+.camera-info {
+  margin-top: 1mm;
+  text-align: center;
+  font-size: 12pt;
+  line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-name {
+  font-weight: bold;
+}
+
+.camera-desc {
+  font-size: 11pt;
 }
 
 /* Print Specifics */
@@ -80,11 +109,11 @@
     padding: 0;
   }
 
-  .report-container {
+  .report-page {
     margin: 0;
     box-shadow: none;
-    width: 100%;
-    min-height: 100vh;
+    width: 210mm;
+    height: 297mm;
   }
 
   .no-print {
