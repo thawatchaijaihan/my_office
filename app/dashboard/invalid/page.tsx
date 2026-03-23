@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
-import html2canvas from "html2canvas";
 
 type InvalidRow = {
   rowNumber: number;
@@ -25,9 +24,7 @@ export default function InvalidPage() {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState("");
-  const printableAreaRef = useRef<HTMLDivElement>(null);
 
   const filteredRows = useMemo(() => {
     const kw = search.trim().toLowerCase();
@@ -122,108 +119,6 @@ export default function InvalidPage() {
     setEditValue("");
   };
 
-  const handleExportImage = async () => {
-    if (rows.length === 0) return;
-
-    setIsExporting(true);
-
-    const tempContainer = document.createElement("div");
-
-    try {
-      // --- Create Table HTML Content ---
-      const headers = {
-        idx: "ลำดับ",
-        name: "ชื่อ-สกุล",
-        plate: "ทะเบียน",
-        paymentStatus: "สถานะชำระ",
-        approvalStatus: "ผลการตรวจสอบ",
-        registeredAt: "วันที่ลงทะเบียน",
-        columnP: "หมายเหตุ",
-      };
-
-      const data = rows.map((r, idx) => ({
-        idx: (idx + 1).toString(),
-        name: r.name,
-        plate: r.plate,
-        paymentStatus: r.paymentStatus,
-        approvalStatus: r.approvalStatus,
-        registeredAt: r.registeredAt,
-        columnP: r.columnP || "-",
-      }));
-
-      const table = document.createElement("table");
-      const thead = table.createTHead();
-      const tbody = table.createTBody();
-
-      const headerRow = thead.insertRow();
-      for (const key in headers) {
-        const th = document.createElement("th");
-        th.innerText = headers[key as keyof typeof headers];
-        Object.assign(th.style, {
-          border: "1px solid #333",
-          padding: "8px",
-          textAlign: "left",
-          backgroundColor: "#f2f2f2",
-          fontWeight: "bold",
-        });
-        headerRow.appendChild(th);
-      }
-
-      data.forEach((rowData) => {
-        const row = tbody.insertRow();
-        for (const key in headers) {
-          const td = row.insertCell();
-          td.innerText = rowData[key as keyof typeof headers];
-          Object.assign(td.style, {
-            border: "1px solid #ccc",
-            padding: "8px",
-            verticalAlign: "top",
-          });
-        }
-      });
-
-      Object.assign(table.style, {
-        borderCollapse: "collapse",
-        width: "100%",
-        fontSize: "14px",
-        fontFamily: "sans-serif",
-      });
-
-      // --- Render with html2canvas ---
-      Object.assign(tempContainer.style, {
-        position: "absolute",
-        left: "-9999px",
-        top: "0",
-        backgroundColor: "white",
-        padding: "20px",
-        border: "1px solid #ccc",
-      });
-      tempContainer.appendChild(table);
-      document.body.appendChild(tempContainer);
-
-      const canvas = await html2canvas(tempContainer, {
-        scale: 2,
-        backgroundColor: "white",
-      });
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      const date = new Date().toISOString().split("T")[0];
-      link.download = `invalid-report-table-${date}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Could not export image:", error);
-      alert("เกิดข้อผิดพลาดระหว่างการสร้างรูปภาพ");
-    } finally {
-      if (document.body.contains(tempContainer)) {
-        document.body.removeChild(tempContainer);
-      }
-      setIsExporting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -271,50 +166,6 @@ export default function InvalidPage() {
             placeholder="ค้นหา"
             className="w-full md:w-72 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-          <button
-            onClick={handleExportImage}
-            disabled={isExporting || rows.length === 0}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={isExporting ? "กำลังส่งออก..." : "ส่งออกเป็นรูปภาพ"}
-          >
-            {isExporting ? (
-              <svg
-                className="animate-spin h-5 w-5 text-slate-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
 
@@ -325,10 +176,7 @@ export default function InvalidPage() {
             : "ไม่พบรายการที่ตรงกับคำค้นหา"}
         </div>
       ) : (
-        <div
-          ref={printableAreaRef}
-          className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto"
-        >
+        <div className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 shadow-sm overflow-auto">
           <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead className="sticky top-0 z-10">
               <tr className="bg-emerald-700 text-white">
