@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานข้อมูล CSV (A4)</title>
+    <!-- นำเข้า Tailwind CSS เพื่อช่วยเรื่องความสวยงามเบื้องต้น -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- นำเข้า PapaParse สำหรับอ่านไฟล์ CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- นำเข้าฟอนต์ Sarabun จาก Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ตั้งค่าสีพื้นหลังของเว็บไซต์ให้อ่านง่าย */
+        body {
+            background-color: #f3f4f6;
+            /* สีเทาอ่อน */
+            font-family: 'Sarabun', sans-serif;
+            /* ใช้ฟอนต์ Sarabun */
+        }
+
+        /* จำลองหน้ากระดาษ A4 (แนวนอน) */
+        .page-a4 {
+            width: 297mm;
+            /* ปรับเป็นความกว้างของ A4 แนวนอน */
+            height: 210mm;
+            /* ปรับเป็นความสูงที่ตายตัวของ A4 แนวนอน */
+            padding: 15mm 20mm;
+            /* ปรับระยะขอบกระดาษบน-ล่างให้กระชับขึ้น */
+            margin: 10mm auto 20mm auto;
+            /* จัดกึ่งกลางหน้าจอ และเว้นระยะห่างระหว่างหน้าให้ชัดเจน */
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* ใส่เงาให้ดูเป็นแผ่นกระดาษ */
+            box-sizing: border-box;
+            overflow: hidden;
+            /* ป้องกันข้อมูลล้นหน้ากระดาษ */
+            page-break-after: always;
+            /* บังคับขึ้นหน้าใหม่เสมอเมื่อสั่งพิมพ์ */
+            display: flex;
+            flex-direction: column;
+            /* เอา justify-content: space-between; ออก เพื่อให้ส่วนท้ายไหลตามเนื้อหาตาราง */
+        }
+
+        /* ตกแต่งตาราง */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            /* ปรับขนาดตัวอักษรเป็น 12 ตามที่ต้องการ */
+        }
+
+        th,
+        td {
+            border: 1px solid #9ca3af;
+            /* เปลี่ยนสีเส้นขอบให้เข้มขึ้นเล็กน้อย */
+            padding: 6px;
+            /* ปรับระยะห่างในเซลล์ให้กระชับ */
+            vertical-align: top;
+            /* จัดข้อความให้อยู่ชิดบนกรณีมีหลายบรรทัด */
+        }
+
+        th {
+            font-weight: bold;
+            text-align: center;
+            /* จัดหัวตารางให้อยู่กึ่งกลาง */
+            border-bottom: 2px solid #374151;
+            /* เส้นใต้ส่วนหัวตารางยังคงไว้เพื่อให้ดูเป็นสัดส่วน */
+            background-color: #f9fafb;
+            /* เพิ่มสีพื้นหลังอ่อนๆ ให้หัวตารางดูแยกจากข้อมูลชัดเจน */
+        }
+
+        td {
+            text-align: left;
+            /* ข้อมูลในตารางส่วนใหญ่ชิดซ้าย */
+        }
+
+        /* จัดเฉพาะคอลัมน์แรก (คอลัมน์ A) ให้อยู่กึ่งกลาง */
+        td:first-child {
+            text-align: center;
+        }
+
+        /* ตั้งค่าสำหรับการสั่งพิมพ์ (Print) */
+        @media print {
+            @page {
+                size: A4 landscape;
+                /* บังคับให้หน้าต่างตั้งค่าการพิมพ์เป็นแนวนอนอัตโนมัติ */
+                margin: 0;
+            }
+
+            body {
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .page-a4 {
+                margin: 0 !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                min-height: auto !important;
+                padding: 10mm 15mm !important;
+                page-break-after: always;
+            }
+
+            /* ซ่อนแถบปุ่มควบคุม, Modal, และ Toast เวลาสั่งพิมพ์ */
+            .no-print,
+            #filter-modal,
+            #print-modal,
+            #toast {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                overflow: hidden !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- แถบเครื่องมือ (จะไม่ถูกพิมพ์ออกมา) -->
+    <div class="no-print flex justify-center items-center py-4 bg-white shadow-sm mb-4 sticky top-0 z-50 space-x-3">
+        <button onclick="openFilterModal('นายทหาร')"
+            class="w-40 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition duration-200 text-center">
+            ⭐ นายทหาร
+        </button>
+        <button onclick="openFilterModal('นายสิบ')"
+            class="w-40 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition duration-200 text-center">
+            🎖️ นายสิบ
+        </button>
+        <button onclick="resetFilter()"
+            class="w-40 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow transition duration-200 text-center">
+            🔄 ล้างตัวกรอง
+        </button>
+        <button onclick="printReport()"
+            class="w-40 bg-green-800 hover:bg-green-900 text-white font-bold py-2 px-4 rounded shadow transition duration-200 text-center">
+            🖨️ พิมพ์รายงาน
+        </button>
+        <!-- เพิ่มปุ่มสำหรับบันทึกไฟล์ -->
+        <button onclick="exportToFile()"
+            class="w-40 bg-green-800 hover:bg-green-900 text-white font-bold py-2 px-4 rounded shadow transition duration-200 text-center">
+            💾 บันทึกไฟล์
+        </button>
+    </div>
+
+    <!-- คอนเทนเนอร์หลักที่จะใส่หน้ากระดาษหลายๆ หน้า -->
+    <div id="all-pages-container">
+        <!-- จุดที่เราจะแสดงข้อความกำลังโหลด -->
+        <div id="loading" class="text-center text-gray-500 py-10">
+            กำลังโหลดข้อมูลจาก CSV...
+        </div>
+    </div>
+
+    <!-- ป๊อบอัพ (Modal) สำหรับตั้งค่าตัวกรอง -->
+    <div id="filter-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-96 max-w-full shadow-xl">
+            <h2 id="modal-title" class="text-xl font-bold mb-4 text-gray-800">ตั้งค่าตัวกรอง</h2>
+
+            <!-- เพิ่ม Dropdown สำหรับประเภทรถ -->
+            <div class="mb-4">
+                <label id="label-car-type" class="block text-sm font-bold text-gray-700 mb-1">ประเภทรถ</label>
+                <select id="select-car-type"
+                    class="w-full border border-gray-300 rounded p-2 focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="">-- แสดงทั้งหมด --</option>
+                </select>
+            </div>
+
+            <!-- เปลี่ยน คอลัมน์ E เป็น Dropdown แบบจัดกลุ่ม -->
+            <div class="mb-6">
+                <label id="label-col-e" class="block text-sm font-bold text-gray-700 mb-1">คอลัมน์ E (จัดกลุ่ม)</label>
+                <select id="select-col-e"
+                    class="w-full border border-gray-300 rounded p-2 focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="">-- แสดงทั้งหมด --</option>
+                    <option value="ตนเอง">ตนเอง</option>
+                    <option value="ครอบครัว">ครอบครัว (บิดา, มารดา, บุตร...)</option>
+                    <option value="บุคคลอื่น">บุคคลอื่น</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeFilterModal()"
+                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition">ยกเลิก</button>
+                <button onclick="applyFilter()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition">ตกลง
+                    (กรองข้อมูล)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- เพิ่ม ป๊อบอัพ (Modal) แนะนำการพิมพ์กรณีติด Sandbox -->
+    <div id="print-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-[500px] max-w-full shadow-xl text-center">
+            <div class="text-4xl mb-4">🖨️</div>
+            <h2 class="text-xl font-bold mb-2 text-gray-800">ระบบจำลองจำกัดการเข้าถึงหน้าต่างพิมพ์</h2>
+            <p class="text-gray-600 mb-6 text-sm text-left">
+                เนื่องจากเหตุผลด้านความปลอดภัยของหน้าต่าง Preview นี้ คำสั่ง <code>window.print()</code>
+                จึงถูกบล็อกไว้ครับ<br><br>
+                <b>วิธีใช้งาน:</b> กรุณากดปุ่ม <b>"ดาวน์โหลดไฟล์ HTML"</b> ด้านล่าง
+                เพื่อนำระบบนี้ไปเปิดใช้งานบนเครื่องคอมพิวเตอร์ของคุณโดยตรง
+                ปุ่มสั่งพิมพ์จะสามารถทำงานและเปิดหน้าต่างตั้งค่าหน้ากระดาษได้ตามปกติครับ
+            </p>
+            <div class="flex justify-center space-x-3">
+                <button onclick="closePrintModal()"
+                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition">ปิดหน้าต่าง</button>
+                <button onclick="downloadHtmlFile()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition">⬇️
+                    ดาวน์โหลดไฟล์ HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- แจ้งเตือน (Toast) กรณีสั่งพิมพ์ถูกบล็อก -->
+    <div id="toast"
+        class="no-print fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-[200]">
+        ข้อความแจ้งเตือน
+    </div>
+
+    <script>
+        // URL ของไฟล์ CSV ที่คุณให้มา
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJB_BfC8s_eLJvSbZHQ6fPGpzw7ZDKP8yKR2khKXo7MdrK3sllNojUPxC-69lUlXCogJNylgSWAj6J/pub?output=csv";
+
+        // ตัวแปรเก็บข้อมูล
+        let originalData = [];
+        let currentDisplayData = []; // เพิ่มตัวแปรเพื่อเก็บข้อมูลที่กำลังแสดงผลอยู่ (ใช้ตอนบันทึกไฟล์)
+        let colEHeader = '';
+        let colCarTypeHeader = '';
+
+        // ตัวแปรสำหรับสร้างชื่อรายงานแบบไดนามิก
+        let currentOfficerType = '';
+        let currentReportTitle = 'บัญชีรายชื่อผู้ขอบัตรผ่าน เข้า-ออก พล.ป. ค่ายสิริกิติ์';
+
+        // ฟังก์ชันเริ่มทำงานเมื่อหน้าเว็บโหลดเสร็จ
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchCSVData();
+        });
+
+        // ฟังก์ชันสำหรับอ่านและแปลงข้อมูล CSV
+        function fetchCSVData() {
+            Papa.parse(csvUrl, {
+                download: true, // ดาวน์โหลดไฟล์จาก URL
+                header: true,   // กำหนดให้แถวแรกเป็นชื่อคอลัมน์ (Object keys)
+                skipEmptyLines: true, // ข้ามบรรทัดที่ว่างเปล่า
+                complete: function (results) {
+                    originalData = results.data;
+                    currentDisplayData = [...originalData]; // เก็บข้อมูลตั้งต้นไว้
+
+                    if (originalData.length > 0) {
+                        const headers = Object.keys(originalData[0]);
+                        colEHeader = headers[4] || 'คอลัมน์ E';
+                        colCarTypeHeader = headers.find(h => h.includes('ประเภทรถ') || h.includes('ประเภท')) || headers[3] || 'ประเภทรถ';
+
+                        document.getElementById('label-col-e').innerText = colEHeader + ' (จัดกลุ่ม)';
+                        document.getElementById('label-car-type').innerText = colCarTypeHeader;
+
+                        const selectCarType = document.getElementById('select-car-type');
+                        const uniqueCarTypes = [...new Set(originalData.map(row => row[colCarTypeHeader]))]
+                            .filter(val => val !== undefined && val !== null && String(val).trim() !== '');
+
+                        uniqueCarTypes.sort().forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type;
+                            option.textContent = type;
+                            selectCarType.appendChild(option);
+                        });
+                    }
+                    renderTable(currentDisplayData);
+                },
+                error: function (error) {
+                    console.error("เกิดข้อผิดพลาดในการโหลด CSV:", error);
+                    document.getElementById('loading').innerHTML = "<span class='text-red-500'>ไม่สามารถโหลดข้อมูลได้</span>";
+                }
+            });
+        }
+
+        // --- ระบบตัวกรองข้อมูล (Filter) ---
+
+        function openFilterModal(type) {
+            currentOfficerType = type;
+            document.getElementById('modal-title').innerText = `ตั้งค่าตัวกรอง: ${type}`;
+            document.getElementById('select-col-e').value = '';
+            document.getElementById('select-car-type').value = '';
+            document.getElementById('filter-modal').classList.remove('hidden');
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filter-modal').classList.add('hidden');
+        }
+
+        function applyFilter() {
+            const valEGroup = document.getElementById('select-col-e').value;
+            const valCarType = document.getElementById('select-car-type').value;
+
+            const filteredData = originalData.filter(row => {
+                const cellE = (row[colEHeader] !== undefined && row[colEHeader] !== null) ? String(row[colEHeader]).trim() : '';
+                const cellCarType = (row[colCarTypeHeader] !== undefined && row[colCarTypeHeader] !== null) ? String(row[colCarTypeHeader]) : '';
+
+                let isMatchE = true;
+                if (valEGroup === 'ตนเอง') {
+                    isMatchE = (cellE === 'ตนเอง');
+                } else if (valEGroup === 'ครอบครัว') {
+                    const familyList = ['บิดา', 'มารดา', 'บุตร', 'บิดาของภรรยา', 'มารดาของภรรยา'];
+                    isMatchE = familyList.includes(cellE);
+                } else if (valEGroup === 'บุคคลอื่น') {
+                    const familyAndSelfList = ['ตนเอง', 'บิดา', 'มารดา', 'บุตร', 'บิดาของภรรยา', 'มารดาของภรรยา'];
+                    isMatchE = cellE !== '' && !familyAndSelfList.includes(cellE);
+                }
+                const isMatchCarType = valCarType === '' || cellCarType === valCarType;
+                return isMatchE && isMatchCarType;
+            });
+
+            let xText = "ทั้งหมด";
+            if (currentOfficerType === "นายทหาร") xText = "นายทหารสัญญาบัตร";
+            else if (currentOfficerType === "นายสิบ") xText = "นายทหารประทวน";
+
+            let yText = valCarType !== "" ? valCarType : "ทั้งหมด";
+            let zText = valEGroup !== "" ? valEGroup : "ทั้งหมด";
+
+            currentReportTitle = `บัญชีรายชื่อผู้ขอบัตรผ่าน เข้า-ออก พล.ป. ค่ายสิริกิติ์ สำหรับ ${xText} ประเภท ${yText} ให้กับ ${zText}`;
+            closeFilterModal();
+
+            // อัปเดตข้อมูลที่จะแสดงและส่งออก
+            currentDisplayData = filteredData;
+            renderTable(currentDisplayData);
+        }
+
+        function resetFilter() {
+            currentOfficerType = '';
+            currentReportTitle = 'บัญชีรายชื่อผู้ขอบัตรผ่าน เข้า-ออก พล.ป. ค่ายสิริกิติ์';
+
+            currentDisplayData = [...originalData];
+            renderTable(currentDisplayData);
+        }
+
+        // --- ระบบสั่งพิมพ์ (Print) ---
+        function printReport() {
+            window.print();
+        }
+
+        function closePrintModal() {
+            document.getElementById('print-modal').classList.add('hidden');
+        }
+
+        // ฟังก์ชันสำหรับดาวน์โหลดซอร์สโค้ด HTML ไปใช้เครื่องตัวเอง
+        function downloadHtmlFile() {
+            // ดึงโค้ด HTML ทั้งหมดของหน้าเว็บปัจจุบัน
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+            // สร้างเป็นไฟล์ .html ให้ดาวน์โหลด
+            const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "ระบบพิมพ์รายงาน.html");
+
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            closePrintModal();
+        }
+
+        // ฟังก์ชันแสดงข้อความแจ้งเตือน (Toast)
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 6000); // ซ่อนหลังจาก 6 วินาที
+        }
+
+        // --- ระบบส่งออกไฟล์ (Export) ---
+        function exportToFile() {
+            if (currentDisplayData.length === 0) {
+                alert("ไม่มีข้อมูลสำหรับบันทึก");
+                return;
+            }
+
+            // สร้างข้อมูลชุดใหม่สำหรับส่งออก โดยเรียงลำดับคอลัมน์แรก (คอลัมน์ A) ใหม่
+            const headers = Object.keys(currentDisplayData[0]);
+            const exportData = currentDisplayData.map((row, index) => {
+                const newRow = { ...row }; // คัดลอกข้อมูลเพื่อไม่ให้กระทบต้นฉบับ
+                newRow[headers[0]] = index + 1; // รันเลขลำดับใหม่ตั้งแต่ 1 เป็นต้นไป
+                return newRow;
+            });
+
+            // ใช้ PapaParse แปลง Array JSON กลับเป็น String รูปแบบ CSV
+            let csv = Papa.unparse(exportData);
+
+            // สร้างข้อความส่วนหัวของรายงานเพื่อแทรกไว้ด้านบนสุดของไฟล์ CSV
+            // (ใส่เครื่องหมายคำพูด "" คลุมไว้เพื่อป้องกันกรณีที่ชื่อรายงานมีลูกน้ำ , ซึ่งอาจทำให้คอลัมน์เพี้ยน)
+            const reportHeaderCsv = `"${currentReportTitle}"\n"หน่วย ป.71 พัน.713"\n\n`;
+
+            // นำส่วนหัวมาต่อกับข้อมูลตาราง
+            csv = reportHeaderCsv + csv;
+
+            // เพิ่มรหัส \uFEFF (Byte Order Mark) เข้าไปข้างหน้า เพื่อบอกให้ Excel ทราบว่าเป็นไฟล์ UTF-8 (ภาษาไทยจะได้ไม่เพี้ยน)
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+
+            // สร้างลิงก์ชั่วคราวเพื่อสั่งดาวน์โหลดไฟล์
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+
+            // ตั้งชื่อไฟล์ตามชื่อหัวรายงาน
+            link.setAttribute("download", currentReportTitle + ".csv");
+
+            // ซ่อนลิงก์และสั่งคลิก
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+
+            // ลบลิงก์ทิ้งหลังใช้งานเสร็จ
+            document.body.removeChild(link);
+        }
+
+        // ฟังก์ชันสำหรับสร้างตาราง HTML จากข้อมูล
+        function renderTable(data) {
+            const container = document.getElementById('all-pages-container');
+            const loading = document.getElementById('loading');
+            if (loading) loading.style.display = 'none';
+
+            if (data.length === 0) {
+                container.innerHTML = "<div class='page-a4'><p class='text-center text-gray-500'>ไม่พบข้อมูล</p></div>";
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            const ROWS_PER_PAGE = 16;
+            const totalPages = Math.ceil(data.length / ROWS_PER_PAGE);
+
+            let allPagesHtml = '';
+
+            for (let i = 0; i < totalPages; i++) {
+                const pageData = data.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE);
+
+                let pageHtml = `
+                <div class="page-a4">
+                    <div>
+                        <!-- ส่วนหัวรายงาน (Header) - ปรับเป็น 16px -->
+                        <div class="mb-4 relative flex flex-col items-center justify-center min-h-[40px]">
+                            <h1 class="text-[16px] font-bold text-gray-900 text-center px-16 leading-tight">${currentReportTitle}</h1>
+                            <h2 class="text-[16px] font-bold text-gray-900 text-center leading-tight">หน่วย ป.71 พัน.713</h2>
+                            
+                            <div class="absolute right-0 bottom-0 text-xs text-gray-600 font-medium">
+                                หน้า ${i + 1} / ${totalPages}
+                            </div>
+                        </div>
+                        
+                        <table>
+                            <thead>
+                                <tr>
+                                    ${headers.map(h => `<th>${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pageData.map((row, rowIndex) => {
+                    // คำนวณลำดับใหม่ (อิงจากหน้าปัจจุบันและบรรทัดในหน้านั้นๆ)
+                    const currentSeq = (i * ROWS_PER_PAGE) + rowIndex + 1;
+                    return `
+                                    <tr>
+                                        ${headers.map((h, colIndex) => `<td>${colIndex === 0 ? currentSeq : (row[h] !== undefined && row[h] !== null ? row[h] : '')}</td>`).join('')}
+                                    </tr>
+                                    `;
+                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ส่วนท้ายรายงาน (Footer) และ ลายเซ็น -->
+                    <!-- ปรับจาก mt-4 เป็น mt-8 เพื่อเว้นระยะห่างจากตารางให้สวยงามขึ้นเมื่อมันเลื่อนมาต่อท้าย -->
+                    <div class="mt-8 flex justify-end items-end pb-4">
+                        <div class="text-center text-[14px] text-gray-900 leading-snug pr-12 min-w-[350px]">
+                            <p>ตรวจถูกต้อง&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                            <p>ร.ต.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                            <p>(ชัยชนะ  ศรีเชื้อ)</p>
+                            <p>นชง. ป.71 พัน.713 ปฏิบัติหน้าที่</p>
+                            <p>ฝอ.2 ป.71 พัน.713</p>
+                        </div>
+                    </div>
+                </div>`;
+
+                allPagesHtml += pageHtml;
+            }
+            container.innerHTML = allPagesHtml;
+        }
+    </script>
+</body>
+
+</html>
