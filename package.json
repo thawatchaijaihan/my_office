@@ -2,6 +2,10 @@
   "name": "my-office",
   "version": "1.0.0",
   "scripts": {
-    "build": "mkdir -p dist && cp csv_carpass.html dist/index.html"
+    "build": "mkdir -p dist && cp csv_carpass.html dist/index.html",
+    "start": "npx http-server dist -p $PORT"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
   }
 }

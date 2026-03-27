@@ -1,6 +1,9 @@
 kind: "bundle"
 schemaVersion: "v1"
+build:
+  buildCommand: "npm run build"
 run:
+  startCommand: "npm run start"
   concurrency: 80
   cpu: 1
   memoryMiB: 512
