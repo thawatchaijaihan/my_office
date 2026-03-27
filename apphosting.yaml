@@ -1,0 +1,6 @@
+kind: "bundle"
+schemaVersion: "v1"
+run:
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512

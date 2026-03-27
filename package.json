@@ -1,0 +1,7 @@
+{
+  "name": "my-office",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "mkdir -p dist && cp csv_carpass.html dist/index.html"
+  }
+}
