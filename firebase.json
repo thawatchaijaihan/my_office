@@ -1,17 +1,17 @@
 {
   "hosting": {
     "public": ".",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**",
-      "package.json",
-      "apphosting.yaml"
+      "**/node_modules/**"
     ],
     "rewrites": [
       {
-        "source": "/",
-        "destination": "/csv_carpass.html"
+        "source": "/carpass",
+        "destination": "/carpass.html"
       }
     ]
   }
