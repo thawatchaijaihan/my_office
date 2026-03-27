@@ -1,6 +1,12 @@
 {
   "hosting": {
     "source": ".",
+    "rewrites": [
+      {
+        "source": "/carpass",
+        "destination": "/carpass.html"
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

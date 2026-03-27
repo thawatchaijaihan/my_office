@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { getFirebaseAuth, isFirebaseAuthEnabled } from "@/lib/firebaseClient";
 
 const API_URL = "/api/search";
 
@@ -35,10 +38,53 @@ export default function UserLandingPage() {
   const [pwModalUrl, setPwModalUrl] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     setIsInIframe(window.self !== window.top);
   }, []);
+
+  const handleAdminLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isFirebaseAuthEnabled()) {
+      const auth = getFirebaseAuth();
+      if (!auth) return;
+      setAuthError(null);
+      setAuthLoading(true);
+      try {
+        const result = await signInWithPopup(auth, new GoogleAuthProvider());
+        const userEmail = result.user.email;
+        const allowedEmailsStr = process.env.NEXT_PUBLIC_ALLOWED_ADMIN_EMAILS || "";
+        
+        if (allowedEmailsStr.trim()) {
+          const allowedEmails = allowedEmailsStr.split(",").map(e => e.trim().toLowerCase());
+          if (userEmail && !allowedEmails.includes(userEmail.toLowerCase())) {
+             await signOut(auth);
+             setAuthError("อีเมลนี้ไม่ได้รับอนุญาตให้เข้าสู่ระบบ");
+             setAuthLoading(false);
+             return;
+          }
+        }
+        router.push("/dashboard");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("popup-closed")) return;
+        if (msg.includes("auth/unauthorized-domain")) {
+          setAuthError("โดเมนนี้ยังไม่อนุญาตใน Firebase");
+        } else if (msg.includes("auth/popup-blocked")) {
+          setAuthError("ปิดป๊อปอัปล็อกอิน — อนุญาตป๊อปอัปสำหรับไซต์นี้แล้วลองใหม่");
+        } else {
+          setAuthError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+        }
+      } finally {
+        setAuthLoading(false);
+      }
+    } else {
+      router.push("/dashboard");
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,9 +233,10 @@ export default function UserLandingPage() {
               </p>
             </Link>
 
-            <a
-              href="/login"
-              className="group bg-white border-2 border-gray-200 hover:border-[#2d5a2f] p-8 transition-all duration-300 hover:shadow-lg"
+            <button
+              onClick={handleAdminLogin}
+              disabled={authLoading}
+              className="group bg-white border-2 border-gray-200 hover:border-[#2d5a2f] p-8 transition-all duration-300 hover:shadow-lg text-left w-full disabled:opacity-50"
             >
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 bg-[#2d5a2f] group-hover:bg-[#1e4620] transition-colors flex items-center justify-center flex-shrink-0">
@@ -199,10 +246,12 @@ export default function UserLandingPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-[#1e4620]">เจ้าหน้าที่ สาย.2</h2>
               </div>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed mb-2">
                 สำหรับเจ้าหน้าที่เข้าสู่ระบบจัดการข้อมูล
               </p>
-            </a>
+              {authLoading && <p className="text-sm text-[#2d5a2f] font-medium">กำลังเข้าสู่ระบบ...</p>}
+              {authError && <p className="text-sm text-red-600 font-medium">{authError}</p>}
+            </button>
           </div>
         </div>
       </main>
