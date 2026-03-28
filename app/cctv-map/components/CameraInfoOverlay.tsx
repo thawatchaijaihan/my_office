@@ -76,7 +76,7 @@ export default function CameraInfoOverlay({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (camera.lastCheckedImage) {
-                      window.open(camera.lastCheckedImage, "_blank", "noopener,noreferrer");
+                      window.open(camera.lastCheckedImage.replace(/%25/g, '%'), "_blank", "noopener,noreferrer");
                     }
                   }}
                   className={`font-bold text-green-700 ${

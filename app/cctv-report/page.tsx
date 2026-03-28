@@ -95,7 +95,7 @@ export default function CctvReportPage() {
                   <div className="relative-container">
                     {camera.lastCheckedImage ? (
                       <img
-                        src={camera.lastCheckedImage}
+                        src={camera.lastCheckedImage.replace(/%25/g, '%')}
                         alt={camera.name}
                         className="camera-image"
                       />

@@ -70,8 +70,9 @@ def upload_images():
                 download_token = resp_data.get("downloadTokens")
                 
                 # 2. นำ URL ปลายทางไปอัปเดต Database
-                # URL ต้องเข้ารหัสอีกครั้งตามรูปแบบ Storage Download URL
-                new_image_url = f"https://firebasestorage.googleapis.com/v0/b/{STORAGE_BUCKET}/o/{urllib.parse.quote(storage_path, safe='')}?alt=media&token={download_token}"
+                # URL ต้องเข้ารหัสอีกครั้งตามรูปแบบ Storage Download URL (เปลี่ยนเฉพาะ / เป็น %2F เพราะไฟล์เข้า quote() ไปแล้ว)
+                safe_storage_path = storage_path.replace('/', '%2F')
+                new_image_url = f"https://firebasestorage.googleapis.com/v0/b/{STORAGE_BUCKET}/o/{safe_storage_path}?alt=media&token={download_token}"
                 
                 # ทำการ PATCH ข้อมูลเข้า RTDB
                 patch_url = f"{DATABASE_URL}/cameras/{camera_id}.json"

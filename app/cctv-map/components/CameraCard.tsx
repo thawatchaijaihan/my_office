@@ -267,7 +267,7 @@ function CameraCard({
       </div>
       {camera.lastCheckedImage && showImage && (
         <NextImage
-          src={camera.lastCheckedImage}
+          src={camera.lastCheckedImage.replace(/%25/g, '%')}
           alt={`ภาพตรวจสอบล่าสุดของ ${camera.name}`}
           width={300}
           height={160}
