@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useDashboardFetch } from "../useDashboardFetch";
@@ -14,11 +14,16 @@ type UserRow = {
 
 export default function AccessPage() {
   const dashboardFetch = useDashboardFetch();
+  const [isMounted, setIsMounted] = useState(false);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -106,7 +111,7 @@ export default function AccessPage() {
       })
     : users;
 
-  if (loading && users.length === 0) {
+  if (!isMounted || (loading && users.length === 0)) {
     return (
       <div
         className="flex flex-col h-full px-6 md:px-8 pt-4"

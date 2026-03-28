@@ -24,22 +24,10 @@ function getAdminApp(): App | null {
       return adminApp;
     }
   }
-  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
-  if (b64) {
-    try {
-      const t0 = Date.now();
-      const json = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
-      adminApp = initializeApp({ credential: cert(json) });
-      console.log("[Firebase Admin] init (default app) ใช้เวลา", Date.now() - t0, "ms");
-      return adminApp;
-    } catch {
-      console.error("[Firebase Admin] Invalid GOOGLE_SERVICE_ACCOUNT_KEY_BASE64");
-      return null;
-    }
-  }
+  
   try {
     const t0 = Date.now();
-    adminApp = initializeApp({ projectId: process.env.GCLOUD_PROJECT || "jaihan-assistant" });
+    adminApp = initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || "my-office-713" });
     console.log("[Firebase Admin] init (default credentials) ใช้เวลา", Date.now() - t0, "ms");
     return adminApp;
   } catch (e) {
@@ -61,29 +49,17 @@ function getDatabaseApp(): App | null {
     || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL?.trim()
   );
   if (!dbUrl) return null;
-  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
-  if (b64) {
-    try {
-      const t0 = Date.now();
-      const json = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
-      databaseApp = initializeApp(
-        { credential: cert(json), databaseURL: dbUrl },
-        REALTIME_DB_APP_NAME
-      );
-      console.log("[Firebase Admin] init (realtime-db app) ใช้เวลา", Date.now() - t0, "ms");
-      return databaseApp;
-    } catch (e) {
-      console.error("[Firebase Admin] Realtime DB app init failed:", e);
-      return null;
-    }
-  }
+  
   try {
+    const t0 = Date.now();
     databaseApp = initializeApp(
-      { projectId: process.env.GCLOUD_PROJECT || "jaihan-assistant", databaseURL: dbUrl },
+      { projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || "my-office-713", databaseURL: dbUrl },
       REALTIME_DB_APP_NAME
     );
+    console.log("[Firebase Admin] init (realtime-db app) ใช้เวลา", Date.now() - t0, "ms");
     return databaseApp;
-  } catch {
+  } catch (e) {
+    console.error("[Firebase Admin] Realtime DB app init failed:", e);
     return null;
   }
 }

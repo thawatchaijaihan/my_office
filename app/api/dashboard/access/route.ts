@@ -12,11 +12,14 @@ import {
 
 export const runtime = "nodejs";
 
-const APPROVER_EMAIL = (process.env.NEXT_PUBLIC_DASHBOARD_APPROVER_EMAIL ?? "").trim().toLowerCase();
+const ALLOWED_ADMINS = (process.env.NEXT_PUBLIC_ALLOWED_ADMIN_EMAILS ?? "")
+  .split(",")
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
 
 function isApprover(email: string | undefined | null): boolean {
-  if (!APPROVER_EMAIL) return false;
-  return (email ?? "").trim().toLowerCase() === APPROVER_EMAIL;
+  if (ALLOWED_ADMINS.length === 0) return false;
+  return ALLOWED_ADMINS.includes((email ?? "").trim().toLowerCase());
 }
 
 /** ตรวจว่า request นี้มาจาก approver (อีเมลตรงกับที่กำหนด) เท่านั้น */
