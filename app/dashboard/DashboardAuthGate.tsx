@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -130,6 +130,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 </svg>
               </button>
               <h1 className="flex-1 text-xl sm:text-2xl font-bold text-slate-700">{pageTitle}</h1>
+              {pathname === "/dashboard" && (
+                <a
+                  href="/carpass.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition"
+                >
+                  รายงาน ฝขว.ฟล.ป.
+                </a>
+              )}
             </header>
             <div className="min-h-0 flex-1 overflow-auto">{children}</div>
           </>
