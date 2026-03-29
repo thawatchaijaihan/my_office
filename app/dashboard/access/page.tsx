@@ -29,15 +29,12 @@ export default function AccessPage() {
     setLoading(true);
     setError(null);
     dashboardFetch("/api/dashboard/access")
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
-          const msg =
-            res.status === 401
-              ? "กรุณาเข้าสู่ระบบ"
-              : res.status === 403
-                ? "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น"
-                : "โหลดไม่สำเร็จ";
-          throw new Error(msg);
+          const text = await res.text();
+          let errData;
+          try { errData = JSON.parse(text); } catch {}
+          throw new Error(errData?.error || `โหลดไม่สำเร็จ: ${res.status} ${text.slice(0, 100)}`);
         }
         return res.json();
       })
@@ -64,7 +61,12 @@ export default function AccessPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid }),
           });
-      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
+      if (!res.ok) {
+        const text = await res.text();
+        let errData;
+        try { errData = JSON.parse(text); } catch {}
+        throw new Error(errData?.error || "ดำเนินการไม่สำเร็จ");
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
@@ -80,7 +82,12 @@ export default function AccessPage() {
         ? `/api/dashboard/access?email=${encodeURIComponent(email)}`
         : `/api/dashboard/access?uid=${encodeURIComponent(uid)}`;
       const res = await dashboardFetch(url, { method: "DELETE" });
-      if (!res.ok) throw new Error("ดำเนินการไม่สำเร็จ");
+      if (!res.ok) {
+        const text = await res.text();
+        let errData;
+        try { errData = JSON.parse(text); } catch {}
+        throw new Error(errData?.error || "ดำเนินการไม่สำเร็จ");
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");

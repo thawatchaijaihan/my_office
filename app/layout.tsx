@@ -12,7 +12,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Jaihan Assistant",
-  description: "Telegram Bot AI powered by Gemini",
+  description: "Jaihan Assistant - ระบบจัดการงานออฟฟิศอัจฉริยะ",
 };
 
 export default function RootLayout({
@@ -25,12 +25,9 @@ export default function RootLayout({
       <body
         className="antialiased min-h-screen bg-slate-50 text-slate-900 font-sans"
         style={{ fontFamily: "var(--font-poppins), sans-serif", backgroundColor: "#f8fafc", color: "#0f172a" }}
+        suppressHydrationWarning
       >
         {children}
-        <Script
-          src="https://telegram.org/js/telegram-web-app.js"
-          strategy="lazyOnload"
-        />
       </body>
     </html>
   );

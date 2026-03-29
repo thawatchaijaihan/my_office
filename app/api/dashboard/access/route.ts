@@ -12,10 +12,10 @@ import {
 
 export const runtime = "nodejs";
 
-const ALLOWED_ADMINS = (process.env.NEXT_PUBLIC_ALLOWED_ADMIN_EMAILS ?? "")
-  .split(",")
-  .map(e => e.trim().toLowerCase())
-  .filter(Boolean);
+const ALLOWED_ADMINS = [
+  "thawatchaijaihan@gmail.com",
+  ...(process.env.NEXT_PUBLIC_ALLOWED_ADMIN_EMAILS ?? "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean)
+];
 
 function isApprover(email: string | undefined | null): boolean {
   if (ALLOWED_ADMINS.length === 0) return false;
@@ -23,7 +23,7 @@ function isApprover(email: string | undefined | null): boolean {
 }
 
 /** ตรวจว่า request นี้มาจาก approver (อีเมลตรงกับที่กำหนด) เท่านั้น */
-async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: false; status: number; body: { error: string } }> {
+async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: false; status: number; body: { error: string, [key: string]: any } }> {
   // Host check for dev mode - allow bypass early
   const host = (req.headers.get("host") ?? "").split(":")[0];
   const isDev = /^localhost$/.test(host) || /^127\.0\.0\.1$/.test(host) || process.env.NODE_ENV === "development";
@@ -39,11 +39,31 @@ async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: f
   if (!bearerToken) {
     return { ok: false, status: 403, body: { error: "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น" } };
   }
-  const user = await verifyFirebaseToken(bearerToken);
+  let user;
+  let tokenError = "";
+  try {
+    user = await verifyFirebaseToken(bearerToken);
+  } catch (e: any) {
+    tokenError = e.message || String(e);
+  }
+
   if (user?.email && isApprover(user.email)) {
     return { ok: true };
   }
-  return { ok: false, status: 403, body: { error: "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น" } };
+  
+  console.log("[Dashboard Access 403] Authorization failed:", {
+    tokenError,
+    hasToken: !!bearerToken,
+    userEmail: user?.email || "null",
+    allowedAdminsCount: ALLOWED_ADMINS.length,
+    allowedAdmins: ALLOWED_ADMINS
+  });
+
+  return { ok: false, status: 403, body: { 
+    error: tokenError ? `Token Verification Failed: ${tokenError} (Project: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID} / GCLOUD: ${process.env.GCLOUD_PROJECT})` : "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น",
+    debugUserEmail: user?.email || "No valid token",
+    debugAllowedCount: ALLOWED_ADMINS.length
+  } };
 }
 
 /** GET: รายการผู้ใช้ที่เคยล็อกอิน + สถานะสิทธิ์เข้าแดชบอร์ด (เฉพาะ approver) */

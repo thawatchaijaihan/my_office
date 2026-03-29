@@ -36,7 +36,11 @@ export function useDashboardAuth(): AuthState {
 export function DashboardAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const skipAuth = isDashboardSkipAuth();
+  const [skipAuth, setSkipAuth] = useState(false);
+
+  useEffect(() => {
+    setSkipAuth(isDashboardSkipAuth());
+  }, []);
 
   useEffect(() => {
     if (skipAuth || !isFirebaseAuthEnabled()) {
