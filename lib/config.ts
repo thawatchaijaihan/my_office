@@ -14,7 +14,6 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s && s !== "NONE"),
-    /** URL แดชบอร์ด Web App (สำหรับปุ่มเปิดใน Telegram) */
     dashboardUrl: getEnv("TELEGRAM_DASHBOARD_URL"),
   },
   admin: {

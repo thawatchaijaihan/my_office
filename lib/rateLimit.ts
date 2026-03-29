@@ -4,7 +4,6 @@
  */
 
 const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 120; // Telegram can send many events per delivery
 
 const store = new Map<string, number[]>();
 
@@ -20,6 +19,7 @@ export function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   let timestamps = store.get(ip) ?? [];
   timestamps = prune(now, timestamps);
+  const MAX_REQUESTS_PER_WINDOW = 120;
   if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
     return false;
   }

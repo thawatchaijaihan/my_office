@@ -89,13 +89,6 @@ export function usePdfReport(cameraItems?: CameraWithCheck[]): UsePdfReportRetur
   }, []);
 
   const openPdf = useCallback((url: string) => {
-    const telegramWebApp = (window as any).Telegram?.WebApp;
-    if (telegramWebApp?.openLink) {
-      telegramWebApp.openLink(url, { try_instant_view: false });
-      return;
-    }
-    
-    // Fallback
     const link = document.createElement("a");
     link.href = url;
     link.target = "_blank";
