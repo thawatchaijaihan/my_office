@@ -34,6 +34,11 @@ export default function AccessPage() {
           const text = await res.text();
           let errData;
           try { errData = JSON.parse(text); } catch {}
+          
+          if (errData?.debug) {
+            // Keep numerical debug info for display
+            throw new Error(`DEBUG_INFO: ${JSON.stringify(errData, null, 2)}`);
+          }
           throw new Error(errData?.error || `โหลดไม่สำเร็จ: ${res.status} ${text.slice(0, 100)}`);
         }
         return res.json();
@@ -154,7 +159,19 @@ export default function AccessPage() {
 
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 mb-6">
-          {error}
+          <p className="font-semibold mb-2">{error.includes("{") ? "เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์:" : error}</p>
+          {error.includes("{") && (
+            <pre className="mt-2 p-2 bg-red-100 rounded text-xs overflow-auto font-mono whitespace-pre-wrap">
+              {(() => {
+                try {
+                  const data = JSON.parse(error.substring(error.indexOf("{")));
+                  return JSON.stringify(data, null, 2);
+                } catch {
+                  return error;
+                }
+              })()}
+            </pre>
+          )}
         </div>
       )}
 

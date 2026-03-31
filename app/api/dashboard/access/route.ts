@@ -61,8 +61,12 @@ async function requireApprover(req: NextRequest): Promise<{ ok: true } | { ok: f
 
   return { ok: false, status: 403, body: { 
     error: tokenError ? `Token Verification Failed: ${tokenError} (Project: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID} / GCLOUD: ${process.env.GCLOUD_PROJECT})` : "เฉพาะผู้มีสิทธิ์อนุมัติเท่านั้น",
-    debugUserEmail: user?.email || "No valid token",
-    debugAllowedCount: ALLOWED_ADMINS.length
+    debug: {
+      userEmail: user?.email || "No email in token",
+      allowedAdmins: ALLOWED_ADMINS,
+      allowedCount: ALLOWED_ADMINS.length,
+      projectIdInEnv: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    }
   } };
 }
 

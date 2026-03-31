@@ -89,8 +89,8 @@ function ChartsRoot(props: ChartsRootProps) {
                   </li>
                 </ul>
                 </div>
-                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center min-w-[120px] min-h-[120px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                  <ResponsiveContainer width={140} height={140}>
                     <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
                         data={paymentPieData}
@@ -144,8 +144,8 @@ function ChartsRoot(props: ChartsRootProps) {
                   ))}
                 </ul>
                 </div>
-                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center min-w-[120px] min-h-[120px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
+                  <ResponsiveContainer width={140} height={140}>
                     <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <Pie
                         data={approvalPieData}

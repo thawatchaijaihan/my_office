@@ -1,5 +1,5 @@
 {
-  "name": "jaihan-assistant-linebot",
+  "name": "jaihan-office-dashboard",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^7.9.4",
-    "@google/generative-ai": "^0.21.0",
     "@googlemaps/markerclusterer": "^2.6.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.11",

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -99,7 +99,7 @@ export default function BillingCard({
         </div>
 
         <div className="shrink-0 ml-auto w-[120px] sm:w-[140px] h-[120px] sm:h-[140px] overflow-hidden relative flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width={140} height={140}>
             <PieChart margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
               <Pie
                 data={serviceChartData}

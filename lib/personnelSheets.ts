@@ -7,8 +7,8 @@ import { config } from "./config";
 import type { PersonnelDoc } from "./personnelDb";
 import { personnelKeyByNameOnly } from "./personnelDb";
 
-const PERSONNEL_TAB = "ข้อมูลกำลังพล";
-const PHONE_TAB = "เบอร์โทร";
+const PERSONNEL_TAB = "personnel";
+const PHONE_TAB = "dashboard";
 
 function getCell(row: string[], idx: number): string {
   return (row[idx] ?? "").trim();
@@ -18,9 +18,19 @@ function getCell(row: string[], idx: number): string {
  * Get sheet name from gid by fetching spreadsheet metadata
  */
 async function getSheetNameByGid(spreadsheetId: string, gid: number): Promise<string | null> {
-  const tabs = await listSpreadsheetTabs({ spreadsheetId });
-  const tab = tabs.find((t) => t.gid === gid);
-  return tab?.title ?? null;
+  try {
+    const tabs = await listSpreadsheetTabs({ spreadsheetId });
+    const tab = tabs.find((t) => t.gid === gid);
+    if (!tab) {
+      console.warn(`[personnelSheets] GID ${gid} not found in spreadsheet ${spreadsheetId}`);
+      return null;
+    }
+    console.log(`[personnelSheets] Resolved GID ${gid} to tab name: "${tab.title}"`);
+    return tab.title;
+  } catch (e) {
+    console.error(`[personnelSheets] Error fetching tab name for GID ${gid}:`, e);
+    return null;
+  }
 }
 
 /**
@@ -29,7 +39,7 @@ async function getSheetNameByGid(spreadsheetId: string, gid: number): Promise<st
  * H=ปฏิบัติหน้าที่, I=ตำแหน่งบรรจุ, J=เหล่า, K=กำเนิด, L=วันเกิด, M=วันขึ้นทะเบียน,
  * N=วันที่บรรจุ, O=วันที่ครองยศ, P=เงินเดือน(ปัจจุบัน), Q=อายุ, R=ปีเกษียณ
  */
-async function readPersonnelList(spreadsheetId: string, personnelGid?: number): Promise<Omit<PersonnelDoc, "phone" | "updatedAt">[]> {
+async function readPersonnelList(spreadsheetId: string, personnelGid?: number): Promise<Omit<PersonnelDoc, "updatedAt">[]> {
   let sheetName = PERSONNEL_TAB;
   if (personnelGid) {
     const name = await getSheetNameByGid(spreadsheetId, personnelGid);
@@ -37,7 +47,8 @@ async function readPersonnelList(spreadsheetId: string, personnelGid?: number): 
   }
   
   const values = await readValues({ spreadsheetId, range: `'${sheetName}'!A:R` });
-  const rows: Omit<PersonnelDoc, "phone" | "updatedAt">[] = [];
+  console.log(`[personnelSheets] Read ${values.length} rows from tab: "${sheetName}"`);
+  const rows: Omit<PersonnelDoc, "updatedAt">[] = [];
   const headerLike = /^(ยศ|ชื่อ|สกุล|rank|name)$/i;
   let start = 0;
   if (
@@ -56,21 +67,22 @@ async function readPersonnelList(spreadsheetId: string, personnelGid?: number): 
       rank,
       firstName,
       lastName,
-      bank: getCell(r, 3),
-      accountNumber: getCell(r, 4),
-      citizenId: getCell(r, 5),
-      militaryId: getCell(r, 6),
-      duty: getCell(r, 7),
-      position: getCell(r, 8),
-      unit: getCell(r, 9),
-      birthplace: getCell(r, 10),
-      birthDate: getCell(r, 11),
-      registeredDate: getCell(r, 12),
-      enlistmentDate: getCell(r, 13),
-      rankDate: getCell(r, 14),
-      salary: getCell(r, 15),
-      age: getCell(r, 16),
-      retireYear: getCell(r, 17),
+      phone: getCell(r, 3),            // [3] เบอร์โทร
+      bank: getCell(r, 4),             // [4] ธนาคาร
+      accountNumber: getCell(r, 5),    // [5] เลขบัญชี
+      citizenId: getCell(r, 6),        // [6] เลขประชาชน
+      militaryId: getCell(r, 7),       // [7] เลขทหาร
+      duty: getCell(r, 8),             // [8] ปฏิบัติหน้าที่
+      position: getCell(r, 9),         // [9] ตำแหน่งบรรจุ
+      unit: getCell(r, 10),            // [10] เหล่า
+      birthplace: getCell(r, 11),      // [11] กำเนิด
+      birthDate: getCell(r, 12),       // [12] วันเกิด
+      registeredDate: getCell(r, 13),  // [13] วันขึ้นทะเบียน
+      enlistmentDate: getCell(r, 14),  // [14] วันบรรจุ
+      rankDate: getCell(r, 15),        // [15] วันครองยศ
+      salary: getCell(r, 16),          // [16] เงินเดือน
+      age: getCell(r, 17),             // [17] อายุ
+      retireYear: getCell(r, 18),      // [18] ปีเกษียณ
     });
   }
   return rows;
@@ -106,27 +118,29 @@ async function readPhoneNumbers(spreadsheetId: string, phoneGid?: number): Promi
   const headerRow = values[0]!;
   let startRow = 1;
   
-  // Check if first row is header (contains keywords)
-  const headerKeywords = /^(ชื่อ|นามสกุล|เบอร์|phone|mobile|name|surname)$/i;
-  const hasHeader = headerKeywords.test(headerRow.join(" "));
-  if (!hasHeader) {
-    startRow = 0;
-  }
-
   // Find column indices - try to find name and phone columns
   let nameCol = -1;
   let surnameCol = -1;
   let phoneCol = -1;
 
   for (let i = 0; i < headerRow.length; i++) {
-    const h = headerRow[i]?.toLowerCase() ?? "";
-    if (h.includes("ชื่อ") || h === "name" || h === "firstname") {
+    const h = (headerRow[i] ?? "").toLowerCase().trim();
+    if (!h) continue;
+
+    if (h === "ชื่อ" || h === "name" || h === "firstname") {
       if (nameCol === -1) nameCol = i;
-    } else if (h.includes("นามสกุล") || h === "surname" || h === "lastname" || h === "สกุล") {
-      surnameCol = i;
+    } else if (h.includes("นามสกุล") || h.includes("สกุล") || h === "surname" || h === "lastname") {
+      if (surnameCol === -1) surnameCol = i;
     } else if (h.includes("เบอร์") || h.includes("โทร") || h === "phone" || h === "mobile") {
-      phoneCol = i;
+      if (phoneCol === -1) phoneCol = i;
     }
+  }
+
+  // Fallback map specifically for 'dashboard' tab structure if headers are weird
+  if (sheetName === "dashboard") {
+    if (nameCol === -1) nameCol = 2;    // C
+    if (surnameCol === -1) surnameCol = 3; // D
+    if (phoneCol === -1) phoneCol = 10;   // K
   }
 
   // If can't find by header, guess: A=name, B=surname, C=phone
@@ -178,7 +192,8 @@ export async function loadAndMergePersonnel(): Promise<PersonnelDoc[]> {
 
   const docs: PersonnelDoc[] = list.map((person) => {
     const matchKey = personnelKeyByNameOnly(person.firstName, person.lastName);
-    const phone = phoneMap.get(matchKey) ?? "";
+    // Prefer phone from personnel list, fallback to phone tab map
+    const phone = person.phone || phoneMap.get(matchKey) || "";
     return {
       ...person,
       phone,

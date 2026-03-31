@@ -1,6 +1,10 @@
 {
   "hosting": {
     "source": ".",
+    "region": "asia-southeast1",
+    "frameworksBackend": {
+      "memory": "1GiB"
+    },
     "rewrites": [
       {
         "source": "/carpass",

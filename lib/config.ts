@@ -8,14 +8,7 @@ function getEnv(key: string): string {
 }
 
 export const config = {
-  telegram: {
-    botToken: getEnv("TELEGRAM_BOT_TOKEN"),
-    adminUserIds: (process.env.ADMIN_TELEGRAM_USER_IDS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s && s !== "NONE"),
-    dashboardUrl: getEnv("TELEGRAM_DASHBOARD_URL"),
-  },
+// Telegram settings removed
   admin: {
     apiKey: getEnv("ADMIN_API_KEY"),
     /** โฮสต์ที่เข้าแดชบอร์ดได้โดยไม่ต้องใส่ key (คั่นด้วย comma) เช่น โฮสต์จาก app hosting */
@@ -55,10 +48,7 @@ export const config = {
       ? Number(process.env.PERSONNEL_SHEET_GID.trim())
       : undefined,
   },
-  gemini: {
-    apiKey: getEnv("GEMINI_API_KEY"),
-    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
-  },
+// Gemini settings removed
   rag: {
     /** path เทียบกับ project root เช่น content/knowledge.md ถ้าว่างหรือ "inline" ใช้เนื้อหาใน code */
     knowledgePath: getEnv("RAG_KNOWLEDGE_PATH") || "content/knowledge.md",

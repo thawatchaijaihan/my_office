@@ -232,7 +232,7 @@ export default function PersonnelPage() {
 
       {filtered.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
-          {rows.length === 0 ? "ยังไม่มีข้อมูลกำลังพล (ซิงก์จาก Sheets → Firestore ก่อน)" : "ไม่พบรายการที่ตรงกับคำค้น"}
+          {rows.length === 0 ? "ไม่พบข้อมูลกำลังพลใน Google Sheets (กรุณาตรวจสอบการตั้งค่า Sheet ID)" : "ไม่พบรายการที่ตรงกับคำค้น"}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
