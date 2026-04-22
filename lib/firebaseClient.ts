@@ -39,7 +39,7 @@ export function getFirebaseAuth(): Auth | null {
 }
 
 export function isFirebaseAuthEnabled(): boolean {
-  return !!getFirebaseConfig();
+  return !isDashboardSkipAuth() && !!getFirebaseConfig();
 }
 
 /** โหมด dev: ไม่ต้องล็อกอินเข้าแดชบอร์ด (รัน npm run dev = ข้ามล็อกอินโดยอัตโนมัติ, ตั้ง false ถ้าอยากทดสอบล็อกอิน) */

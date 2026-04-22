@@ -1,8 +1,8 @@
 import * as admin from "firebase-admin";
 
 admin.initializeApp({
-  databaseURL: "https://jaihan-assistant.asia-southeast1.firebasedatabase.app",
-  storageBucket: "jaihan-assistant.firebasestorage.app"
+  databaseURL: "https://my-office-713-default-rtdb.asia-southeast1.firebasedatabase.app",
+  storageBucket: "my-office-713.firebasestorage.app"
 });
 
 // Import cleanup functions

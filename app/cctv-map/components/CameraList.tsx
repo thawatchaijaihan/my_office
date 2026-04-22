@@ -14,6 +14,7 @@ type CameraListProps = {
   onEdit: (camera: CameraWithCheck) => void;
   onMove: (id: string) => void;
   onDelete: (camera: CameraWithCheck) => void;
+  onClearHistory: (camera: CameraWithCheck) => void;
   onUploadImage: (camera: CameraWithCheck, file: File) => void;
   onToggleImage: (id: string) => void;
 };
@@ -28,6 +29,7 @@ export default function CameraList({
   onEdit,
   onMove,
   onDelete,
+  onClearHistory,
   onUploadImage,
   onToggleImage,
 }: CameraListProps) {
@@ -52,6 +54,7 @@ export default function CameraList({
           onEdit={onEdit}
           onMove={onMove}
           onDelete={onDelete}
+          onClearHistory={onClearHistory}
           onUploadImage={onUploadImage}
           onToggleImage={onToggleImage}
         />

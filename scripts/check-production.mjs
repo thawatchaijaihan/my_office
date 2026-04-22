@@ -40,15 +40,15 @@ async function main() {
 
   console.log("--- เช็ก production (ใช้ .env.local) ---\n");
 
-  const expectedUrl = "https://jaihan-assistant.asia-southeast1.firebasedatabase.app";
+  const expectedUrl = "https://my-office-713-default-rtdb.asia-southeast1.firebasedatabase.app";
   if (!dbUrl) {
     console.log("FIREBASE_DATABASE_URL: ไม่ได้ตั้ง → บน production ต้อง set secret firebaseDatabaseUrl");
   } else if (dbUrl !== expectedUrl) {
-    console.log("FIREBASE_DATABASE_URL: ไม่ตรงกับ DB asia-southeast1 (jaihan-assistant)");
+    console.log("FIREBASE_DATABASE_URL: ไม่ตรงกับ DB asia-southeast1 (my-office-713)");
     console.log("  ควรเป็น:", expectedUrl);
     console.log("  ค่าปัจจุบัน:", dbUrl);
   } else {
-    console.log("FIREBASE_DATABASE_URL: ตรงกับ jaihan-assistant (asia-southeast1)");
+    console.log("FIREBASE_DATABASE_URL: ตรงกับ my-office-713 (asia-southeast1)");
   }
 
   if (!b64) {

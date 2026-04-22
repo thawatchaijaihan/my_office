@@ -1,11 +1,11 @@
 "use client";
 
-import { get, onValue, ref, set, update } from "firebase/database";
+import { get, onValue, ref, set, update, type Database } from "firebase/database";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import initialCamerasData from "../data/cctv-cameras-backup.json";
 import { Camera, CameraType, CameraWithCheck } from "../data/types";
-import { database } from "../lib/firebase";
+import { getClientDatabase } from "../lib/firebase";
 import { typeOptions } from "../components/FilterPanel";
 
 const defaultType = typeOptions[0];
@@ -13,6 +13,29 @@ const defaultType = typeOptions[0];
 const logDbWarning = (action: string, error: unknown) => {
     console.warn(`[CCTV] ${action} failed:`, error);
 };
+
+const toCameraList = (data: Record<string, Omit<CameraWithCheck, "id"> | CameraWithCheck>) => {
+    const list = Object.entries(data).map(([id, value]) => ({
+        ...value,
+        id,
+        lastCheckedImage:
+            typeof value.lastCheckedImage === "string" &&
+                value.lastCheckedImage.startsWith("data:image")
+                ? undefined
+                : value.lastCheckedImage,
+        status: value.status ?? "online",
+        type: typeOptions.includes(value.type as CameraType)
+            ? (value.type as CameraType)
+            : defaultType,
+    }));
+
+    list.sort((a, b) => a.name.localeCompare(b.name, "th"));
+    return list;
+};
+
+const backupCameraItems = toCameraList(
+    initialCamerasData as Record<string, Omit<CameraWithCheck, "id">>,
+);
 
 type UseCameraDataOptions = {
     searchTerm: string;
@@ -26,6 +49,7 @@ export function useCameraData({ searchTerm, activeTypes }: UseCameraDataOptions)
 
     // Load from localStorage + subscribe to Firebase
     useEffect(() => {
+        let hasCachedCameras = false;
         if (typeof window !== "undefined") {
             const cached = window.localStorage.getItem("cctv:cameras");
             if (cached) {
@@ -33,11 +57,24 @@ export function useCameraData({ searchTerm, activeTypes }: UseCameraDataOptions)
                     const parsed = JSON.parse(cached) as CameraWithCheck[];
                     if (Array.isArray(parsed)) {
                         setCameraItems(parsed);
+                        hasCachedCameras = true;
                     }
                 } catch {
                     window.localStorage.removeItem("cctv:cameras");
                 }
             }
+        }
+
+        if (!hasCachedCameras) {
+            setCameraItems(backupCameraItems);
+        }
+
+        let database: Database;
+        try {
+            database = getClientDatabase();
+        } catch (error) {
+            logDbWarning("initialize firebase database", error);
+            return;
         }
 
         const camerasRef = ref(database, "cameras");
@@ -72,22 +109,7 @@ export function useCameraData({ searchTerm, activeTypes }: UseCameraDataOptions)
                 }
                 hasCleanedBase64.current = true;
             }
-            const list = data
-                ? Object.entries(data).map(([id, value]) => ({
-                    ...value,
-                    id,
-                    lastCheckedImage:
-                        typeof value.lastCheckedImage === "string" &&
-                            value.lastCheckedImage.startsWith("data:image")
-                            ? undefined
-                            : value.lastCheckedImage,
-                    status: value.status ?? "online",
-                    type: typeOptions.includes(value.type as CameraType)
-                        ? (value.type as CameraType)
-                        : defaultType,
-                }))
-                : [];
-            list.sort((a, b) => a.name.localeCompare(b.name));
+            const list = data ? toCameraList(data) : backupCameraItems;
             setCameraItems(list);
             if (typeof window !== "undefined") {
                 window.localStorage.setItem("cctv:cameras", JSON.stringify(list));
@@ -129,7 +151,13 @@ export function useCameraData({ searchTerm, activeTypes }: UseCameraDataOptions)
 
     const updateCamera = useCallback(
         (id: string, updates: Partial<CameraWithCheck>) => {
-            return update(ref(database, `cameras/${id}`), updates);
+            try {
+                const database = getClientDatabase();
+                return update(ref(database, `cameras/${id}`), updates);
+            } catch (error) {
+                logDbWarning("update camera", error);
+                return Promise.reject(error);
+            }
         },
         [],
     );

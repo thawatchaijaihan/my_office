@@ -8,6 +8,7 @@ out/
 # Environment
 .env
 .env.local
+.env.my-office-713
 .env.development.local
 .env.test.local
 .env.production.local
@@ -25,6 +26,7 @@ tools/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+firebase-debug.log*
 
 # IDE
 .idea/

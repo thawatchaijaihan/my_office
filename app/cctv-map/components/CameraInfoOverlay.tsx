@@ -5,7 +5,7 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "f
 import { useRef } from "react";
 
 import { CameraWithCheck } from "../data/types";
-import { storage } from "../lib/firebase";
+import { getClientStorage } from "../lib/firebase";
 import { compressImage } from "../utils/compressImage";
 
 type CameraInfoOverlayProps = {
@@ -26,6 +26,7 @@ export default function CameraInfoOverlay({
   const overlayContainerRef = useRef<HTMLDivElement | null>(null);
   const overlayImageInputRef = useRef<HTMLInputElement | null>(null);
   const overlayUploadCameraRef = useRef<CameraWithCheck | null>(null);
+  const isOffline = camera.status === "offline";
 
   return (
     <OverlayViewF
@@ -69,7 +70,9 @@ export default function CameraInfoOverlay({
             <div className="font-semibold text-zinc-900">
               {camera.type}
             </div>
-            {isCheckedInCurrentHalf(camera) ? (
+            {isOffline ? (
+              <div className="font-bold text-zinc-600">ออฟไลน์</div>
+            ) : isCheckedInCurrentHalf(camera) ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -121,6 +124,7 @@ export default function CameraInfoOverlay({
                     compressImage(file)
                       .then(async (result) => {
                         const imagePath = `camera-checks/${cam.id}/latest.jpg`;
+                        const storage = getClientStorage();
                         try {
                           if (cam.lastCheckedImagePath) {
                             await deleteObject(

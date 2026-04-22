@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
-import { getFirebaseAuth, isFirebaseAuthEnabled } from "@/lib/firebaseClient";
+import { getFirebaseAuth, isDashboardSkipAuth, isFirebaseAuthEnabled } from "@/lib/firebaseClient";
 
 const API_URL = "/api/search";
 
@@ -33,6 +33,8 @@ export default function UserLandingPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("ไม่พบข้อมูล");
+  const [errorMessage, setErrorMessage] = useState("กรุณาตรวจสอบเบอร์โทรของคุณอีกครั้ง");
   const [isInIframe, setIsInIframe] = useState(false);
   const [pwModalOpen, setPwModalOpen] = useState(false);
   const [pwModalUrl, setPwModalUrl] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export default function UserLandingPage() {
 
   const handleAdminLogin = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isDashboardSkipAuth()) {
+      router.push("/dashboard");
+      return;
+    }
+
     if (isFirebaseAuthEnabled()) {
       const auth = getFirebaseAuth();
       if (!auth) return;
@@ -90,19 +97,50 @@ export default function UserLandingPage() {
     e.preventDefault();
     setLoading(true);
     setError(false);
+    setErrorTitle("ไม่พบข้อมูล");
+    setErrorMessage("กรุณาตรวจสอบเบอร์โทรของคุณอีกครั้ง");
     setResults([]);
 
     try {
-      const response = await fetch(`${API_URL}?q=${encodeURIComponent(searchPhone)}`);
-      const data = await response.json();
+      const params = new URLSearchParams();
+      if (searchPhone.trim()) {
+        params.set("q", searchPhone.trim());
+      }
+      if (searchName.trim()) {
+        params.set("name", searchName.trim());
+      }
+
+      const response = await fetch(`${API_URL}?${params.toString()}`);
+      const raw = await response.text();
+      let data: { results?: SearchResult[]; error?: string; message?: string } = {};
+
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error("ระบบค้นหาส่งข้อมูลกลับมาไม่สมบูรณ์");
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `ค้นหาไม่สำเร็จ (${response.status})`);
+      }
 
       if (data.results && data.results.length > 0) {
         setResults(data.results);
       } else {
+        setErrorTitle("ไม่พบข้อมูล");
+        setErrorMessage("กรุณาตรวจสอบเบอร์โทรหรือชื่อ-สกุลของคุณอีกครั้ง");
         setError(true);
       }
     } catch (err) {
       console.error("Search Error:", err);
+      setErrorTitle("ค้นหาไม่สำเร็จ");
+      setErrorMessage(
+        err instanceof Error && err.message
+          ? err.message
+          : "ระบบค้นหาขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"
+      );
       setError(true);
     } finally {
       setLoading(false);
@@ -267,6 +305,8 @@ export default function UserLandingPage() {
               setView("home");
               setResults([]);
               setError(false);
+              setErrorTitle("ไม่พบข้อมูล");
+              setErrorMessage("กรุณาตรวจสอบเบอร์โทรของคุณอีกครั้ง");
             }}
             className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 font-medium flex items-center gap-2 mb-4 transition-colors"
           >
@@ -330,8 +370,8 @@ export default function UserLandingPage() {
 
             {error && (
               <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
-                <p className="font-medium">ไม่พบข้อมูล</p>
-                <p className="text-sm">กรุณาตรวจสอบเบอร์โทรของคุณอีกครั้ง</p>
+                <p className="font-medium">{errorTitle}</p>
+                <p className="text-sm">{errorMessage}</p>
               </div>
             )}
           </div>

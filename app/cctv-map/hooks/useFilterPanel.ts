@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { CameraType } from "../data/types";
+import { CameraType, MarkerMode } from "../data/types";
 import { typeOptions } from "../components/FilterPanel";
 
 const defaultType = typeOptions[0];
@@ -11,7 +11,7 @@ const LONG_PRESS_MS = 500;
 export function useFilterPanel() {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTypes, setActiveTypes] = useState<CameraType[]>([defaultType]);
-    const [markerMode, setMarkerMode] = useState<'all' | 'ok' | 'pending' | 'none'>('all');
+    const [markerMode, setMarkerMode] = useState<MarkerMode>("all");
 
     const longPressTargetRef = useRef<CameraType | null>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,7 +61,15 @@ export function useFilterPanel() {
     };
 
     const handleMarkerModeChange = () => {
-        const modes: Array<'all' | 'ok' | 'pending' | 'none'> = ['all', 'ok', 'pending', 'none'];
+        const modes: MarkerMode[] = [
+            "all",
+            "ok",
+            "pending",
+            "has-image",
+            "no-image",
+            "offline",
+            "none",
+        ];
         const currentIndex = modes.indexOf(markerMode);
         const nextMode = modes[(currentIndex + 1) % modes.length];
         setMarkerMode(nextMode);

@@ -16,6 +16,7 @@ const typeLabels: Record<CameraType, string> = {
 const statusBadge = {
   ok: "bg-green-100 text-green-800",
   missing: "bg-red-100 text-red-800",
+  offline: "bg-zinc-200 text-zinc-700",
 } as const;
 
 type CameraCardProps = {
@@ -28,6 +29,7 @@ type CameraCardProps = {
   onEdit: (camera: CameraWithCheck) => void;
   onMove: (id: string) => void;
   onDelete: (camera: CameraWithCheck) => void;
+  onClearHistory: (camera: CameraWithCheck) => void;
   onUploadImage: (camera: CameraWithCheck, file: File) => void;
   onToggleImage: (id: string) => void;
 };
@@ -111,9 +113,15 @@ function CameraCard({
   onEdit,
   onMove,
   onDelete,
+  onClearHistory,
   onUploadImage,
   onToggleImage,
 }: CameraCardProps) {
+  const isOffline = camera.status === "offline";
+  const hasHistory = Boolean(
+    camera.lastCheckedAt || camera.lastCheckedImage || camera.lastCheckedImagePath,
+  );
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -146,7 +154,11 @@ function CameraCard({
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-green-900">{camera.name}</p>
-          {isChecked ? (
+          {isOffline ? (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadge.offline}`}>
+              ออฟไลน์
+            </span>
+          ) : isChecked ? (
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadge.ok}`}>
               ใช้งานได้
             </span>
@@ -225,6 +237,24 @@ function CameraCard({
             onChange={handleFileChange}
           />
         </label>
+        {isAdminMode && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!hasHistory) return;
+              onClearHistory(camera);
+            }}
+            className={`inline-flex min-w-[96px] items-center justify-center rounded-md px-2 py-1 text-[11px] font-bold transition ${
+              hasHistory
+                ? "border border-zinc-300 bg-white text-zinc-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                : "cursor-not-allowed border border-zinc-200 bg-zinc-100 text-zinc-400"
+            }`}
+            disabled={!hasHistory}
+          >
+            ล้างประวัติ
+          </button>
+        )}
       </div>
       <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
         <span>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ref, onValue } from "firebase/database";
-import { database } from "../cctv-map/lib/firebase";
+import { ref, onValue, type Database } from "firebase/database";
+import { getClientDatabase } from "../cctv-map/lib/firebase";
 import { CameraWithCheck } from "../cctv-map/data/types";
 import { isCameraCheckedInCurrentHalf } from "../cctv-map/utils/checkUtils";
 import "./report.css";
@@ -13,6 +13,15 @@ export default function CctvReportPage() {
   const [displayMode, setDisplayMode] = useState<"all" | "functional">("all");
 
   useEffect(() => {
+    let database: Database;
+    try {
+      database = getClientDatabase();
+    } catch (error) {
+      console.warn("[CCTV Report] initialize firebase database failed:", error);
+      setLoading(false);
+      return;
+    }
+
     const camerasRef = ref(database, "cameras");
     const unsubscribe = onValue(camerasRef, (snapshot) => {
       const data = snapshot.val();

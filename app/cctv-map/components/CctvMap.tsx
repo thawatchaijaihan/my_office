@@ -68,7 +68,15 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     filteredCameras,
     markerMode,
   });
-  const { typeCheckStatus, isCheckedInCurrentHalf, displayedCameras } = checkStatus;
+  const {
+    typeCheckStatus,
+    isCheckedInCurrentHalf,
+    isOfflineCamera,
+    isOkCamera,
+    isPendingCamera,
+    displayedCameras,
+    getMarkerFillColor,
+  } = checkStatus;
 
 
   const actions = useCameraActions({
@@ -90,6 +98,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
     confirmMoveCamera,
     cancelMoveCamera,
     handleDeleteCamera,
+    handleClearHistory,
     handleUploadImage,
     handleToggleImage,
   } = actions;
@@ -189,8 +198,9 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
 
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
             <span>จำนวน {listCameras.length} กล้อง</span>
-            <span>ใช้งานได้ {listCameras.filter((c) => isCheckedInCurrentHalf(c)).length} กล้อง</span>
-            <span>รอตรวจสอบ {listCameras.filter((c) => !isCheckedInCurrentHalf(c)).length} กล้อง</span>
+            <span>ใช้งานได้ {listCameras.filter((camera) => isOkCamera(camera)).length} กล้อง</span>
+            <span>รอตรวจสอบ {listCameras.filter((camera) => isPendingCamera(camera)).length} กล้อง</span>
+            <span>ออฟไลน์ {listCameras.filter((camera) => isOfflineCamera(camera)).length} กล้อง</span>
           </div>
 
           <CameraList
@@ -203,6 +213,7 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
             onEdit={handleEditCamera}
             onMove={handleMoveCamera}
             onDelete={handleDeleteCamera}
+            onClearHistory={handleClearHistory}
             onUploadImage={handleUploadImage}
             onToggleImage={handleToggleImage}
           />
@@ -247,12 +258,11 @@ export default function CctvMap({ isAdminMode = true }: CctvMapProps) {
                 >
                   {markerMode !== 'none' &&
                     displayedCameras.map((camera) => {
-                      const needsCheck = !isCheckedInCurrentHalf(camera);
                       const icon =
                         typeof google !== "undefined"
                           ? {
                               path: google.maps.SymbolPath.CIRCLE,
-                              fillColor: needsCheck ? "#dc2626" : "#2563eb",
+                              fillColor: getMarkerFillColor(camera),
                               fillOpacity: 1,
                               strokeColor: "#ffffff",
                               strokeWeight: 4,

@@ -5,7 +5,10 @@ export const dynamic = "force-dynamic";
 
 // Initialize BigQuery client
 function getBigQueryClient() {
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713";
+  const projectId =
+    process.env.GOOGLE_CLOUD_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    "my-office-713";
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64?.trim();
   
   if (b64) {
@@ -19,7 +22,7 @@ function getBigQueryClient() {
 
   return new BigQuery({
     projectId,
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./jaihan-assistant-90c28d13e839.json",
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./service-account.json",
   });
 }
 
@@ -57,7 +60,7 @@ export async function GET(request: NextRequest) {
         service.description AS service_name,
         SUM(cost) AS total_cost
       FROM
-        \`${process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713"}.${billingDataset}.${billingTable}\`
+        \`${process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "my-office-713"}.${billingDataset}.${billingTable}\`
       WHERE
         DATE(usage_start_time) >= '${formatDate(currentMonthStart)}'
         AND DATE(usage_start_time) <= '${formatDate(now)}'
@@ -72,7 +75,7 @@ export async function GET(request: NextRequest) {
       SELECT
         SUM(cost) AS total_cost
       FROM
-        \`${process.env.GOOGLE_CLOUD_PROJECT_ID || "gate-pass-713"}.${billingDataset}.${billingTable}\`
+        \`${process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "my-office-713"}.${billingDataset}.${billingTable}\`
       WHERE
         DATE(usage_start_time) >= '${formatDate(previousMonthStart)}'
         AND DATE(usage_start_time) <= '${formatDate(previousMonthEnd)}'

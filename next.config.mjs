@@ -2,6 +2,10 @@
 // Force reload after cache clear
 const nextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ['192.168.1.111'],
+  outputFileTracingIncludes: {
+    "/*": ["./service-account.json"],
+  },
   images: {
     remotePatterns: [
       {
@@ -12,9 +16,17 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      },
     ],
   },
   async headers() {
+    if (process.env.NODE_ENV !== "production") {
+      return [];
+    }
+
     return [
       {
         source: "/:path*",

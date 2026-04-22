@@ -1,6 +1,6 @@
 # Jaihan Office Dashboard 🏛️
 
-A modern administrative dashboard and CCTV monitoring system for office facility management. Built with Next.js 14, Firebase, and Google Sheets integration.
+A modern administrative dashboard and CCTV monitoring system for office facility management. Built with Next.js 15, Firebase, and Google Sheets integration.
 
 ## 🚀 Key Features
 
@@ -12,7 +12,7 @@ A modern administrative dashboard and CCTV monitoring system for office facility
 
 ## 🛠️ Tech Stack
 
-*   **Framework**: Next.js 14 (App Router)
+*   **Framework**: Next.js 15 (App Router)
 *   **Language**: TypeScript
 *   **Database**: Firebase Realtime Database (User preferences) & Firestore (Personnel records)
 *   **Auth**: Firebase Auth
@@ -27,6 +27,12 @@ Create a `.env` file based on `.env.example`:
 
 | Variable | Description |
 |----------|-------------|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Web API key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
+| `NEXT_PUBLIC_FIREBASE_DATABASE_URL` | Firebase Realtime Database URL |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket for CCTV check images |
 | `GOOGLE_SHEETS_ID` | Main Spreadsheet ID |
 | `PERSONNEL_SHEET_GID` | GID for the "personnel" tab |
 | `INDEX_SHEET_GID` | GID for the "dashboard/index" tab |

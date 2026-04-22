@@ -1,7 +1,9 @@
 "use client";
 
+import { MarkerMode } from "../data/types";
+
 type MapControlsProps = {
-  markerMode: 'all' | 'ok' | 'pending' | 'none';
+  markerMode: MarkerMode;
   isAdminMode: boolean;
   isAddingCamera: boolean;
   movingCameraId: string | null;
@@ -29,10 +31,25 @@ export default function MapControls({
 }: MapControlsProps) {
   const getMarkerModeLabel = () => {
     switch (markerMode) {
-      case 'all': return '🔵 ทั้งหมด';
-      case 'ok': return '✅ ใช้งานได้';
-      case 'pending': return '⚠️ รอตรวจ';
-      case 'none': return '🚫 ซ่อนหมุด';
+      case "all": return "🔵 ทั้งหมด";
+      case "ok": return "✅ ใช้งานได้";
+      case "pending": return "⚠️ รอตรวจ";
+      case "has-image": return "🖼️ มีภาพ";
+      case "no-image": return "🟥 ไม่มีภาพ";
+      case "offline": return "⚫ ออฟไลน์";
+      case "none": return "🚫 ซ่อนหมุด";
+    }
+  };
+
+  const getMarkerModeTitle = () => {
+    switch (markerMode) {
+      case "all": return "ทั้งหมด";
+      case "ok": return "ใช้งานได้";
+      case "pending": return "รอตรวจ";
+      case "has-image": return "มีภาพล่าสุด";
+      case "no-image": return "ยังไม่มีภาพ";
+      case "offline": return "ออฟไลน์";
+      case "none": return "ซ่อนหมุด";
     }
   };
 
@@ -46,7 +63,7 @@ export default function MapControls({
               type="button"
               onClick={onMarkerModeChange}
               className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-green-700 bg-green-700 text-white shadow-lg transition hover:bg-green-800"
-              title={markerMode === 'all' ? 'ทั้งหมด' : markerMode === 'ok' ? 'ใช้งานได้' : markerMode === 'pending' ? 'รอตรวจ' : 'ซ่อนหมุด'}
+              title={getMarkerModeTitle()}
             >
               {markerMode === 'all' && (
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,6 +79,23 @@ export default function MapControls({
               {markerMode === 'pending' && (
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              )}
+              {markerMode === 'has-image' && (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m7 15 3-3 2 2 4-5 3 4" />
+                </svg>
+              )}
+              {markerMode === 'no-image' && (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h12a1 1 0 011 1v8M4 6a1 1 0 00-1 1v10a1 1 0 001 1h12m-8-3 2-2 2 2m8 6L3 3" />
+                </svg>
+              )}
+              {markerMode === 'offline' && (
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 6.343a8 8 0 11-11.314 0" />
                 </svg>
               )}
               {markerMode === 'none' && (

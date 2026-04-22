@@ -1,4 +1,6 @@
 import { google } from "googleapis";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import { config } from "./config";
 import { withRetry } from "./retry";
 import { logger } from "./logger";
@@ -49,22 +51,36 @@ function logSheetsError(params: {
 
 function loadServiceAccountKey(): ServiceAccountKey {
   const b64 = config.google.serviceAccountKeyBase64;
-  if (!b64) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 is not set");
+  if (b64) {
+    let raw: string;
+    try {
+      raw = Buffer.from(b64, "base64").toString("utf8");
+    } catch {
+      throw new Error("Invalid base64 in GOOGLE_SERVICE_ACCOUNT_KEY_BASE64");
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 is not valid JSON");
+    }
+
+    return parsed as ServiceAccountKey;
   }
 
-  let raw: string;
-  try {
-    raw = Buffer.from(b64, "base64").toString("utf8");
-  } catch {
-    throw new Error("Invalid base64 in GOOGLE_SERVICE_ACCOUNT_KEY_BASE64");
+  const serviceAccountPath = join(process.cwd(), "service-account.json");
+  if (!existsSync(serviceAccountPath)) {
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 is not set and service-account.json was not found"
+    );
   }
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
   } catch {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 is not valid JSON");
+    throw new Error("service-account.json is not valid JSON");
   }
 
   return parsed as ServiceAccountKey;

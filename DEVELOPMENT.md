@@ -4,7 +4,7 @@ Project status and developer-only instructions for the Office Dashboard.
 
 ## 📌 Project Status
 
-*   **Version**: 1.0.0 (Post-Refactor)
+*   **Version**: 1.0.0 (Post-Refactor, Next.js 15)
 *   **Status**: Stable. Telegram and Gemini AI components have been permanently removed.
 *   **Main Focus**: Administrative dashboard for gate-pass management and CCTV map visualization.
 
@@ -44,9 +44,9 @@ npm run test
 
 ## 🏗️ Deployment (Production)
 
-Deployment is via **Firebase App Hosting**. 
+Deployment is via **Firebase App Hosting**.
 -   **Build Profile**: Uses `npm run build`.
 -   **Secrets**: All sensitive variables are stored in Google Cloud Secret Manager and mapped via `apphosting.yaml`.
 
 ---
-*Last Updated: 2026-03-31*
+*Last Updated: 2026-04-20*

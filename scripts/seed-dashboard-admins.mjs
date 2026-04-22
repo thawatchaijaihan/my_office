@@ -56,9 +56,9 @@ async function main() {
     process.exit(1);
   }
 
-  const expectedUrl = "https://jaihan-assistant.asia-southeast1.firebasedatabase.app";
+  const expectedUrl = "https://my-office-713-default-rtdb.asia-southeast1.firebasedatabase.app";
   if (dbUrl !== expectedUrl) {
-    console.error("FIREBASE_DATABASE_URL ต้องชี้ไปที่ jaihan-assistant (asia-southeast1):", expectedUrl);
+    console.error("FIREBASE_DATABASE_URL ต้องชี้ไปที่ my-office-713 (asia-southeast1):", expectedUrl);
     process.exit(1);
   }
 
